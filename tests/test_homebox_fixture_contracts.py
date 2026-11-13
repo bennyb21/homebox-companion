@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import inspect
 import subprocess
 
+import conftest
 import httpx
 import pytest
 from conftest import HOMEBOX_IMAGES, _register_with_retry, _wait_for_demo_seed
@@ -43,6 +45,48 @@ def test_supported_homebox_images_are_digest_pinned() -> None:
     )
     assert HOMEBOX_IMAGES["0.27.0"] == prefix + "d49f12caf25ce3fa7f44102bb74953f3dff2dfdad38d87bd9057f3f611e797bb"
     assert HOMEBOX_IMAGES["0.26.2"] == prefix + "b1ad7e3c63f732a5f6daa466e8116be4f545b3b120383a64dcb62beb00a660cc"
+
+
+@pytest.mark.parametrize("version", ["0.26.2", "0.27.0", "0.27.1"])
+def test_isolated_storage_survives_recreation_until_fixture_teardown(
+    monkeypatch: pytest.MonkeyPatch, version: str
+) -> None:
+    commands: list[list[str]] = []
+    ports = iter(["127.0.0.1:41001", "127.0.0.1:41002"])
+
+    def docker(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        stdout = next(ports) if command[:2] == ["docker", "port"] else "ok"
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    monkeypatch.setattr(conftest.subprocess, "run", docker)
+    monkeypatch.setattr(conftest, "_require_docker", lambda: None)
+    monkeypatch.setattr(conftest, "_wait_for_status", lambda server: None)
+    monkeypatch.setattr(conftest, "_assert_homebox_version", lambda url, expected: None)
+    fixture = inspect.unwrap(conftest.isolated_homebox_server)(version, HOMEBOX_IMAGES[version])
+    server = next(fixture)
+    try:
+        assert server.volume is not None
+        assert server.volume.startswith("homebox-isolated-data-")
+        old_url = server.base_url
+        server.restart()
+        assert server.base_url != old_url
+        runs = [command for command in commands if command[:2] == ["docker", "run"]]
+        assert len(runs) == 2
+        for command in runs:
+            assert command[command.index("-v") + 1] == f"{server.volume}:/data"
+            assert "--tmpfs" not in command
+            assert "--user" not in command  # Keep the pinned image's rootless identity and volume copy-up.
+            assert command[-1] == HOMEBOX_IMAGES[version]
+            assert "127.0.0.1::7745" in command
+        assert ["docker", "rm", "--force", server.name] in commands
+        assert not any(command[:3] == ["docker", "volume", "rm"] for command in commands)
+    finally:
+        fixture.close()
+    assert commands[-2:] == [
+        ["docker", "rm", "--force", "--volumes", server.name],
+        ["docker", "volume", "rm", "--force", server.volume],
+    ]
 
 
 def test_registration_retries_only_429_with_same_payload_and_retry_after() -> None:

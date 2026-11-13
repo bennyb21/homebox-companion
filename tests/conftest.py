@@ -588,8 +588,10 @@ def isolated_homebox_server(homebox_version: str, homebox_image: str) -> Generat
     server = HomeboxDockerServer(
         name=f"homebox-isolated-{suffix}",
         image=homebox_image,
-        volume=None if homebox_version == "0.27.1" else f"homebox-isolated-data-{suffix}",
-        docker_args=("--tmpfs", "/data:rw,uid=65532,gid=65532,mode=0700") if homebox_version == "0.27.1" else (),
+        # Docker copies /data's ownership from the pinned image into this fresh named volume
+        # (65532:65532 for rootless 0.27.1). Unlike tmpfs, it survives container recreation.
+        # Keep copy-up enabled and remove only this fixture's volume at final teardown.
+        volume=f"homebox-isolated-data-{suffix}",
         environment={
             "HBOX_DEMO": "false",
             "HBOX_MODE": "production",
