@@ -36,7 +36,14 @@ class ResearchJobs:
                 row = self.db.get(id_, owner)
                 if row is None or row["state"] != "queued":
                     self.credentials.pop(id_, None)
-                elif self.db.claim(id_, row["scope"]):
+                # Cancellation changes the persisted review state, not the
+                # lifetime of an already dispatched paid request. Keep its
+                # in-memory lease until the actual task exits (single worker).
+                elif (
+                    len(self.tasks) < 2
+                    and not any(self.credentials[active_id][2] == owner for active_id in self.tasks)
+                    and self.db.claim(id_, row["scope"])
+                ):
                     task = asyncio.create_task(self.execute(row, gateway, provider))
                     self.tasks[id_] = task
             for id_, task in list(self.tasks.items()):

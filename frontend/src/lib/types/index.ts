@@ -350,6 +350,8 @@ export interface CreatedItem {
 
 /** Response from batch item creation */
 export interface BatchCreateResponse {
+	/** Per-input write certainty; never infer rejection from an empty created list. */
+	outcomes?: Array<{ index: number; status: 'created' | 'rejected' | 'unknown_write' }>;
 	/** Successfully created items */
 	created: CreatedItem[];
 	/** Error messages for items that failed to create */

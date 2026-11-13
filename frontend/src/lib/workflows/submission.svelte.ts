@@ -249,6 +249,14 @@ export class SubmissionService {
 			);
 
 			// Check for backend errors (207 Multi-Status partial failure)
+			if (response.outcomes?.some((outcome) => outcome.status === 'unknown_write')) {
+				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
+				return {
+					status: 'partial_success',
+					error:
+						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.',
+				};
+			}
 			if (response.errors && response.errors.length > 0) {
 				// If we have both created items and errors, it's a partial success
 				// For single-item submission, if there's an error, the item failed
@@ -364,8 +372,12 @@ export class SubmissionService {
 			} else {
 				// No created items and no errors - unexpected state
 				log.error(`No items created for ${confirmedItem.name} and no error reported`);
-				this.itemStatuses = { ...this.itemStatuses, [index]: 'failed' };
-				return { status: 'failed', error: 'Item creation failed - no items returned' };
+				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
+				return {
+					status: 'partial_success',
+					error:
+						'Creation is unconfirmed - no items returned. Check Homebox before creating again.',
+				};
 			}
 		} catch (error) {
 			const createdId = this.createdItemIds.get(index);
@@ -380,7 +392,10 @@ export class SubmissionService {
 			}
 			if (
 				error instanceof Error &&
-				['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name)
+				(['AbortError', 'NetworkError', 'TimeoutError', 'TypeError', 'SyntaxError'].includes(
+					error.name
+				) ||
+					(error instanceof ApiError && error.status >= 500))
 			) {
 				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 				return {

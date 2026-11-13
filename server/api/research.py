@@ -23,6 +23,7 @@ NATIVE_FIELDS = {
     "part_number": {"part number", "part number (oem)", "teilenummer"},
     "model_number": {"model number", "modellnummer"},
     "specifications": {"specifications", "technical specifications", "technische daten"},
+    "vehicle_family": {"fahrzeugzuordnung", "vehicle family"},
 }
 
 
@@ -120,14 +121,16 @@ async def lookup(body: Lookup, request: Request, gateway: Gateway):
     reviews = records(request)
     if len(reviews) >= 100 or sum(r["scope"] == owner for r in reviews.values()) >= 10:
         raise HTTPException(429, "Research review limit reached; retry after expiry")
-    profile = await gateway.get_capture_profile(str(body.entity_type_id), str(body.template_id))
-    # Validate template before a paid call, even when no result will match.
-    from homebox_companion.research import ResearchResult
-
-    proposals(ResearchResult(status="no_results"), profile, body.current_values)
+    # No await between admission and reservation: concurrent preflight must
+    # consume capacity too. The finally/error path releases unsuccessful work.
     id_ = str(uuid4())
     reviews[id_] = {"scope": owner, "expires": time.monotonic() + 900, "pending": True}
     try:
+        profile = await gateway.get_capture_profile(str(body.entity_type_id), str(body.template_id))
+        # Validate template before a paid call, even when no result will match.
+        from homebox_companion.research import ResearchResult
+
+        proposals(ResearchResult(status="no_results"), profile, body.current_values)
         result = await p.research(body.identity)
         mapped = proposals(result, profile, body.current_values)
         reviews[id_] = {

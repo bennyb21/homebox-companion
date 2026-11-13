@@ -17,13 +17,13 @@ There is one provider: LiteLLM SDK `aresponses` directly to `https://api.openai.
 
 ## Review workflow
 
-Open **Product research** in capture review. The number and optional manufacturer are prefilled where known. Confirm whether the exact identifier is a part number or model number; serial numbers are not accepted as an identifier kind. Manufacturer can remain unknown. Keep punctuation/suffixes unchanged. This first version accepts a single identifier without whitespace; it rejects URL/control-character input rather than silently repairing it.
+Open **Product research** in capture review. The number and optional manufacturer are prefilled where known. Confirm whether the exact identifier is a part number or model number; serial numbers are not accepted as an identifier kind. Manufacturer can remain unknown. Keep punctuation/suffixes unchanged. This version preserves bounded embedded spaces literally (for example `A 000 123 45 67`); it rejects leading/trailing whitespace, URL/control-character input rather than silently repairing it.
 
 Only public identity is sent to the provider: no item IDs, collection/account IDs, location, notes, purchase price, serial field, images or inventory description. Input cannot guarantee that a person never pastes private information into a product field; review it before confirming.
 
 Provider annotations and completed search actions are required. Claimed JSON URLs alone are insufficient. Similar suffixes and manufacturer collisions yield ambiguity, not adopted facts. Citations identify **model synthesis**, not independently fetched/verified source quotations. There are no vehicle fitment, VIN or safety guarantees. Model output cannot target purchase price or arbitrary fields.
 
-Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
+Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is a sourced family/model assignment only, not VIN-, engine-, model-year-specific compatibility or installation approval. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
 
 ## Saved-item background jobs
 

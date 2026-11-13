@@ -20,6 +20,10 @@ export async function uploadPhoto(page: Page) {
 export async function analyzePhotos(page: Page) {
 	await page.getByRole('button', { name: /Analyze with AI/ }).click();
 	await expect(page).toHaveURL(/\/review$/);
+	// SvelteKit commits the URL before the lazy review editor is mounted.
+	// Wait for that UI boundary using the normal action budget; value assertions
+	// must not spend their assertion budget waiting for route initialization.
+	await page.getByLabel('Name', { exact: true }).waitFor({ state: 'visible' });
 }
 
 export async function confirmItems(page: Page, count: number) {
