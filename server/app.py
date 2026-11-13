@@ -309,6 +309,8 @@ async def lifespan(app: FastAPI):
 
     # Cleanup
     logger.info("Shutting down Homebox Companion API")
+    if hasattr(app.state, "research_jobs"):
+        await app.state.research_jobs.close()
 
     # Reset holders (executor and session store don't need async cleanup)
     tool_executor_holder.reset()

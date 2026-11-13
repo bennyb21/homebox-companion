@@ -106,6 +106,25 @@ def test_claim_cannot_change_confirmed_identity():
     assert parse(data).status == "failed"
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Guaranteed fits VIN ABC123",
+        "Vehicle fitment guaranteed",
+        "Seriennummer S-123",
+        "Montagefreigabe für alle Fahrzeuge",
+    ],
+)
+def test_fit_guarantees_and_serial_claims_are_not_proposals(value):
+    data = response()
+    content = data["output"][2]["content"][0]
+    payload = json.loads(content["text"])
+    payload["candidates"][0]["claims"][0]["value"] = value
+    content["text"] = json.dumps(payload, ensure_ascii=False)
+    content["annotations"][0]["end_index"] = len(content["text"])
+    assert parse(data).status == "failed"
+
+
 def test_cited_exact_identity_creates_reviewable_synthesis_not_fake_quote():
     result = parse(response())
     assert result.status == "matched"

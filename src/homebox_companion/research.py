@@ -28,8 +28,8 @@ class ProductIdentity(BaseModel):
     @field_validator("identifier_exact")
     @classmethod
     def identifier(cls, value: str) -> str:
-        if " " in value or not any(c.isdigit() for c in value):
-            raise ValueError("Identifier must contain a digit and no spaces")
+        if " " in value:
+            raise ValueError("Identifier must contain no spaces")
         return value
 
 
@@ -134,6 +134,12 @@ def parse_response(data: dict, identity: ProductIdentity) -> ResearchResult:
             ):
                 return failed
             for claim in candidate.claims:
+                if re.search(
+                    r"\b(vin|fitment|fits|guarantee\w*|garant\w*|seriennummer|serial|montagefreigabe|fahrgestell\w*)\b",
+                    claim.value,
+                    re.IGNORECASE,
+                ):
+                    return failed
                 if not set(claim.source_urls) <= sources.keys():
                     return failed
                 if not any(claim.value in text for url in claim.source_urls for text in cited_text[url]):
@@ -259,7 +265,7 @@ class OpenAIResponsesResearchProvider:
                     num_retries=0,
                     max_retries=0,
                 )
-            if not hasattr(response, "model_dump"):
+            if not isinstance(response, BaseModel):
                 return ResearchResult(status="failed")
             return parse_response(response.model_dump(), identity)
         except Exception:

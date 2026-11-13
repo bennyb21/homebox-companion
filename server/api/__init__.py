@@ -17,6 +17,7 @@ from .logs import router as logs_router
 from .mcp import router as mcp_router
 from .qr import router as qr_router
 from .research import router as research_router
+from .research_jobs import router as research_jobs_router
 from .tags import router as tags_router
 from .tools.vision import router as vision_router
 
@@ -40,6 +41,7 @@ api_router.include_router(logs_router, tags=["logs"])
 api_router.include_router(mcp_router, tags=["mcp"])
 api_router.include_router(qr_router, tags=["qr"])
 api_router.include_router(research_router, tags=["research"])
+api_router.include_router(research_jobs_router, tags=["research"])
 api_router.include_router(vision_router, prefix="/tools/vision", tags=["vision"])
 
 __all__ = ["api_router"]

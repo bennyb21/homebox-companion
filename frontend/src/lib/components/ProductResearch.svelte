@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { request } from '$lib/api/client';
+	import Button from '$lib/components/Button.svelte';
+	import { createUuidV4 } from '$lib/utils/uuid';
 	import type { DeepReadonly, ReviewItem } from '$lib/types';
 	let {
 		item,
@@ -77,7 +80,7 @@
 		selected = [];
 		message = '';
 		base = snapshot();
-		revision = crypto.randomUUID();
+		revision = createUuidV4();
 		const active = new AbortController();
 		controller = active;
 		try {
@@ -157,8 +160,9 @@
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations, not application routes -->
 <div class="space-y-3">
-	<button type="button" onclick={open}>Product research</button>
+	<Button variant="secondary" size="sm" type="button" onclick={open}>Product research</Button>
 	{#if opened}
+		<a href={resolve('/research')}>Research saved items and review background jobs</a>
 		<p>
 			Optional paid product research. No automatic inventory changes. Never enter serial numbers or
 			personal notes.
@@ -169,25 +173,41 @@
 		{#if !item.template_id}<p>
 				Select a supported native text template to adopt research fields.
 			</p>{/if}
-		<label>Manufacturer (optional)<input bind:value={manufacturer} maxlength="80" /></label>
+		<label class="block text-body-sm text-neutral-200"
+			>Manufacturer (optional)<input
+				class="input mt-2"
+				bind:value={manufacturer}
+				maxlength="80"
+			/></label
+		>
 		<label
-			>Identifier kind<select bind:value={kind}
+			>Identifier kind<select class="input mt-2" bind:value={kind}
 				><option value="part_number">Part number</option><option value="model_number"
 					>Model number</option
 				></select
 			></label
 		>
-		<label>Exact part/model number<input bind:value={identifier} maxlength="120" /></label>
+		<label class="block text-body-sm text-neutral-200"
+			>Exact part/model number<input
+				class="input mt-2"
+				bind:value={identifier}
+				maxlength="120"
+			/></label
+		>
 		<label
 			><input type="checkbox" bind:checked={confirmed} />I confirm this is a public part/model
 			number, not a serial number</label
 		>
-		<button
+		<Button
+			variant="secondary"
+			size="sm"
 			type="button"
 			disabled={!enabled || !confirmed || !identifier || !item.template_id || busy}
-			onclick={lookup}>Research this product</button
+			onclick={lookup}>Research this product</Button
 		>
-		{#if busy}<button type="button" onclick={cancel}>Cancel research</button>{/if}
+		{#if busy}<Button variant="secondary" size="sm" type="button" onclick={cancel}
+				>Cancel research</Button
+			>{/if}
 		<p role="status">{message}</p>
 		{#if review}
 			{#each review.result.sources as source (source.url)}<a
@@ -209,8 +229,12 @@
 						>{/each}
 				</div>
 			{/each}
-			<button type="button" disabled={!selected.length || busy} onclick={adopt}
-				>Adopt selected fields</button
+			<Button
+				variant="secondary"
+				size="sm"
+				type="button"
+				disabled={!selected.length || busy}
+				onclick={adopt}>Adopt selected fields</Button
 			>
 		{/if}
 	{/if}

@@ -121,6 +121,11 @@ def test_research_settings_roundtrip_is_explicit_and_default_off():
     assert restored.research_profile_name == "dedicated"
 
 
+def test_literal_alphabetic_part_identifier_is_not_repaired():
+    identity = ProductIdentity(identifier_kind="part_number", identifier_exact="ABC-X", identity_confirmed=True)
+    assert identity.identifier_exact == "ABC-X"
+
+
 def test_research_requires_explicit_enable_and_optional_manufacturer():
     assert importlib.util.find_spec("homebox_companion.research") is not None
     from homebox_companion.research import ProductIdentity, ResearchPolicy

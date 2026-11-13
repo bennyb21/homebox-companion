@@ -13,7 +13,7 @@ from server.dependencies import get_verified_gateway
 
 TYPE = "00000000-0000-4000-8000-000000000010"
 TEMPLATE = "00000000-0000-4000-8000-000000000020"
-BODY = {
+BODY: dict = {
     "draft_id": "draft-1",
     "revision": "rev-1",
     "entity_type_id": TYPE,
@@ -69,6 +69,60 @@ async def test_rejected_lookup_never_calls_provider(harness, mode):
         result = await client.post("/api/research/lookups", json=BODY)
     assert result.status_code == expected
     app.state.research_provider.research.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_durable_job_api_explicit_apply_readback_and_idempotency(harness, tmp_path):
+    import asyncio
+    from copy import deepcopy
+
+    app, gateway = harness
+    app.state.research_db_path = tmp_path / "research.sqlite3"
+    current = {
+        "id": "item1",
+        "name": "Synthetic",
+        "entityType": {"id": TYPE},
+        "fields": [{"id": "native1", "name": "Specifications", "type": "text", "textValue": ""}],
+        "purchasePrice": 42,
+        "tags": [],
+    }
+    gateway.get_current_user = AsyncMock(return_value={"id": "user1"})
+    gateway.get_item = AsyncMock(side_effect=lambda _: deepcopy(current))
+
+    async def update(_, payload):
+        current.update(payload)
+        return deepcopy(current)
+
+    gateway.update_item = AsyncMock(side_effect=update)
+    body = {"item_id": "item1", "identity": BODY["identity"], "idempotency_key": "same-key"}
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://test") as client:
+            created = await client.post("/api/research/jobs", json=body)
+            assert created.status_code == 202, created.text
+            id_ = created.json()["id"]
+            again = await client.post("/api/research/jobs", json=body)
+            assert again.json()["id"] == id_
+            conflict = await client.post(
+                "/api/research/jobs", json=body | {"identity": BODY["identity"] | {"identifier_exact": "OTHER-1"}}
+            )
+            assert conflict.status_code == 409
+            for _ in range(100):
+                result = await client.get(f"/api/research/jobs/{id_}")
+                if result.json()["state"] == "matched":
+                    break
+                await asyncio.sleep(0.01)
+            assert result.json()["state"] == "matched", result.text
+            gateway.update_item.assert_not_awaited()
+            applied = await client.post(f"/api/research/jobs/{id_}/apply", json={"selected": [0]})
+            assert applied.status_code == 200, applied.text
+            assert (await gateway.get_item("item1"))["fields"][0]["textValue"] == "Steel"
+            assert current["fields"][0]["id"] == "native1"
+            assert current["purchasePrice"] == 42
+            assert (await client.post(f"/api/research/jobs/{id_}/apply", json={"selected": [0]})).status_code == 409
+            app.state.research_provider.research.assert_awaited_once()
+    finally:
+        if hasattr(app.state, "research_jobs"):
+            await app.state.research_jobs.close()
 
 
 @pytest.mark.asyncio

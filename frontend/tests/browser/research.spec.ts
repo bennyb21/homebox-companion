@@ -7,6 +7,7 @@ test('optional part-number-only research requires explicit field adoption', asyn
 	page,
 	api,
 }) => {
+	await page.addInitScript(() => Object.defineProperty(crypto, 'randomUUID', { value: undefined }));
 	api.on('POST', '/api/tools/vision/detect', () =>
 		json({
 			...detectedItems(['Part']),
