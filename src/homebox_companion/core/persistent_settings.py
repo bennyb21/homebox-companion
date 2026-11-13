@@ -177,6 +177,8 @@ class PersistentSettings(BaseModel):
     """
 
     version: int = CURRENT_VERSION
+    research_enabled: bool = False
+    research_profile_name: str | None = None
     llm_profiles: list[ModelProfile] = Field(default_factory=list)
     field_preferences: dict[str, str | None] = Field(default_factory=dict)
     custom_fields: list[CustomFieldDefinition] = Field(default_factory=list)
@@ -215,6 +217,8 @@ def _settings_to_yaml_dict(settings: PersistentSettings) -> dict:
 
     return {
         "version": settings.version,
+        "research_enabled": settings.research_enabled,
+        "research_profile_name": settings.research_profile_name,
         "llm_profiles": profiles,
         "field_preferences": settings.field_preferences,
         "custom_fields": [{"name": cf.name, "ai_instruction": cf.ai_instruction} for cf in settings.custom_fields],
@@ -248,6 +252,8 @@ def _yaml_dict_to_settings(data: dict) -> PersistentSettings:
 
     return PersistentSettings(
         version=data.get("version", CURRENT_VERSION),
+        research_enabled=data.get("research_enabled", False),
+        research_profile_name=data.get("research_profile_name"),
         llm_profiles=profiles,
         field_preferences=field_prefs,
         custom_fields=custom_fields,
