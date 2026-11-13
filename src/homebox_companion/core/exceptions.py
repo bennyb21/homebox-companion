@@ -97,6 +97,14 @@ class HomeboxTimeoutError(HomeboxCompanionError):
 # =============================================================================
 
 
+class CaptureProfileError(HomeboxCompanionError):
+    """An explicit native capture selection is invalid or no longer available."""
+
+    status_code = 400
+    error_code = "CAPTURE_PROFILE_INVALID"
+    log_level: LogLevel = "warning"
+
+
 class HomeboxAPIError(HomeboxCompanionError):
     """Homebox returned an error response (5xx, unexpected 4xx)."""
 

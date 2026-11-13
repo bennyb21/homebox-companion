@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from .auth import router as auth_router
+from .capture_profiles import router as capture_profiles_router
 from .chat import router as chat_router
 from .config import router as config_router
 from .custom_fields import router as custom_fields_router
@@ -23,6 +24,7 @@ api_router = APIRouter(prefix="/api")
 
 # Include all sub-routers
 api_router.include_router(auth_router, tags=["auth"])
+api_router.include_router(capture_profiles_router, tags=["capture-profiles"])
 api_router.include_router(chat_router, tags=["chat"])
 api_router.include_router(config_router, tags=["config"])
 api_router.include_router(custom_fields_router, tags=["settings"])

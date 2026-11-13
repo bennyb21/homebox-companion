@@ -20,6 +20,7 @@ from homebox_companion.homebox.asset_id import normalize_asset_id
 
 from ..core.config import settings
 from ..core.exceptions import (
+    CaptureProfileError,
     HomeboxAPIError,
     HomeboxAuthError,
     HomeboxConnectionError,
@@ -543,6 +544,58 @@ class HomeboxClient:
         )
         self._ensure_success(response, "List entity types")
         return response.json()
+
+    async def list_templates(self, token: str) -> list[dict[str, Any]]:
+        """Read templates in the current credential/collection scope, uncached."""
+        response = await self.client.get(f"{self.base_url}/templates", headers=self._auth_headers(token))
+        self._ensure_success(response, "List templates")
+        return response.json()
+
+    async def get_template(self, token: str, template_id: str) -> dict[str, Any]:
+        """Read a native template without discarding typed defaults or metadata."""
+        from uuid import UUID
+
+        UUID(template_id)
+        response = await self.client.get(f"{self.base_url}/templates/{template_id}", headers=self._auth_headers(token))
+        self._ensure_success(response, "Get template")
+        return response.json()
+
+    async def get_capture_profile(
+        self, token: str, entity_type_id: str, template_id: str | None = None
+    ) -> dict[str, Any]:
+        """Validate an explicit selection against fresh, scoped native metadata.
+
+        Deliberately bypass the legacy fallback cache: no stored profile can
+        outlive a credential/collection change or a template edit. An explicit
+        template reference must still be the selected type's native default.
+        """
+        from uuid import UUID
+
+        UUID(entity_type_id)
+        if template_id is not None:
+            UUID(template_id)
+        entity_type = next(
+            (
+                entry
+                for entry in await self.list_entity_types(token)
+                if entry["id"] == entity_type_id and entry.get("isLocation") is False
+            ),
+            None,
+        )
+        if entity_type is None:
+            raise CaptureProfileError("Unknown item type in the current collection")
+        default_id = entity_type.get("defaultTemplateId")
+        if template_id is not None and template_id != default_id:
+            raise CaptureProfileError("Selected template is no longer the item type's default template")
+        template = None
+        if default_id:
+            templates = await self.list_templates(token)
+            if not any(entry["id"] == default_id for entry in templates):
+                raise CaptureProfileError("Default template is unavailable in the current collection")
+            template = await self.get_template(token, default_id)
+            if template.get("id") != default_id:
+                raise CaptureProfileError("Unexpected template identity")
+        return {"entity_type": entity_type, "template": template}
 
     def _effective_group_id(self) -> str | None:
         """Return the current group ID from the factory, or None."""
