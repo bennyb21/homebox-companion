@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     # MCP extra supplies the dependencies LiteLLM currently imports for chat tools (#199).
-    "litellm[mcp]==1.108.1",
+    "litellm[mcp]==1.108.3",
     "httpx>=0.27.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -66,6 +66,7 @@ dev = [
 
 [tool.uv]
 required-version = ">=0.9.17"
+constraint-dependencies = ["filelock>=4.2.1,<5"]
 
 [tool.ruff]
 line-length = 120
