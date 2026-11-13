@@ -58,3 +58,39 @@ async def test_cancelled_dispatch_holds_capacity_until_provider_finishes(harness
     finally:
         gate.set()
         await app.state.research_jobs.close()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_tasks_retain_global_capacity_across_scopes(tmp_path):
+    from server.services.research_jobs import ResearchJobs
+
+    runner = ResearchJobs(tmp_path / "global.sqlite3")
+    gate = asyncio.Event()
+    started = []
+
+    async def execute(row, gateway, provider):
+        assert runner.db.dispatch(row["id"])
+        started.append(row["scope"])
+        await gate.wait()
+        runner.db.finish(row["id"], "matched", {})
+
+    runner.execute = execute
+    try:
+        for owner in ("a", "b"):
+            row = runner.db.enqueue(owner, "item", "first", {})
+            runner.bind(row, None, None)
+            async with asyncio.timeout(3):
+                while owner not in started:
+                    await asyncio.sleep(0.01)
+            runner.db.cancel(row["id"], owner)
+        row = runner.db.enqueue("c", "item", "third", {})
+        runner.bind(row, None, None)
+        await asyncio.sleep(0.2)
+        assert started == ["a", "b"]
+        gate.set()
+        async with asyncio.timeout(3):
+            while "c" not in started:
+                await asyncio.sleep(0.01)
+    finally:
+        gate.set()
+        await runner.close()
