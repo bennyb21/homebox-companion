@@ -36,7 +36,11 @@ class _FakeClock:
 
 def test_supported_homebox_images_are_digest_pinned() -> None:
     prefix = "ghcr.io/sysadminsmedia/homebox@sha256:"
-    assert set(HOMEBOX_IMAGES) == {"0.27.0", "0.26.2"}
+    assert set(HOMEBOX_IMAGES) == {"0.27.0", "0.26.2", "0.27.1"}
+    assert HOMEBOX_IMAGES["0.27.1"] == (
+        "ghcr.io/sysadminsmedia/homebox:0.27.1-rootless@sha256:"
+        "0d90e0ea77f582e774e0345892e2daac285c58b612dc380670a86f0648482978"
+    )
     assert HOMEBOX_IMAGES["0.27.0"] == prefix + "d49f12caf25ce3fa7f44102bb74953f3dff2dfdad38d87bd9057f3f611e797bb"
     assert HOMEBOX_IMAGES["0.26.2"] == prefix + "b1ad7e3c63f732a5f6daa466e8116be4f545b3b120383a64dcb62beb00a660cc"
 

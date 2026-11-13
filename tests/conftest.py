@@ -65,6 +65,10 @@ def _configure_loguru_for_tests():
 # ---------------------------------------------------------------------------
 
 HOMEBOX_IMAGES = {
+    "0.27.1": (
+        "ghcr.io/sysadminsmedia/homebox:0.27.1-rootless@sha256:"
+        "0d90e0ea77f582e774e0345892e2daac285c58b612dc380670a86f0648482978"
+    ),
     "0.27.0": "ghcr.io/sysadminsmedia/homebox@sha256:d49f12caf25ce3fa7f44102bb74953f3dff2dfdad38d87bd9057f3f611e797bb",
     "0.26.2": "ghcr.io/sysadminsmedia/homebox@sha256:b1ad7e3c63f732a5f6daa466e8116be4f545b3b120383a64dcb62beb00a660cc",
 }
@@ -583,7 +587,8 @@ def isolated_homebox_server(homebox_version: str, homebox_image: str) -> Generat
     server = HomeboxDockerServer(
         name=f"homebox-isolated-{suffix}",
         image=homebox_image,
-        volume=f"homebox-isolated-data-{suffix}",
+        volume=None if homebox_version == "0.27.1" else f"homebox-isolated-data-{suffix}",
+        docker_args=("--tmpfs", "/data:rw,uid=65532,gid=65532,mode=0700") if homebox_version == "0.27.1" else (),
         environment={
             "HBOX_DEMO": "false",
             "HBOX_MODE": "production",
