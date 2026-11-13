@@ -26,8 +26,13 @@ visibility, or a successful anonymous public pull. None is implied by this code.
 Before enabling publication, an administrator must:
 
 1. Publish/review the corresponding source and configure branch protection.
-2. Create **garage-test** and **garage-stable** GitHub environments, with required
-   reviewers, restricted trusted branches/tags, no self-approval and no bypass.
+2. Create **garage-test** and **garage-stable** GitHub environments with the owner
+   `bennyb21` as a required reviewer and restrict deployment to trusted branches/tags.
+   For this personal fork, the owner explicitly chose a **single-account manual
+   approval** policy: self-review is allowed, but administrator bypass is disabled.
+   Approval must follow successful required checks and inspection of the tested
+   artifact identity. Candidate publication, stable promotion and production
+   deployment remain separate decisions; no automatic stable/production approval.
    Merely naming an environment in YAML does NOT activate protection rules.
 3. Confirm Actions/package permission and quota (including 90-day image artifact
    storage). Under the owner profile → Packages → `homebox-companion` → Package
