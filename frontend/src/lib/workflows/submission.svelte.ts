@@ -220,6 +220,8 @@ export class SubmissionService {
 
 		try {
 			const itemInput: ItemInput = {
+				entity_type_id: confirmedItem.entity_type_id,
+				template_id: confirmedItem.template_id,
 				name: confirmedItem.name,
 				quantity: confirmedItem.quantity,
 				description: confirmedItem.description,

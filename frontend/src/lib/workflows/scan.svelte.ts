@@ -344,7 +344,12 @@ class ScanWorkflow {
 	/** Update image options (separateItems, extraInstructions, assetId) */
 	updateImageOptions(
 		index: number,
-		options: Partial<Pick<CapturedImage, 'separateItems' | 'extraInstructions' | 'assetId'>>
+		options: Partial<
+			Pick<
+				CapturedImage,
+				'separateItems' | 'extraInstructions' | 'assetId' | 'entity_type_id' | 'template_id'
+			>
+		>
 	): void {
 		this.captureService.updateImageOptions(index, options);
 	}

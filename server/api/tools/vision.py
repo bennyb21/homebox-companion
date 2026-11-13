@@ -77,6 +77,8 @@ async def detect_items(
     image: Annotated[UploadFile, File(description="Primary image file to analyze")],
     ctx: Annotated[VisionContext, Depends(get_vision_context)],
     api_key: Annotated[str, Depends(require_llm_configured)],
+    entity_type_id: Annotated[str | None, Form()] = None,
+    template_id: Annotated[str | None, Form()] = None,
     single_item: Annotated[bool, Form()] = False,
     extra_instructions: Annotated[str | None, Form()] = None,
     extract_extended_fields: Annotated[bool, Form()] = True,
@@ -95,6 +97,22 @@ async def detect_items(
         extract_extended_fields: If True, also extract extended fields.
         additional_images: Optional additional images for the same item(s).
     """
+    from homebox_companion.homebox.capture_profiles import template_text_fields, template_vision_fields
+
+    profile = None
+    defaults: dict[str, str] = {}
+    if template_id is not None and entity_type_id is None:
+        raise HTTPException(status_code=400, detail="A template requires an explicit item type")
+    if entity_type_id is not None:
+        try:
+            profile = await ctx.gateway.get_capture_profile(entity_type_id, template_id)
+            template = profile["template"]
+            ctx.custom_fields = template_vision_fields(template)
+            defaults = {field["name"]: field.get("textValue", "") for field in template_text_fields(template)}
+            template_id = template["id"] if template else None
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     additional_count = len(additional_images) if additional_images else 0
     logger.info(f"Detecting items from image: {image.filename} (+ {additional_count} additional)")
     logger.info(f"Single item mode: {single_item}, Extra instructions: {extra_instructions}")
@@ -167,7 +185,11 @@ async def detect_items(
             purchase_price=item.purchase_price,
             purchase_from=item.purchase_from,
             notes=item.notes,
-            custom_fields=get_custom_fields_dict(item, ctx.custom_fields),
+            custom_fields={**defaults, **(get_custom_fields_dict(item, ctx.custom_fields) or {})}
+            if profile
+            else get_custom_fields_dict(item, ctx.custom_fields),
+            entity_type_id=entity_type_id,
+            template_id=template_id,
         )
         for item in detected
     ]

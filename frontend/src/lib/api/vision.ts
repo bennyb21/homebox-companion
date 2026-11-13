@@ -15,6 +15,8 @@ import type {
 } from '../types';
 
 export interface DetectOptions {
+	entityTypeId?: string | null;
+	templateId?: string | null;
 	singleItem?: boolean;
 	extraInstructions?: string;
 	extractExtendedFields?: boolean;
@@ -69,6 +71,8 @@ export const vision = {
 		const formData = new FormData();
 		formData.append('image', image);
 
+		if (options.entityTypeId) formData.append('entity_type_id', options.entityTypeId);
+		if (options.templateId) formData.append('template_id', options.templateId);
 		if (options.singleItem !== undefined) {
 			formData.append('single_item', String(options.singleItem));
 		}

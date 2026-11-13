@@ -104,6 +104,9 @@ class CaptureProfileError(HomeboxCompanionError):
     error_code = "CAPTURE_PROFILE_INVALID"
     log_level: LogLevel = "warning"
 
+    def __init__(self, message: str):
+        super().__init__(message, user_message=message)
+
 
 class HomeboxAPIError(HomeboxCompanionError):
     """Homebox returned an error response (5xx, unexpected 4xx)."""

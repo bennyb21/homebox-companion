@@ -16,6 +16,7 @@
 	import { getConfig } from '$lib/api/settings';
 	import { validateCaptureImage } from '$lib/utils/validateCaptureImage';
 	import { captureSessionScope } from '$lib/services/scanPersistence';
+	import CaptureProfileSelector from '$lib/components/CaptureProfileSelector.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AppContainer from '$lib/components/AppContainer.svelte';
 	import StepIndicator from '$lib/components/StepIndicator.svelte';
@@ -707,6 +708,12 @@
 								class="mt-0 space-y-3 border-t border-neutral-800 px-3 pb-3 pt-0"
 								transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
 							>
+								<CaptureProfileSelector
+									value={image.entity_type_id}
+									disabled={isAnalyzing}
+									onChange={(entity_type_id, template_id) =>
+										workflow.updateImageOptions(index, { entity_type_id, template_id })}
+								/>
 								<!-- Separate into multiple items toggle -->
 								<label class="flex cursor-pointer items-center gap-3 pt-3">
 									<div class="relative">

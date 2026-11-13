@@ -1014,12 +1014,9 @@ class HomeboxClient:
             profile = await self.get_capture_profile(token, item.entity_type_id, item.template_id)
             template = profile["template"]
             if template:
-                fields = template.get("fields", [])
-                if any(field.get("type") != "text" for field in fields):
-                    raise CaptureProfileError("Unsupported template: only text fields are supported")
-                names = [field["name"] for field in fields]
-                if len(set(names)) != len(names):
-                    raise CaptureProfileError("Ambiguous duplicate template field names")
+                from .capture_profiles import template_text_fields
+
+                template_text_fields(template)
                 endpoint = f"/templates/{template['id']}/create-item"
             payload["entityTypeId"] = item.entity_type_id
         else:

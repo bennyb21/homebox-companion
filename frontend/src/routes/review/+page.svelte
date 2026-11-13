@@ -11,6 +11,7 @@
 	import { routeGuards } from '$lib/utils/routeGuard';
 	import { getInitPromise } from '$lib/services/bootstrap';
 	import type { DeepReadonly, ReviewItem } from '$lib/types';
+	import CaptureProfileSelector from '$lib/components/CaptureProfileSelector.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import StepIndicator from '$lib/components/StepIndicator.svelte';
 	import ThumbnailEditor from '$lib/components/ThumbnailEditor.svelte';
@@ -426,6 +427,13 @@
 			{/if}
 
 			<div class="space-y-5 p-4">
+				{#if editedItem.entity_type_id}
+					<CaptureProfileSelector
+						value={editedItem.entity_type_id}
+						disabled
+						onChange={() => undefined}
+					/>
+				{/if}
 				<!-- Core fields: name, quantity, description -->
 				<ItemCoreFields
 					bind:name={() => editedItem!.name, (name) => workflow.updateReviewDraft({ name })}
