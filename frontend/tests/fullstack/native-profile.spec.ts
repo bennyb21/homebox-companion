@@ -7,15 +7,28 @@ test('stores a manually chosen native text profile', async ({ page }) => {
 	await selectLocation(page, 'Smoke storage');
 	await uploadSyntheticPhoto(page);
 	await page.getByRole('button', { name: 'Expand options', exact: true }).click();
-	await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({
-		label: process.env.HBC_AUTO_SMOKE === '1' ? 'Automatic suggestion' : 'Synthetic spare part',
-	});
+	if (process.env.HBC_AUTO_SMOKE === '1') {
+		await expect(page.getByRole('combobox', { name: 'Item type', exact: true })).toHaveValue(
+			'__auto__'
+		);
+	} else
+		await page
+			.getByRole('combobox', { name: 'Item type', exact: true })
+			.selectOption({ label: 'Synthetic spare part' });
 	await analyzePhotos(page);
-	await expect(page.getByRole('combobox', { name: 'Item type', exact: true })).toBeDisabled();
-	await page.getByRole('button', { name: /Custom Fields/ }).click();
+	await expect(page.getByRole('combobox', { name: 'Item type', exact: true })).toBeEnabled();
+	const customFields = page.getByRole('button', { name: /Custom Fields/ });
+	if ((await customFields.getAttribute('aria-expanded')) !== 'true') await customFields.click();
 	await expect(page.getByLabel('Part number', { exact: true })).toHaveValue('0007-SYN-A');
 	await expect(page.getByLabel('Condition', { exact: true })).toHaveValue('unknown');
 	await expect(page.getByLabel('Operator note', { exact: true })).toHaveValue('Keep this');
+	await page.getByLabel('Condition', { exact: true }).fill('manual condition');
+	await page
+		.getByRole('combobox', { name: 'Item type', exact: true })
+		.selectOption({ label: 'Synthetic alternate' });
+	await expect(page.getByLabel('New field', { exact: true })).toHaveValue('new value');
+	await expect(page.getByLabel('Condition', { exact: true })).toHaveValue('manual condition');
+	await expect(page.getByLabel('Part number', { exact: true })).toHaveValue('0007-SYN-A');
 	await page.getByLabel('Name', { exact: true }).fill('Synthetic spare part reviewed');
 	await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible();
 	await page.reload();

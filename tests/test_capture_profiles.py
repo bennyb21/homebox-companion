@@ -92,6 +92,14 @@ async def submit(gateway, *, custom_fields=None):
 
 
 @pytest.mark.asyncio
+async def test_explicit_manual_empty_value_clears_default_without_losing_siblings(gateway):
+    item = await submit(gateway, custom_fields={"Condition": ""})
+    fields = {field["name"]: field for field in item["fields"]}
+    assert fields["Condition"]["textValue"] == ""
+    assert fields["Operator note"]["textValue"] == "Keep this"
+
+
+@pytest.mark.asyncio
 async def test_control_scalar_enrichment_preserves_existing_fields(gateway):
     item = await submit(gateway)
     assert item["fields"] == EXISTING_FIELDS

@@ -173,8 +173,8 @@ async def create_items(
 
                             fields = [dict(field) for field in full_item.get("fields", [])]
                             for name, value in item_input.custom_fields.items():
-                                if not value:
-                                    continue  # No observation must not erase native defaults.
+                                # Submitted review values are explicit, including manual clearing.
+                                # Missing observations must be omitted by detection, not by saving.
                                 matches = [field for field in fields if field["name"] == name]
                                 if len(matches) > 1:
                                     raise ValueError(f"Ambiguous custom field: {name}")

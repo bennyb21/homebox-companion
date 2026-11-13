@@ -205,7 +205,10 @@ async def detect_items(
             purchase_price=item.purchase_price,
             purchase_from=item.purchase_from,
             notes=item.notes,
-            custom_fields={**defaults, **(get_custom_fields_dict(item, ctx.custom_fields) or {})}
+            custom_fields={
+                **defaults,
+                **{k: v for k, v in (get_custom_fields_dict(item, ctx.custom_fields) or {}).items() if v},
+            }
             if profile
             else get_custom_fields_dict(item, ctx.custom_fields),
             entity_type_id=entity_type_id,
@@ -247,7 +250,7 @@ async def detect_items(
                 )
                 if len(extracted) != 1:
                     raise HTTPException(400, "Cannot isolate the selected object. Capture it separately and retry.")
-                values.update(get_custom_fields_dict(extracted[0], definitions) or {})
+                values.update({k: v for k, v in (get_custom_fields_dict(extracted[0], definitions) or {}).items() if v})
             response_items.append(
                 DetectedItemResponse(
                     **item.model_dump(include=set(DetectedItemResponse.model_fields) - {"custom_fields"}),

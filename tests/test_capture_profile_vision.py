@@ -102,7 +102,9 @@ async def test_native_template_drives_detection_and_defaults(monkeypatch, field_
         definitions = kwargs["custom_fields"]
         assert [field.name for field in definitions] == ["Part number", "Condition"]
         assert "leading zeros" in definitions[0].ai_instruction
-        return get_items_adapter(definitions).validate_python([{"name": "Synthetic part", "partNumber": "0007-SYN-A"}])
+        return get_items_adapter(definitions).validate_python(
+            [{"name": "Synthetic part", "partNumber": "0007-SYN-A", "condition": ""}]
+        )
 
     detector = AsyncMock(side_effect=detect)
     monkeypatch.setattr(vision, "detect_items_from_bytes", detector)

@@ -5,10 +5,12 @@
 	let {
 		value,
 		disabled = false,
+		reviewOnly = false,
 		onChange,
 	}: {
 		value?: string | null;
 		disabled?: boolean;
+		reviewOnly?: boolean;
 		onChange: (entityTypeId: string | null, templateId: string | null) => void;
 	} = $props();
 	let profiles = $state<{ id: string; name: string; defaultTemplateId?: string | null }[]>([]);
@@ -38,11 +40,12 @@
 				return;
 			}
 			const selected = profiles.find((row) => row.id === event.currentTarget.value);
+			if (reviewOnly) event.currentTarget.value = value ?? '';
 			onChange(selected?.id ?? null, selected?.defaultTemplateId ?? null);
 		}}
 	>
-		<option value="">Default (no capture profile)</option>
-		<option value="__auto__">Automatic suggestion</option>
+		<option value="" disabled={reviewOnly}>Default (no capture profile)</option>
+		{#if !reviewOnly}<option value="__auto__">Automatic suggestion</option>{/if}
 		{#if value && value !== '__auto__' && !profiles.some((row) => row.id === value)}
 			<option {value}>Unavailable selected type — select again</option>
 		{/if}

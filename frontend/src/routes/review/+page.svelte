@@ -427,12 +427,31 @@
 			{/if}
 
 			<div class="space-y-5 p-4">
-				{#if editedItem.entity_type_id}
-					<CaptureProfileSelector
-						value={editedItem.entity_type_id}
-						disabled
-						onChange={() => undefined}
-					/>
+				<CaptureProfileSelector
+					value={editedItem.entity_type_id}
+					disabled={isProcessing}
+					reviewOnly
+					onChange={(entityTypeId) => {
+						if (!entityTypeId) return;
+						const identity = editedItem.reviewId;
+						void editor.changeProfile(
+							entityTypeId,
+							() => workflow.activeReviewDraft?.reviewId === identity,
+							() => workflow.activeReviewDraft?.custom_fields,
+							(updates) => {
+								workflow.updateReviewDraft(updates, identity);
+								showCustomFields = true;
+								showExtendedFields = false;
+								showAiCorrection = false;
+							}
+						);
+					}}
+				/>
+				{#if editedItem.entity_type_id || editedItem.template_id}
+					<p class="text-caption text-neutral-400">
+						AI correction and merge are unavailable for native profiles. Edit fields manually. Type
+						changes preserve existing fields as additional fields.
+					</p>
 				{/if}
 				<!-- Core fields: name, quantity, description -->
 				<ItemCoreFields

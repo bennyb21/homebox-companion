@@ -1,4 +1,5 @@
 import { vision } from '$lib/api/vision';
+import { request as apiRequest } from '$lib/api/client';
 import { authStore } from '$lib/stores/auth.svelte';
 import { tagStore } from '$lib/stores/tags.svelte';
 import { showToast } from '$lib/stores/ui.svelte';
@@ -35,6 +36,69 @@ export class ReviewEditor {
 		this._isProcessing = false;
 	}
 
+	async changeProfile(
+		entityTypeId: string,
+		isCurrent: () => boolean,
+		currentFields: () => Readonly<Record<string, string>> | null | undefined,
+		apply: (updates: Partial<ReviewItem>) => void
+	): Promise<boolean> {
+		if (this._isProcessing) return false;
+		const controller = new AbortController();
+		const scope = authStore.verifiedScope;
+		const connection = authStore.connection;
+		this.request = controller;
+		this._isProcessing = true;
+		const valid = () =>
+			this.request === controller &&
+			!controller.signal.aborted &&
+			isCurrent() &&
+			authStore.connection === connection &&
+			authStore.verifiedScope?.contextId === scope?.contextId &&
+			authStore.verifiedScope?.groupId === scope?.groupId;
+		try {
+			const profile = await apiRequest<{
+				entity_type: { id: string };
+				template: {
+					id: string;
+					fields: { name: string; type: string; textValue?: string }[];
+				} | null;
+			}>(`/capture-profiles/${encodeURIComponent(entityTypeId)}`, { signal: controller.signal });
+			if (!valid()) return false;
+			const fields = profile.template?.fields ?? [];
+			if (profile.entity_type.id !== entityTypeId || fields.some((field) => field.type !== 'text'))
+				throw new Error(
+					'Unsupported profile: only native text fields are supported. Draft unchanged.'
+				);
+			const defaults = Object.fromEntries(
+				fields.map((field) => [field.name, field.textValue ?? ''])
+			);
+			if (Object.keys(defaults).length !== fields.length)
+				throw new Error('Ambiguous duplicate template field names. Draft unchanged.');
+			apply({
+				entity_type_id: entityTypeId,
+				template_id: profile.template?.id ?? null,
+				custom_fields: { ...defaults, ...currentFields() },
+			});
+			showToast(
+				'Type changed. Existing values are preserved, including fields outside the new template.',
+				'info'
+			);
+			return true;
+		} catch (error) {
+			if (valid())
+				showToast(
+					error instanceof Error ? error.message : 'Could not change item type. Draft unchanged.',
+					'error'
+				);
+			return false;
+		} finally {
+			if (this.request === controller) {
+				this.request = null;
+				this._isProcessing = false;
+			}
+		}
+	}
+
 	async correct(
 		item: DeepReadonly<ReviewItem>,
 		image: File | undefined,
@@ -44,6 +108,13 @@ export class ReviewEditor {
 		currentTagIds: () => readonly string[] | null | undefined = () => item.tag_ids
 	): Promise<boolean> {
 		if (this._isProcessing) return false;
+		if (item.entity_type_id || item.template_id) {
+			showToast(
+				'AI correction is unavailable for native profiles. Edit fields manually.',
+				'warning'
+			);
+			return false;
+		}
 		if (!image) {
 			showToast('Original image not found', 'error');
 			return false;

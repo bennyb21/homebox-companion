@@ -128,6 +128,7 @@ export class MockApi {
 		this.on('GET', '/api/locations/tree', () => json([location()]));
 		this.on('GET', '/api/locations/loc-1', () => json(location()));
 		this.on('GET', '/api/locations', () => json([]));
+		this.on('GET', '/api/capture-profiles', () => json([]));
 		this.on('GET', '/api/tags', () => json([]));
 		this.on('GET', '/api/items', () => json([]));
 		this.on('GET', '/api/settings/field-preferences', () => json(fieldPreferences()));

@@ -2,6 +2,7 @@ import { type Page } from '@playwright/test';
 import { test, expect } from './fixtures/test';
 import { installApi, json } from './fixtures/api';
 import { detectedItems, createdItem, rejectedItem, incompleteItem } from './fixtures/data';
+import { readDrafts } from './helpers/recovery';
 import { seedLegacySession } from './fixtures/auth';
 import {
 	selectLocation,
@@ -93,7 +94,7 @@ test('edits and retries a single failed item with its photo', async ({ page }) =
 	await expect(page.getByRole('img', { name: 'Fixed lamp' })).toBeVisible();
 	await page.getByRole('button', { name: 'Retry Failed Items' }).click();
 
-	expect(submissions.map(({ name }) => name)).toEqual(['Bad lamp', 'Fixed lamp']);
+	await expect.poll(() => submissions.map(({ name }) => name)).toEqual(['Bad lamp', 'Fixed lamp']);
 	await expect(page).toHaveURL(/\/success$/);
 });
 
@@ -108,7 +109,9 @@ test('mixed batch retries only the corrected failure', async ({ page }) => {
 	await page.getByRole('button', { name: 'Save Changes' }).click();
 	await page.getByRole('button', { name: 'Retry Failed Items' }).click();
 
-	expect(submissions.map(({ name }) => name)).toEqual(['Good chair', 'Bad table', 'Fixed table']);
+	await expect
+		.poll(() => submissions.map(({ name }) => name))
+		.toEqual(['Good chair', 'Bad table', 'Fixed table']);
 	await expect(page).toHaveURL(/\/success$/);
 });
 
@@ -130,6 +133,13 @@ test('post-create auth failure is visible and cannot be retried as a new item', 
 		[]
 	);
 	expect(submissions).toEqual([{ name: 'Incomplete lamp' }]);
+	await expect
+		.poll(async () => (await readDrafts(page, 'deployment:user:g1'))[0])
+		.toMatchObject({
+			status: 'confirming',
+			confirmedItems: [expect.objectContaining({ name: 'Incomplete lamp' })],
+			submission: { itemStatuses: { 0: 'partial_success' } },
+		});
 });
 
 for (const reload of [false, true]) {

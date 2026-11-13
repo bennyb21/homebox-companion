@@ -255,6 +255,7 @@
 					file: validated,
 					dataUrl: previewUrl,
 					separateItems: false,
+					entity_type_id: '__auto__',
 					extraInstructions: '',
 				});
 				expandedImages.clear();

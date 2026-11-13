@@ -43,6 +43,8 @@ export interface SubmitResult {
 // =============================================================================
 
 export class SubmissionService {
+	constructor(private checkpoint: () => Promise<void> = async () => {}) {}
+
 	/** Progress of current submission operation */
 	progress = $state<Progress | null>(null);
 
@@ -217,6 +219,8 @@ export class SubmissionService {
 		const validationError = itemValidationError(confirmedItem);
 		if (validationError) return { status: 'failed', error: validationError };
 		this.itemStatuses = { ...this.itemStatuses, [index]: 'creating' };
+		// Persist the uncertain-write boundary BEFORE the POST. Recovery must not replay it.
+		await this.checkpoint();
 
 		try {
 			const itemInput: ItemInput = {
@@ -268,6 +272,8 @@ export class SubmissionService {
 				const createdItem = response.created[0];
 
 				if (createdItem?.id) {
+					this.createdItemIds.set(index, createdItem.id);
+					await this.checkpoint();
 					const uploadResult = await this.uploadAttachments(createdItem.id, confirmedItem, signal);
 
 					// If primary image failed, delete the created item and mark as failed
@@ -277,6 +283,7 @@ export class SubmissionService {
 						);
 						try {
 							await itemsApi.delete(createdItem.id, signal);
+							this.createdItemIds.delete(index);
 							log.info(`Deleted item ${createdItem.id} after image upload failure`);
 						} catch (deleteError) {
 							log.error(
@@ -361,8 +368,26 @@ export class SubmissionService {
 				return { status: 'failed', error: 'Item creation failed - no items returned' };
 			}
 		} catch (error) {
-			if (error instanceof Error && error.name === 'AbortError') {
-				throw error;
+			const createdId = this.createdItemIds.get(index);
+			if (createdId) {
+				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
+				return {
+					status: 'partial_success',
+					createdId,
+					error:
+						'Item created but follow-up was interrupted. Review the existing item in Homebox; do not recreate it.',
+				};
+			}
+			if (
+				error instanceof Error &&
+				['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name)
+			) {
+				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
+				return {
+					status: 'partial_success',
+					error:
+						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.',
+				};
 			}
 			// Check for 401 authentication error
 			if (error instanceof ApiError && error.status === 401) {
@@ -402,6 +427,12 @@ export class SubmissionService {
 			sessionExpired: false,
 			errors: [],
 		};
+
+		if (this.abortController) return result;
+		// A second submit (including recovered sessions) is a retry, never a new batch.
+		// reset() is the explicit boundary for starting a new batch.
+		if (Object.keys(this.itemStatuses).length > 0)
+			return this.retryFailed(items, locationId, parentId);
 
 		if (items.length === 0) {
 			return result;
@@ -543,6 +574,7 @@ export class SubmissionService {
 			errors: [],
 		};
 
+		if (this.abortController) return result;
 		const failedIndices = Object.entries(this.itemStatuses)
 			.filter(([_, status]) => status === 'failed')
 			.map(([index]) => parseInt(index));
@@ -717,6 +749,14 @@ export class SubmissionService {
 			this.createdItemIds.set(Number(index), id);
 		}
 		this.lastErrors = [...snapshot.lastErrors];
+		for (const [index, status] of Object.entries(this.itemStatuses)) {
+			if (status === 'creating') {
+				this.itemStatuses[Number(index)] = 'partial_success';
+				this.lastErrors.push(
+					'Creation or follow-up is unconfirmed after interruption. Check Homebox before creating again.'
+				);
+			} else if (status === 'pending') this.itemStatuses[Number(index)] = 'failed';
+		}
 	}
 
 	/** Reset all submission state */
