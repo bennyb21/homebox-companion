@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "homebox-companion"
-version = "3.2.2"
+version = "0.1.0"
 description = "AI-powered companion app for Homebox - detect and catalog household items from photos"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
@@ -37,8 +37,8 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Duelion/homebox-companion"
-Documentation = "https://github.com/Duelion/homebox-companion#readme"
+Repository = "https://github.com/bennyb21/homebox-companion"
+Documentation = "https://github.com/bennyb21/homebox-companion#readme"
 
 [project.scripts]
 homebox-companion = "server.app:run"

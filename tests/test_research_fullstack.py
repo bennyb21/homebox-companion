@@ -11,6 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 from conftest import _find_free_port
+from image_harness import start_server
 
 ROOT = Path(__file__).resolve().parents[1]
 pytestmark = pytest.mark.live
@@ -73,13 +74,7 @@ def test_research_browser_readback_and_restart(homebox_test_account, homebox_key
         log = (artifact / "research-server.log").open("w")
 
         def start():
-            process = subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), str(port), str(ROOT / "frontend/build")],
-                cwd=tmp_path,
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
+            process = start_server(Path(__file__).resolve(), port, ROOT / "frontend/build", tmp_path, env, log)
             for _ in range(150):
                 assert process.poll() is None
                 try:
@@ -125,7 +120,10 @@ def test_research_browser_readback_and_restart(homebox_test_account, homebox_key
                 resumed = client.get(f"/api/research/jobs/{job_id}")
                 resumed.raise_for_status()
                 assert resumed.json()["state"] == "applied"
-            assert (tmp_path / "dispatches.txt").read_text() == "POST\n"
+            dispatch_file = tmp_path / (
+                "data/dispatches.txt" if os.environ.get("TEST_COMPANION_IMAGE") else "dispatches.txt"
+            )
+            assert dispatch_file.read_text() == "POST\n"
             (artifact / "research-readback.json").write_text(
                 json.dumps(
                     {

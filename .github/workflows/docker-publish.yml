@@ -1,93 +1,41 @@
-name: Build and Push Docker Image
+name: Publish tested candidate
 
 on:
-  release:
-    types: [prereleased, released]
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Build only, do not push to registry (for testing ARM64 builds)"
-        required: false
-        default: false
-        type: boolean
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-publication
+  cancel-in-progress: false
 
 jobs:
-  build-and-push:
+  validate:
+    uses: ./.github/workflows/validate.yml
+  publish:
+    needs: validate
+    if: needs.validate.result == 'success'
     runs-on: ubuntu-latest
+    environment: garage-test
     permissions:
       contents: read
+      actions: read
       packages: write
-
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
-
-      - name: Verify version matches tag
-        if: github.event_name == 'release'
-        run: |
-          set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
-          TAG_VERSION="${TAG#v}"
-          PYPROJECT_VERSION=$(grep -Po '^version\s*=\s*"\K[^"]+' pyproject.toml || true)
-          if [ -z "$PYPROJECT_VERSION" ]; then
-            echo "::error::Could not parse version from pyproject.toml"
-            exit 1
-          fi
-          echo "Tag version:       $TAG_VERSION"
-          echo "pyproject version: $PYPROJECT_VERSION"
-          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
-            echo "::error::Version mismatch! Tag ($TAG_VERSION) != pyproject.toml ($PYPROJECT_VERSION). Bump pyproject.toml before tagging."
-            exit 1
-          fi
-
-      - name: Log in to Container Registry
-        if: github.event_name != 'workflow_dispatch' || inputs.dry_run != true
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Publish the image accepted by this exact run (no rebuild)
+        run: bash scripts/publish-candidate.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.release.tag_name }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
-            type=raw,value=test,enable=${{ github.event_name == 'workflow_dispatch' }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          push: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Make package public
-        if: github.event_name != 'workflow_dispatch' || inputs.dry_run != true
-        run: |
-          curl -X PATCH \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/user/packages/container/${{ github.event.repository.name }}/visibility" \
-            -d '{"visibility":"public"}' || true
-        continue-on-error: true
+          name: release-manifest
+          path: release-manifest.json
+          if-no-files-found: error
+          retention-days: 90

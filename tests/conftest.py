@@ -225,6 +225,7 @@ class HomeboxDockerServer:
     environment: dict[str, str]
     image: str
     volume: str | None = None
+    host_port: str = ""
     docker_args: tuple[str, ...] = ()
     base_url: str = field(init=False, repr=False)
 
@@ -237,7 +238,7 @@ class HomeboxDockerServer:
             self.name,
             *self.docker_args,
             "-p",
-            f"127.0.0.1::{HOMEBOX_CONTAINER_PORT}",
+            f"127.0.0.1:{self.host_port}:{HOMEBOX_CONTAINER_PORT}",
         ]
         if self.volume is not None:
             command.extend(["-v", f"{self.volume}:/data"])

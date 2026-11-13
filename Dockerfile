@@ -8,7 +8,14 @@ RUN npm run build --silent 2>/dev/null
 
 # Stage 2: Python runtime
 FROM python:3.14.10-slim@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999
+ARG VERSION=0.1.0
+ARG REVISION=unknown
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$REVISION \
+      org.opencontainers.image.source="https://github.com/bennyb21/homebox-companion" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
 WORKDIR /app
+COPY LICENSE /app/LICENSE
 
 # Install curl for health checks and uv for dependency management
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl \
@@ -19,7 +26,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48a
 
 # Create the runtime user before copying application files so dependency and
 # application layers are owned without a recursive ownership pass.
-RUN useradd --create-home --shell /bin/bash appuser \
+RUN groupadd --gid 1000 appuser && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash appuser \
     && mkdir -p /app/data/config /app/config \
     && ln -s /app/data/config/field_preferences.json /app/config/field_preferences.json \
     && chown appuser:appuser /app /app/data /app/data/config /app/config

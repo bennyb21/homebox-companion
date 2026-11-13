@@ -61,7 +61,7 @@ async def test_cancelled_dispatch_holds_capacity_until_provider_finishes(harness
 
 
 @pytest.mark.asyncio
-async def test_cancelled_tasks_retain_global_capacity_across_scopes(tmp_path):
+async def test_cancelled_tasks_retain_global_capacity_across_scopes(tmp_path, monkeypatch):
     from server.services.research_jobs import ResearchJobs
 
     runner = ResearchJobs(tmp_path / "global.sqlite3")
@@ -74,7 +74,7 @@ async def test_cancelled_tasks_retain_global_capacity_across_scopes(tmp_path):
         await gate.wait()
         runner.db.finish(row["id"], "matched", {})
 
-    runner.execute = execute
+    monkeypatch.setattr(runner, "execute", execute)
     try:
         for owner in ("a", "b"):
             row = runner.db.enqueue(owner, "item", "first", {})

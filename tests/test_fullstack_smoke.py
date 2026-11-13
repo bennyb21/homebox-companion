@@ -15,6 +15,7 @@ from pathlib import Path
 import httpx
 import pytest
 from conftest import HomeboxTestAccount, _find_free_port
+from image_harness import start_server
 
 pytestmark = pytest.mark.live
 ROOT = Path(__file__).resolve().parents[1]
@@ -189,13 +190,7 @@ def test_reviewed_photo_reaches_homebox(
         log_path = ROOT / "frontend/test-results/fullstack-server.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("w", encoding="utf-8") as log:
-            process = subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), str(port), str(build)],
-                cwd=tmp_path,
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
+            process = start_server(Path(__file__).resolve(), port, build, tmp_path, env, log)
             try:
                 deadline = time.monotonic() + 40
                 with httpx.Client(trust_env=False, timeout=2) as probe:

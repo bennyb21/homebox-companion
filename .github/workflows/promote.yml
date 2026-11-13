@@ -1,0 +1,36 @@
+name: Promote accepted digest
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: Successful Publish tested candidate run ID (pilot evidence required at approval)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-publication
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: garage-stable
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CANDIDATE_RUN: ${{ inputs.candidate_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify successful candidate and promote its exact digest
+        run: bash scripts/promote-candidate.sh
