@@ -7,9 +7,9 @@ test('stores a manually chosen native text profile', async ({ page }) => {
 	await selectLocation(page, 'Smoke storage');
 	await uploadSyntheticPhoto(page);
 	await page.getByRole('button', { name: 'Expand options', exact: true }).click();
-	await page
-		.getByRole('combobox', { name: 'Item type', exact: true })
-		.selectOption({ label: 'Synthetic spare part' });
+	await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({
+		label: process.env.HBC_AUTO_SMOKE === '1' ? 'Automatic suggestion' : 'Synthetic spare part',
+	});
 	await analyzePhotos(page);
 	await expect(page.getByRole('combobox', { name: 'Item type', exact: true })).toBeDisabled();
 	await page.getByRole('button', { name: /Custom Fields/ }).click();

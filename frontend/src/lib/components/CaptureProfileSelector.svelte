@@ -33,12 +33,17 @@
 		{disabled}
 		value={value ?? ''}
 		onchange={(event) => {
+			if (event.currentTarget.value === '__auto__') {
+				onChange('__auto__', null);
+				return;
+			}
 			const selected = profiles.find((row) => row.id === event.currentTarget.value);
 			onChange(selected?.id ?? null, selected?.defaultTemplateId ?? null);
 		}}
 	>
 		<option value="">Default (no capture profile)</option>
-		{#if value && !profiles.some((row) => row.id === value)}
+		<option value="__auto__">Automatic suggestion</option>
+		{#if value && value !== '__auto__' && !profiles.some((row) => row.id === value)}
 			<option {value}>Unavailable selected type — select again</option>
 		{/if}
 		{#each profiles as profile (profile.id)}
@@ -47,7 +52,8 @@
 	</select>
 </label>
 <p class="text-caption text-neutral-400">
-	Manual selection only. Native templates with text fields are supported.
+	Native text templates only. Automatic suggestions add one extraction call per object with fields;
+	uncertain choices require an explicit type and retry. Manual selection takes precedence.
 </p>
 {#if error}<p role="alert" class="text-body-sm text-neutral-200">
 		Could not load item types: {error}

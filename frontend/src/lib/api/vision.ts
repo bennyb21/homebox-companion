@@ -71,7 +71,8 @@ export const vision = {
 		const formData = new FormData();
 		formData.append('image', image);
 
-		if (options.entityTypeId) formData.append('entity_type_id', options.entityTypeId);
+		if (options.entityTypeId === '__auto__') formData.append('auto_profile', 'true');
+		else if (options.entityTypeId) formData.append('entity_type_id', options.entityTypeId);
 		if (options.templateId) formData.append('template_id', options.templateId);
 		if (options.singleItem !== undefined) {
 			formData.append('single_item', String(options.singleItem));

@@ -84,7 +84,9 @@ def chat_provider():
             thread.join(timeout=5)
 
 
-@pytest.mark.parametrize("native_profile", [False, True], ids=["legacy", "native-text-profile"])
+@pytest.mark.parametrize(
+    "native_profile", [False, True, "auto"], ids=["legacy", "native-text-profile", "automatic-profile"]
+)
 def test_reviewed_photo_reaches_homebox(
     homebox_test_account: HomeboxTestAccount, homebox_key_factory, chat_provider, tmp_path, native_profile
 ):
@@ -151,6 +153,7 @@ def test_reviewed_photo_reaches_homebox(
             )
             native_type.raise_for_status()
             native_type_id = native_type.json()["id"]
+            env["HBC_AUTO_TYPE"] = native_type_id
             readback = control.get("entity-types")
             readback.raise_for_status()
             assert (
@@ -180,7 +183,12 @@ def test_reviewed_photo_reaches_homebox(
                         time.sleep(0.2)
                     else:
                         pytest.fail(f"Companion did not become ready; see {log_path}")
-                browser_env = {**os.environ, "HBC_SMOKE_URL": url, "HBC_NATIVE_SMOKE": "1" if native_profile else "0"}
+                browser_env = {
+                    **os.environ,
+                    "HBC_SMOKE_URL": url,
+                    "HBC_NATIVE_SMOKE": "1" if native_profile else "0",
+                    "HBC_AUTO_SMOKE": "1" if native_profile == "auto" else "0",
+                }
                 with httpx.Client(
                     base_url=url, headers={"X-Companion-Request": "1"}, trust_env=False, timeout=15
                 ) as companion:
@@ -278,6 +286,8 @@ if __name__ == "__main__":
         """Keep actual image handling and model validation; replace the provider call only."""
         if os.environ.get("HBC_NATIVE_SMOKE") == "1":
             schema = kwargs["response_model"].model_json_schema()
+            if "captureTypeChoice" in json.dumps(schema):
+                return {"items": [{"name": "Synthetic spare part", "captureTypeChoice": os.environ["HBC_AUTO_TYPE"]}]}
             assert "partNumber" in json.dumps(schema)
             assert "leading zeros" in kwargs["system_prompt"]
             assert "Smoke Material" not in kwargs["system_prompt"]
