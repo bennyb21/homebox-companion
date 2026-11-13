@@ -65,7 +65,8 @@ DIGEST=$(docker image inspect "$IMAGE:$VERSION" --format '{{json .RepoDigests}}'
 [[ "$DIGEST" == "$IMAGE@sha256:"* && "${DIGEST##*@sha256:}" =~ ^[0-9a-f]{64}$ ]]
 test -z "$KNOWN_DIGEST" || test "$KNOWN_DIGEST" = "$DIGEST"
 # Uploaded by an always() step; the pre-push identity survives even runner loss.
-jq --arg digest "$DIGEST" '. + {digest:$digest}' tested-identity.json > publication-state.json
+jq --arg digest "$DIGEST" '. + {digest:$digest}' tested-identity.json > publication-state.json.tmp
+mv publication-state.json.tmp publication-state.json
 # Visibility is an explicit administrator prerequisite, not a best-effort mutation.
 docker logout ghcr.io
 docker pull "$DIGEST"

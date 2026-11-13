@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -15,7 +16,7 @@ IMAGE = "ghcr.io/example/companion"
 DIGEST = IMAGE + "@sha256:" + "a" * 64
 ARCHIVE = b"synthetic docker archive"
 MOCK = r"""#!/usr/bin/env python3
-import json, os, pathlib, signal, sys
+import json, os, pathlib, signal, subprocess, sys
 root = pathlib.Path(os.environ['MOCK_ROOT'])
 s = json.loads((root/'state.json').read_text())
 a = sys.argv[1:]; tool = pathlib.Path(sys.argv[0]).name
@@ -27,7 +28,11 @@ def fail(point):
         os.kill(os.getppid(), signal.SIGTERM); sys.exit(1)
     if s.get('fail') == point:
         s.pop('fail'); save(); sys.exit(1)
-if tool == 'gh':
+if tool == 'jq':
+    if '--arg' in a and 'digest' in a and s.get('fail') == 'checkpoint-write':
+        print('{'); fail('checkpoint-write')
+    sys.exit(subprocess.call([os.environ['REAL_JQ']] + a))
+elif tool == 'gh':
     if a[0] == 'api':
         fail('api')
         if '/artifacts' in a[1]:
@@ -79,7 +84,7 @@ else: sys.exit(92)
 def cli(tmp_path):
     bindir = tmp_path / "bin"
     bindir.mkdir()
-    for tool in ("gh", "docker", "curl"):
+    for tool in ("gh", "docker", "curl", "jq"):
         path = bindir / tool
         path.write_text(MOCK)
         path.chmod(0o700)
@@ -109,10 +114,13 @@ def cli(tmp_path):
     caller_config = tmp_path / "caller-config"
     caller_config.mkdir()
     (caller_config / "config.json").write_text("synthetic caller sentinel")
+    real_jq = shutil.which("jq")
+    assert real_jq is not None
     env = {
         **os.environ,
         "PATH": str(bindir) + ":" + os.environ["PATH"],
         "MOCK_ROOT": str(tmp_path),
+        "REAL_JQ": real_jq,
         "DOCKER_CONFIG": str(caller_config),
         "RUN_ID": "123",
         "GITHUB_RUN_ID": "123",
@@ -165,6 +173,19 @@ def test_seal_records_tested_archive_before_upload(cli):
 
 def pushes(calls):
     return [args[1] for tool, args, _ in calls if tool == "docker" and args[0] == "push"]
+
+
+def test_interrupted_checkpoint_write_is_not_uploaded(cli):
+    state, run = cli
+    state["fail"] = "checkpoint-write"
+    result, calls, work = run()
+    assert result.returncode != 0
+    assert pushes(calls) == [IMAGE + ":0.1.0"]
+    assert not (work / "publication-state.json").exists()
+    state.pop("fail", None)
+    result, calls, _ = run()
+    assert result.returncode == 0, result.stderr
+    assert pushes(calls) == [IMAGE + ":garage-test"]
 
 
 def test_private_first_push_resumes_same_version(cli):

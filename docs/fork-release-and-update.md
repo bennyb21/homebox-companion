@@ -51,7 +51,7 @@ The image job builds once, tests that actual image (storage plus legacy/manual/
 automatic capture and research/restart), then seals `release-image.tar` and
 `tested-identity.json` together in the immutable **release-image** Actions artifact.
 This upload must succeed **before the publish job can run**. Identity includes
-source SHA, version, image config ID, archive SHA256, repository and run ID. It is
+source SHA, version, Docker image ID, archive SHA256, repository and run ID. It is
 not merely a file on the publisher runner. The publisher downloads only its own
 run's artifact, checks the archive hash and OCI identity, and never rebuilds.
 A missing/expired artifact or identity is a hard stop, not permission to rebuild.
@@ -80,7 +80,8 @@ A missing/expired artifact or identity is a hard stop, not permission to rebuild
    on failure as `publication-state-<run_attempt>`. Retry reads all such checkpoints
    from this run and requires matching identity and digest. If interruption occurs
    before checkpoint creation/upload, the original durable archive/config identity
-   still permits exact recovery. If a checkpoint exists but cannot be read, stop;
+   still permits exact recovery. Checkpoint writes use atomic rename so an interrupted
+   write is not uploaded as usable state. If a checkpoint exists but cannot be read, stop;
    do not delete it to bypass the check.
 6. Retry repeats anonymous digest pull, moves `garage-test` to that exact image,
    verifies anonymous channel readback, and recreates `release-manifest.json`.
