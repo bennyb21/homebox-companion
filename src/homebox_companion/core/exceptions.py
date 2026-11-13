@@ -108,6 +108,18 @@ class CaptureProfileError(HomeboxCompanionError):
         super().__init__(message, user_message=message)
 
 
+class HomeboxCreateNotDispatchedError(HomeboxCompanionError):
+    """Item creation failed before its mutating request could be sent.
+
+    Emitted only by the client at the read-only preparation/POST boundary.
+    Unlike a generic timeout or network error, this guarantees safe replay.
+    """
+
+    status_code = 502
+    error_code = "HOMEBOX_CREATE_NOT_DISPATCHED"
+    log_level: LogLevel = "warning"
+
+
 class HomeboxAPIError(HomeboxCompanionError):
     """Homebox returned an error response (5xx, unexpected 4xx)."""
 

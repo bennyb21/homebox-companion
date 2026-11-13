@@ -15,7 +15,7 @@ from homebox_companion import (
 )
 from homebox_companion.ai.images import compress_image_for_upload
 from homebox_companion.core import HomeboxAPIError
-from homebox_companion.core.exceptions import CaptureProfileError
+from homebox_companion.core.exceptions import CaptureProfileError, HomeboxCreateNotDispatchedError
 from homebox_companion.homebox import ItemCreate
 from homebox_companion.homebox.asset_id import normalize_asset_id
 from homebox_companion.homebox.relationships import (
@@ -157,6 +157,8 @@ async def create_items(
                 )
                 if location_override:
                     item_create.location_id = location_override
+            # Gateway entry is not POST dispatch: the client certifies read-only
+            # preparation failures with HomeboxCreateNotDispatchedError.
             create_started = True
             result = await gateway.create_item(item_create)
             item_id = result.get("id")
@@ -236,7 +238,16 @@ async def create_items(
             # Log full error details and include error type in response
             safe_failure = (
                 not create_started
-                or isinstance(e, (CaptureProfileError, httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout))
+                or isinstance(
+                    e,
+                    (
+                        CaptureProfileError,
+                        HomeboxCreateNotDispatchedError,
+                        httpx.ConnectError,
+                        httpx.ConnectTimeout,
+                        httpx.PoolTimeout,
+                    ),
+                )
                 or (
                     isinstance(e, HomeboxAPIError)
                     and e.context.get("status_code") in {400, 401, 403, 404, 409, 422, 429}

@@ -24,6 +24,7 @@ from ..core.exceptions import (
     HomeboxAPIError,
     HomeboxAuthError,
     HomeboxConnectionError,
+    HomeboxCreateNotDispatchedError,
     HomeboxTimeoutError,
 )
 from .auth import HomeboxAccess
@@ -1005,26 +1006,36 @@ class HomeboxClient:
         Returns:
             The created item dictionary from the API (raw response).
         """
-        payload = item.model_dump(by_alias=True, exclude_unset=True)
-        payload.pop("templateId", None)
-        endpoint = "/entities"
-        if item.template_id is not None and item.entity_type_id is None:
-            raise CaptureProfileError("A template requires an explicit item type")
-        if item.entity_type_id is not None:
-            profile = await self.get_capture_profile(token, item.entity_type_id, item.template_id)
-            template = profile["template"]
-            if template:
-                from .capture_profiles import template_text_fields
+        try:
+            payload = item.model_dump(by_alias=True, exclude_unset=True)
+            payload.pop("templateId", None)
+            endpoint = "/entities"
+            if item.template_id is not None and item.entity_type_id is None:
+                raise CaptureProfileError("A template requires an explicit item type")
+            if item.entity_type_id is not None:
+                profile = await self.get_capture_profile(token, item.entity_type_id, item.template_id)
+                template = profile["template"]
+                if template:
+                    from .capture_profiles import template_text_fields
 
-                template_text_fields(template)
-                endpoint = f"/templates/{template['id']}/create-item"
-            payload["entityTypeId"] = item.entity_type_id
-        else:
-            payload["entityTypeId"] = await self._resolve_entity_type_id(token, is_location=False)
+                    template_text_fields(template)
+                    endpoint = f"/templates/{template['id']}/create-item"
+                payload["entityTypeId"] = item.entity_type_id
+            else:
+                payload["entityTypeId"] = await self._resolve_entity_type_id(token, is_location=False)
+            headers = self._auth_headers(token, content_type="application/json")
+        except CaptureProfileError, HomeboxAuthError:
+            raise
+        except Exception as exc:
+            # Nothing below this boundary (including POST) has run yet.
+            raise HomeboxCreateNotDispatchedError(
+                "Item creation preparation failed before dispatch",
+                user_message="Homebox preparation failed. Please retry.",
+            ) from exc
 
         response = await self.client.post(
             f"{self.base_url}{endpoint}",
-            headers=self._auth_headers(token, content_type="application/json"),
+            headers=headers,
             json=payload,
         )
         self._ensure_success(response, "Create item")
