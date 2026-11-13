@@ -61,7 +61,18 @@ def test_publication_requires_same_run_and_manual_protected_promotion():
     script = (ROOT / "scripts/publish-candidate.sh").read_text()
     assert 'gh run download "$RUN_ID"' in script
     assert "docker build" not in script
-    assert 'test "$STATUS" = 404' in script
+    assert 'case "$STATUS" in' in script
+    steps = workflow("validate.yml")["jobs"]["production-container"]["steps"]
+    preserve = next(step for step in steps if step.get("name", "").startswith("Preserve the tested"))
+    assert "scripts/seal-tested-image.sh" in preserve["run"]
+    upload = steps[steps.index(preserve) + 1]
+    assert "tested-identity.json" in upload["with"]["path"]
+    assert upload["with"].get("overwrite", "false") == "false"
+    checkpoint = next(
+        step for step in job["steps"] if step.get("with", {}).get("name", "").startswith("publication-state-")
+    )
+    assert "always()" in checkpoint["if"]
+    assert "github.run_attempt" in checkpoint["with"]["name"]
     assert "docker logout ghcr.io" in script
     stable = workflow("promote.yml")
     assert set(stable["on"]) == {"workflow_dispatch"}

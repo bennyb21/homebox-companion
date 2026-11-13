@@ -29,11 +29,15 @@ Before enabling publication, an administrator must:
 2. Create **garage-test** and **garage-stable** GitHub environments, with required
    reviewers, restricted trusted branches/tags, no self-approval and no bypass.
    Merely naming an environment in YAML does NOT activate protection rules.
-3. Confirm Actions/package permission and quota; configure the GHCR package as
-   public (or arrange a separately reviewed private-registry policy). First push
-   can create a private package: the anonymous pull gate will deliberately fail.
-   A failed visibility gate does not authorize overwriting its version tag; inspect
-   and recover deliberately, or use a new version.
+3. Confirm Actions/package permission and quota (including 90-day image artifact
+   storage). Under the owner profile → Packages → `homebox-companion` → Package
+   settings, link the fork repository, grant it Actions access, and set **Change
+   visibility → Public**. Confirm the exact package name/owner in the dialog.
+   Restrict other writers: this workflow serializes publication, but GHCR has no
+   atomic create-only tag operation. No administrator/other workflow may write the
+   version tags concurrently. First push may create a private package; if settings
+   do not exist yet, follow the same-run bootstrap/retry procedure below.
+   A separate private-registry policy is not a bypass of this public-pull gate.
 4. Update package version, project lock entry and Docker version default together.
    Do not upgrade dependencies as part of a version-only change.
 
@@ -44,13 +48,54 @@ succeed. The terminal gate rejects failed, cancelled, skipped or missing jobs.
 PR workflows have no package-write job or publish secrets.
 
 The image job builds once, tests that actual image (storage plus legacy/manual/
-automatic capture and research/restart), then saves it as an Actions artifact.
-The publisher downloads that artifact from its own run, verifies OCI revision
-and version, and publishes it without rebuilding. Immutable-by-policy version
-tags are never overwritten; unexpected HTTP statuses fail closed. It performs
-an anonymous digest pull/readback before moving `garage-test` and records the
-SHA, version, image identity, digest and run ID in `release-manifest.json`.
-Archive this manifest beyond the 90-day artifact retention period.
+automatic capture and research/restart), then seals `release-image.tar` and
+`tested-identity.json` together in the immutable **release-image** Actions artifact.
+This upload must succeed **before the publish job can run**. Identity includes
+source SHA, version, image config ID, archive SHA256, repository and run ID. It is
+not merely a file on the publisher runner. The publisher downloads only its own
+run's artifact, checks the archive hash and OCI identity, and never rebuilds.
+A missing/expired artifact or identity is a hard stop, not permission to rebuild.
+
+### First-private-package bootstrap and interrupted publication recovery
+
+1. Dispatch **Publish tested candidate** at the reviewed source SHA. Record its
+   run ID. Wait for **all** validation jobs and the terminal gate to succeed;
+   confirm `release-image` exists on that run before approving `garage-test`.
+2. If the first version push creates a private package, anonymous pull deliberately
+   fails. As package administrator, perform the exact visibility/Actions-access
+   steps above. Do not delete/re-tag the version, bump the version, rebuild, or
+   dispatch another run as a substitute for this accepted image.
+3. Open that **same original Actions run** → **Re-run failed jobs** (or re-run only
+   its failed `publish` job). The new attempt retains the original run ID and SHA
+   and reuses the original successful validation/image artifact. Do **not** select
+   **Re-run all jobs**: the immutable `release-image` is not overwritten, and
+   rebuilding is not recovery. Reapprove the protected environment if requested.
+   No user-supplied external run ID or failed-test bypass exists in this workflow.
+4. HTTP 404 permits only initial version publication. HTTP 200 requires an
+   authenticated pull of the existing version and exact image ID/revision/version
+   equality with the durable tested artifact. A matching version is **never
+   repushed**. Auth/transport errors, mismatches, expired checkpoints, or a missing
+   previously recorded version stop before channel publication.
+5. Once the registry digest is known, `publication-state.json` is uploaded even
+   on failure as `publication-state-<run_attempt>`. Retry reads all such checkpoints
+   from this run and requires matching identity and digest. If interruption occurs
+   before checkpoint creation/upload, the original durable archive/config identity
+   still permits exact recovery. If a checkpoint exists but cannot be read, stop;
+   do not delete it to bypass the check.
+6. Retry repeats anonymous digest pull, moves `garage-test` to that exact image,
+   verifies anonymous channel readback, and recreates `release-manifest.json`.
+   Interrupted channel push/readback or manifest upload uses the same procedure.
+   The final manifest artifact can be replaced on retry, but only after all these
+   checks; version/image artifacts and previous attempt checkpoints are immutable.
+7. Require the original run's final conclusion **success** and inspect its final
+   manifest before any stable promotion. Preserve the image, identity, checkpoints
+   and manifest beyond the 90-day retention period if needed. Artifact expiry
+   requires a separately reviewed recovery, not a test-gate override.
+
+Both scripts isolate Docker credentials from the caller in an owned temporary
+config directory and log out/remove that directory on success, failure and handled
+signals (SIGKILL/runner destruction cannot run traps). No real registry or GitHub
+writes are established by the offline mock regressions.
 
 After a separate pilot and backup/rollback review, manually dispatch `promote.yml`
 with the successful candidate run ID. The protected stable approval must inspect

@@ -146,13 +146,15 @@ jobs:
           cd frontend && npx playwright install --with-deps chromium && cd ..
           uv run --no-sync pytest -m live tests/test_fullstack_smoke.py tests/test_research_fullstack.py
       - name: Preserve the tested image, never rebuild for publication
-        run: docker save "$TEST_COMPANION_IMAGE" -o release-image.tar
+        run: bash scripts/seal-tested-image.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-image
-          path: release-image.tar
+          path: |
+            release-image.tar
+            tested-identity.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
 
   release-gate:
     if: always()

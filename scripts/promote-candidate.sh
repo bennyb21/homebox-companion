@@ -13,8 +13,15 @@ test "$(jq -er .sha release-manifest.json)" = "$SHA"
 test "$(jq -er .run_id release-manifest.json)" = "$CANDIDATE_RUN"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 [[ "$DIGEST" =~ ^${IMAGE}@sha256:[0-9a-f]{64}$ ]]
-export DOCKER_CONFIG
-DOCKER_CONFIG=$(mktemp -d)
+PRIVATE_CONFIG=$(mktemp -d)
+export DOCKER_CONFIG="$PRIVATE_CONFIG"
+cleanup() {
+  docker logout ghcr.io >/dev/null 2>&1 || true
+  rm -rf -- "$PRIVATE_CONFIG"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 docker pull "$DIGEST"
 test "$(docker image inspect "$DIGEST" --format '{{.Id}}')" = "$ID"
 test "$(docker image inspect "$DIGEST" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$SHA"

@@ -31,11 +31,23 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14.10"
       - name: Publish the image accepted by this exact run (no rebuild)
         run: bash scripts/publish-candidate.sh
+      - name: Preserve registry identity even after visibility/readback failure
+        if: always() && hashFiles('publication-state.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: publication-state-${{ github.run_attempt }}
+          path: publication-state.json
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-manifest
+          overwrite: true
           path: release-manifest.json
           if-no-files-found: error
           retention-days: 90
