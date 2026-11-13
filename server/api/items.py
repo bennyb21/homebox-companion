@@ -143,6 +143,8 @@ async def create_items(
                 description=detected_item.description or "",
                 parent_id=detected_item.parent_id,
                 tag_ids=detected_item.tag_ids,
+                entity_type_id=item_input.entity_type_id,
+                template_id=item_input.template_id,
             )
             if item_input.parent_id and selected_location_id and selected_location_id != item_input.parent_id:
                 location_override = await _parent_location_override(
@@ -169,11 +171,22 @@ async def create_items(
                         if item_input.custom_fields:
                             from homebox_companion.tools.vision.models import HomeboxItemField
 
-                            update_data["fields"] = [
-                                HomeboxItemField(name=name, textValue=value).model_dump(by_alias=True)
-                                for name, value in item_input.custom_fields.items()
-                                if value  # skip empty/null values
-                            ]
+                            fields = [dict(field) for field in full_item.get("fields", [])]
+                            for name, value in item_input.custom_fields.items():
+                                if not value:
+                                    continue  # No observation must not erase native defaults.
+                                matches = [field for field in fields if field["name"] == name]
+                                if len(matches) > 1:
+                                    raise ValueError(f"Ambiguous custom field: {name}")
+                                if matches:
+                                    if matches[0].get("type") != "text":
+                                        raise ValueError(f"Unsupported custom field type: {name}")
+                                    matches[0]["textValue"] = value
+                                else:
+                                    fields.append(
+                                        HomeboxItemField(name=name, textValue=value).model_dump(by_alias=True)
+                                    )
+                            update_data["fields"] = fields
                         result = await gateway.update_item(item_id, update_data)
                         logger.info("  Updated item with extended fields")
                     except HomeboxAuthError:

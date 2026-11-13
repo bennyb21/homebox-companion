@@ -1006,11 +1006,27 @@ class HomeboxClient:
             The created item dictionary from the API (raw response).
         """
         payload = item.model_dump(by_alias=True, exclude_unset=True)
-        # Inject entityTypeId (resolved from the instance's entity type cache)
-        payload["entityTypeId"] = await self._resolve_entity_type_id(token, is_location=False)
+        payload.pop("templateId", None)
+        endpoint = "/entities"
+        if item.template_id is not None and item.entity_type_id is None:
+            raise CaptureProfileError("A template requires an explicit item type")
+        if item.entity_type_id is not None:
+            profile = await self.get_capture_profile(token, item.entity_type_id, item.template_id)
+            template = profile["template"]
+            if template:
+                fields = template.get("fields", [])
+                if any(field.get("type") != "text" for field in fields):
+                    raise CaptureProfileError("Unsupported template: only text fields are supported")
+                names = [field["name"] for field in fields]
+                if len(set(names)) != len(names):
+                    raise CaptureProfileError("Ambiguous duplicate template field names")
+                endpoint = f"/templates/{template['id']}/create-item"
+            payload["entityTypeId"] = item.entity_type_id
+        else:
+            payload["entityTypeId"] = await self._resolve_entity_type_id(token, is_location=False)
 
         response = await self.client.post(
-            f"{self.base_url}/entities",
+            f"{self.base_url}{endpoint}",
             headers=self._auth_headers(token, content_type="application/json"),
             json=payload,
         )
