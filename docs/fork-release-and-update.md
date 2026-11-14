@@ -48,8 +48,14 @@ Before enabling publication, an administrator must:
 
 `docker-publish.yml` is manual only. It invokes the reusable validation workflow
 at the **same dispatch SHA**. Python quality/unit checks, frontend checks/browser
-suite, pinned Homebox compatibility matrix and production-image tests must all
-succeed. The terminal gate rejects failed, cancelled, skipped or missing jobs.
+suite, pinned Homebox compatibility matrix, dependency audits and production-image
+tests must all succeed. The terminal gate rejects failed, cancelled, skipped or
+missing jobs. Frontend audits apply only the explicit, phase-bound
+[user-approved private-pilot exceptions](security-audit-exceptions.md); raw findings
+remain visible and any unapproved finding blocks publication. Python audit remains
+fully blocking. There is no fixed 30-day exception deadline: successful usability
+pilot acceptance triggers framework migration and fresh review before leaving the
+pilot phase. These exceptions do not authorize stable or production use.
 PR workflows have no package-write job or publish secrets.
 
 The image job builds once, tests that actual image (storage plus legacy/manual/

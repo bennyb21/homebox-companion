@@ -15,6 +15,9 @@ permissions:
   contents: read
 
 jobs:
+  audit:
+    uses: ./.github/workflows/audit.yml
+
   python:
     name: Python checks
     runs-on: ubuntu-latest
@@ -165,11 +168,11 @@ jobs:
 
   release-gate:
     if: always()
-    needs: [python, frontend, homebox-live, production-container]
+    needs: [audit, python, frontend, homebox-live, production-container]
     runs-on: ubuntu-latest
     steps:
       - name: Fail closed on failed, cancelled or skipped required jobs
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
-          python -c 'import json,os; r=json.loads(os.environ["RESULTS"]); assert set(r)=={"python","frontend","homebox-live","production-container"}; assert all(v["result"]=="success" for v in r.values()), r'
+          python -c 'import json,os; r=json.loads(os.environ["RESULTS"]); assert set(r)=={"audit","python","frontend","homebox-live","production-container"}; assert all(v["result"]=="success" for v in r.values()), r'

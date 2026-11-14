@@ -4,13 +4,8 @@ on:
   schedule:
     - cron: "0 12 * * 1"
   workflow_dispatch:
+  workflow_call:
   pull_request:
-    paths:
-      - uv.lock
-      - pyproject.toml
-      - frontend/package-lock.json
-      - frontend/package.json
-      - .github/workflows/audit.yml
 
 permissions:
   contents: read
@@ -33,7 +28,17 @@ jobs:
       - run: uv sync --locked --all-groups
       - name: Audit Python dependencies
         run: uv run --no-sync pip-audit --local --skip-editable
-      - name: Audit frontend dependencies
+      - name: Test fail-closed frontend audit policy (offline)
         if: success() || failure()
-        working-directory: frontend
-        run: npm audit --package-lock-only
+        run: uv run --no-sync pytest tests/test_frontend_audit_policy.py
+      - name: Audit frontend dependencies with explicit pilot policy
+        if: success() || failure()
+        run: bash scripts/audit-frontend.sh audit-results
+      - name: Preserve raw audit and policy decision
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-audit-${{ github.job }}
+          path: audit-results/
+          if-no-files-found: error
+          retention-days: 90
