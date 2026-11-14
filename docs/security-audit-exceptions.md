@@ -48,8 +48,17 @@ Run from the repository with Python and the pinned Node available:
 bash scripts/audit-frontend.sh /absolute/path/to/audit-evidence
 ```
 
-The runner executes the real `npm audit --package-lock-only --json`, preserving
-stdout (`npm-audit.json`), stderr, actual exit status and the policy result. It
+The runner executes the real `npm audit --package-lock-only --json` with fixed
+`--include=dev --include=optional --include=peer`,
+`--registry=https://registry.npmjs.org/` and `--audit-level=low`. Explicit includes
+win over inherited `npm_config_omit`, `NODE_ENV=production` and project `.npmrc`
+omission settings. Inventory totals alone do **not** prove audit coverage: npm
+can omit dev findings while reporting the same full dependency totals. The
+registry is pinned to the public advisory authority reviewed here; the low exit
+threshold preserves exit 1 for the approved low findings even if caller config
+requests a higher threshold. Neither setting expands the approved advisory set.
+The runner accepts only an output directory, never caller-supplied npm arguments.
+It preserves stdout (`npm-audit.json`), stderr, actual exit status and the policy result. It
 prints the raw report even on failure. A nonzero npm exit is never automatically
 ignored. Exit 1 is accepted only with a complete matching findings report;
 transport/error JSON, other exits, malformed/truncated/duplicate-key JSON,
@@ -57,7 +66,8 @@ unreconciled counts, unknown fields/links/advisories, cycles, higher severity an
 missing evidence fail closed. Exit 0 with a valid complete zero-findings report
 is honestly reported as zero findings, with no exceptions used.
 
-`frontend-audit-policy.json` binds the entire lock and manifest, Svelte/Vite/TS
+`frontend-audit-policy.json` binds the entire lock and manifest, the tracked
+`frontend/.npmrc` (reviewed contents: only `engine-strict=true`), Svelte/Vite/TS
 configuration and every file under `frontend/src` by SHA-256, including exact
 source inventory. Source additions/deletions/changes (even harmless changes)
 therefore require deliberate re-review before exceptions can apply. This is
@@ -78,8 +88,11 @@ Python `pip-audit --local --skip-editable` remains fully blocking and unchanged.
 The existing `audit` job identity remains, runs on every PR (no path filters), and
 runs weekly/manually. Validation also calls that same audit workflow at the exact
 candidate SHA; `release-gate` now requires its success. Raw/policy artifacts are
-uploaded even on failure. Branch/environment protection and publication/retry
-identity logic are unchanged. Hosted CI success must still be independently
+uploaded even on failure as `frontend-audit-${{ github.job }}-${{ github.run_attempt }}`,
+without overwrite, so reruns preserve earlier audit evidence. Only audit evidence
+is attempt-qualified: `release-image`, image sealing and same-run publication
+identity remain intentionally immutable and unchanged. Branch/environment
+protection is unchanged. Hosted CI success must still be independently
 verified; local results are not publication approval.
 
 ## Narrow patch remediation and renewed review

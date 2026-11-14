@@ -192,6 +192,7 @@ def test_actual_new_registry_findings_remain_blocking(tmp_path):
     [
         "frontend/package-lock.json",
         "frontend/package.json",
+        "frontend/.npmrc",
         "frontend/svelte.config.js",
         "frontend/vite.config.ts",
         "frontend/src/new.svelte",
@@ -275,6 +276,89 @@ def test_runner_retains_actual_status_and_raw_output(tmp_path, fixture, exit_cod
     assert (artifacts / "npm-audit.exit").read_text().strip() == str(exit_code)
     assert "test stderr" in (artifacts / "npm-audit.stderr").read_text()
     assert (artifacts / "policy-result.log").is_file()
+
+
+@pytest.mark.parametrize("setting", ["default", "omit-env", "production-env", "project-omit"])
+def test_runner_pins_full_coverage_argv(tmp_path, setting):
+    import os
+    import shutil
+
+    root = tmp_path / "repo"
+    policy = json.loads((ROOT / "docs/frontend-audit-policy.json").read_text())
+    for name in {
+        *policy["reviewed_files"],
+        "frontend/.npmrc",
+        "docs/frontend-audit-policy.json",
+        "scripts/audit-frontend.sh",
+        "scripts/check_frontend_audit.py",
+    }:
+        destination = root / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, destination)
+    env = dict(os.environ)
+    if setting == "omit-env":
+        env["npm_config_omit"] = "dev"
+    elif setting == "production-env":
+        env["NODE_ENV"] = "production"
+    elif setting == "project-omit":
+        with (root / "frontend/.npmrc").open("a") as stream:
+            stream.write("omit=dev\n")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    argv = tmp_path / "argv"
+    npm = fake_bin / "npm"
+    # Stub only the network adapter; exercise the actual shell runner and checker.
+    npm.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{argv}"\ncat "{FIXTURES / "patched-reviewed.json"}"\nexit 1\n')
+    npm.chmod(0o755)
+    env["PATH"] = f"{fake_bin}:{Path(sys.executable).parent}:{env['PATH']}"
+    artifacts = tmp_path / "evidence"
+    result = subprocess.run(
+        ["bash", str(root / "scripts/audit-frontend.sh"), str(artifacts)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert argv.read_text().splitlines() == [
+        "audit",
+        "--package-lock-only",
+        "--json",
+        "--include=dev",
+        "--include=optional",
+        "--include=peer",
+        "--registry=https://registry.npmjs.org/",
+        "--audit-level=low",
+    ]
+    assert (artifacts / "npm-audit.exit").read_text() == "1\n"
+    decision = (artifacts / "policy-result.log").read_text()
+    assert "ZERO FINDINGS" not in decision
+    if setting == "project-omit":
+        assert result.returncode == 1
+        assert "Fresh review required: frontend/.npmrc" in decision
+    else:
+        assert result.returncode == 0, result.stderr
+        assert "ACCEPTED USER-APPROVED EXCEPTIONS" in decision
+
+
+@pytest.mark.parametrize("extra", ["--omit=dev", "--include=prod", "--registry=https://example.invalid/"])
+def test_runner_rejects_caller_audit_arguments(tmp_path, extra):
+    import os
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    called = tmp_path / "called"
+    npm = fake_bin / "npm"
+    npm.write_text(f'#!/bin/sh\ntouch "{called}"\nexit 2\n')
+    npm.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/audit-frontend.sh"), str(tmp_path / "evidence"), extra],
+        env={**os.environ, "PATH": f"{fake_bin}:{Path(sys.executable).parent}:{os.environ['PATH']}"},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "usage:" in result.stderr
+    assert not called.exists()
 
 
 def test_zero_findings_still_require_complete_dependency_inventory(tmp_path):

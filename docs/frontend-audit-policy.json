@@ -1,6 +1,7 @@
 {
   "phase": "private-usability-pilot",
   "reviewed_files": {
+    "frontend/.npmrc": "7151cf397def0c2cb0ab65643701d27d335a72c90f775675b5f826bc7005818a",
     "frontend/package-lock.json": "39d5e2e6b7aac5915e5c272270bb2091b5d93ce5b06aac714ab68ed4163c88c6",
     "frontend/package.json": "d4fa22096554c7e6e22397cf5148cfcb15701c94da726afdbdf55a7134fd60d8",
     "frontend/src/app.css": "a4ef6bfabd2ccf38c8c9165c2f342dfa7392701c9873d927d1c3b554ca317b86",

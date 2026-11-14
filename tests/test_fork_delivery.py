@@ -32,15 +32,16 @@ def workflow(name):
     return yaml.load((ROOT / ".github/workflows" / name).read_text(), Loader=yaml.BaseLoader)
 
 
+@pytest.mark.parametrize("required_job", ["production-container", "audit"])
 @pytest.mark.parametrize("bad", [None, "failure", "cancelled", "skipped", "missing"])
-def test_actual_release_gate_fails_closed(bad):
+def test_actual_release_gate_fails_closed(bad, required_job):
     gate = workflow("validate.yml")["jobs"]["release-gate"]
     assert gate["if"] == "always()"
     needs = {name: {"result": "success"} for name in gate["needs"]}
     if bad == "missing":
-        needs.pop("production-container")
+        needs.pop(required_job)
     elif bad:
-        needs["production-container"]["result"] = bad
+        needs[required_job]["result"] = bad
     result = subprocess.run(
         ["bash", "-eu", "-c", gate["steps"][0]["run"]],
         env={**os.environ, "RESULTS": json.dumps(needs)},
@@ -78,6 +79,21 @@ def test_publication_requires_same_run_and_manual_protected_promotion():
     assert set(stable["on"]) == {"workflow_dispatch"}
     assert stable["jobs"]["promote"]["environment"] == "garage-stable"
     assert "packages" not in workflow("validate.yml")["permissions"]
+
+
+def test_audit_evidence_is_attempt_qualified_but_tested_image_is_immutable():
+    audit_steps = workflow("audit.yml")["jobs"]["audit"]["steps"]
+    upload = next(s for s in audit_steps if "upload-artifact@" in s.get("uses", ""))
+    assert upload["with"]["name"] == "frontend-audit-${{ github.job }}-${{ github.run_attempt }}"
+    assert upload["with"].get("overwrite", "false") == "false"
+    assert upload["if"] == "always()"
+    image_steps = workflow("validate.yml")["jobs"]["production-container"]["steps"]
+    image = next(s for s in image_steps if s.get("with", {}).get("name") == "release-image")
+    assert image["with"].get("overwrite", "false") == "false"
+    assert (
+        'gh run download "$RUN_ID" --repo "$REPOSITORY" --name release-image'
+        in (ROOT / "scripts/publish-candidate.sh").read_text()
+    )
 
 
 @pytest.mark.live
