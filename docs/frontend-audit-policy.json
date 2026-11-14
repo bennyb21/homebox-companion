@@ -1,8 +1,8 @@
 {
   "phase": "private-usability-pilot",
   "reviewed_files": {
-    "frontend/package-lock.json": "f9ce9911bda0e9923f74bd9b16761773eaba75f95175d679048166acb953121f",
-    "frontend/package.json": "cf762585fe45cd02656288f3842ae02a2cd16477ef85f2430e4af06308754655",
+    "frontend/package-lock.json": "39d5e2e6b7aac5915e5c272270bb2091b5d93ce5b06aac714ab68ed4163c88c6",
+    "frontend/package.json": "d4fa22096554c7e6e22397cf5148cfcb15701c94da726afdbdf55a7134fd60d8",
     "frontend/src/app.css": "a4ef6bfabd2ccf38c8c9165c2f342dfa7392701c9873d927d1c3b554ca317b86",
     "frontend/src/app.d.ts": "3d450fc2fc7b0f10b6a9493a682769aac34f8b612f0f5d1bc4845a7b0bfe9f0a",
     "frontend/src/app.html": "81087890cfd4ad371101ddaf9dfd9527378d8103e6f240ff134ccc3a5daabbb1",
@@ -126,8 +126,8 @@
     "frontend/vite.config.ts": "4e9501adfd5f881eec7ad008d5746598e986a1c584f61d2c4b24c5501dc3fc15"
   },
   "packages": {
-    "@sveltejs/adapter-static": "3.0.10",
-    "@sveltejs/kit": "2.70.3",
+    "@sveltejs/adapter-static": "3.0.11",
+    "@sveltejs/kit": "2.70.4",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "deepmerge": "4.3.1"
   },

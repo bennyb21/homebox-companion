@@ -13,7 +13,9 @@ FIXTURES = ROOT / "tests/fixtures/frontend-audit"
 
 def check(tmp_path, report=None, code=1, root=ROOT):
     raw = tmp_path / "audit.json"
-    raw.write_text(json.dumps(report if report is not None else json.loads((FIXTURES / "reviewed.json").read_text())))
+    raw.write_text(
+        json.dumps(report if report is not None else json.loads((FIXTURES / "patched-reviewed.json").read_text()))
+    )
     return subprocess.run(
         [
             sys.executable,
@@ -37,17 +39,56 @@ def test_reviewed_findings_are_explicitly_accepted(tmp_path):
     for advisory in ("GHSA-pfhg-q3qv-9q6r", "GHSA-27mw-82g8-phjj", "GHSA-gcqx-w48m-w2h4"):
         assert advisory in result.stdout
     assert "private-usability-pilot" in result.stdout
+    assert "@sveltejs/kit@2.70.4:" in result.stdout
+    assert "@sveltejs/adapter-static@3.0.11:" in result.stdout
+    assert "@sveltejs/vite-plugin-svelte@7.3.1:" in result.stdout
+    assert "deepmerge@4.3.1:" in result.stdout
+
+
+@pytest.mark.parametrize("package,old_version", [("@sveltejs/kit", "2.70.3"), ("@sveltejs/adapter-static", "3.0.10")])
+def test_historical_versions_cannot_authorize_patched_graph(tmp_path, package, old_version):
+    import shutil
+
+    root = tmp_path / "repo"
+    policy = json.loads((ROOT / "docs/frontend-audit-policy.json").read_text())
+    for name in policy["reviewed_files"]:
+        destination = root / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, destination)
+    policy["packages"][package] = old_version
+    (root / "docs").mkdir()
+    (root / "docs/frontend-audit-policy.json").write_text(json.dumps(policy))
+    result = check(tmp_path, root=root)
+    assert result.returncode == 1
+    assert f"Unreviewed package version: {package}" in result.stderr
+
+
+def test_historical_report_retains_original_advisory_identities():
+    historical = json.loads((FIXTURES / "reviewed.json").read_text())
+    patched = json.loads((FIXTURES / "patched-reviewed.json").read_text())
+
+    def identities(report):
+        return {a["url"]: a for node in report["vulnerabilities"].values() for a in node["via"] if isinstance(a, dict)}
+
+    assert identities(historical) == identities(patched)
+    assert len(identities(patched)) == 3
+    # Preserve the original raw response byte-for-byte, not a synthetic new snapshot.
+    import hashlib
+
+    assert hashlib.sha256((FIXTURES / "reviewed.json").read_bytes()).hexdigest() == (
+        "5c569b91ca6fc57dc8b7f1c9f933f1108daeacb0fbe7708bf5329a22dcafeca9"
+    )
 
 
 def test_transport_failure_cannot_be_accepted(tmp_path):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["error"] = {"code": "ECONNRESET", "summary": "network failure"}
     assert check(tmp_path, report).returncode == 1
     assert check(tmp_path, code=2).returncode == 1
 
 
 def test_honest_zero_findings(tmp_path):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["vulnerabilities"] = {}
     report["metadata"]["vulnerabilities"] = dict.fromkeys(report["metadata"]["vulnerabilities"], 0)
     result = check(tmp_path, report, code=0)
@@ -80,7 +121,7 @@ def test_honest_zero_findings(tmp_path):
     ],
 )
 def test_incomplete_or_unreviewed_graph_is_blocked(tmp_path, mutation):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     node = report["vulnerabilities"]["deepmerge"]
     if mutation == "cycle":
         node["via"].append("@sveltejs/kit")
@@ -135,7 +176,7 @@ def test_incomplete_or_unreviewed_graph_is_blocked(tmp_path, mutation):
     ],
 )
 def test_advisory_identity_must_match(tmp_path, field, value):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["vulnerabilities"]["deepmerge"]["via"][0][field] = value
     assert check(tmp_path, report).returncode == 1
 
@@ -143,6 +184,7 @@ def test_advisory_identity_must_match(tmp_path, field, value):
 def test_actual_new_registry_findings_remain_blocking(tmp_path):
     result = check(tmp_path, json.loads((FIXTURES / "new-moderate.json").read_text()))
     assert result.returncode == 1
+    assert "Unapproved severity" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -182,7 +224,7 @@ def test_review_context_changes_require_fresh_review(tmp_path, target):
 
 def test_duplicate_json_keys_fail_closed(tmp_path):
     raw = tmp_path / "duplicates.json"
-    report = (FIXTURES / "reviewed.json").read_text()
+    report = (FIXTURES / "patched-reviewed.json").read_text()
     raw.write_text(report.replace('"auditReportVersion": 2,', '"auditReportVersion": 999, "auditReportVersion": 2,'))
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts/check_frontend_audit.py"), "--report", str(raw), "--npm-exit", "1"],
@@ -209,7 +251,8 @@ def test_malformed_raw_response(tmp_path, content, code):
 
 
 @pytest.mark.parametrize(
-    "fixture,exit_code,expected", [("reviewed.json", 1, 0), ("new-moderate.json", 1, 1), ("reviewed.json", 2, 1)]
+    "fixture,exit_code,expected",
+    [("patched-reviewed.json", 1, 0), ("new-moderate.json", 1, 1), ("patched-reviewed.json", 2, 1)],
 )
 def test_runner_retains_actual_status_and_raw_output(tmp_path, fixture, exit_code, expected):
     import os
@@ -235,7 +278,7 @@ def test_runner_retains_actual_status_and_raw_output(tmp_path, fixture, exit_cod
 
 
 def test_zero_findings_still_require_complete_dependency_inventory(tmp_path):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["vulnerabilities"] = {}
     report["metadata"]["vulnerabilities"] = dict.fromkeys(report["metadata"]["vulnerabilities"], 0)
     report["metadata"]["dependencies"]["total"] = 1
@@ -243,14 +286,14 @@ def test_zero_findings_still_require_complete_dependency_inventory(tmp_path):
 
 
 def test_advisory_numeric_identity_is_not_coerced(tmp_path):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     advisory = report["vulnerabilities"]["deepmerge"]["via"][0]
     advisory["source"] = float(advisory["source"])
     assert check(tmp_path, report).returncode == 1
 
 
 def test_report_version_has_strict_integer_type(tmp_path):
-    report = json.loads((FIXTURES / "reviewed.json").read_text())
+    report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["auditReportVersion"] = 2.0
     assert check(tmp_path, report).returncode == 1
 

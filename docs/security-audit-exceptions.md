@@ -32,8 +32,8 @@ whether a user has accepted the pilot or changed a network outside this reposito
 | [GHSA-27mw-82g8-phjj / CVE-2026-114061](https://github.com/advisories/GHSA-27mw-82g8-phjj) | Untrusted `setHeaders` cache-control can enter prerendered HTML. The reviewed source has no `setHeaders` usage; no untrusted prerender input path was demonstrated. |
 | [GHSA-gcqx-w48m-w2h4 / CVE-2026-93753](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) | deepmerge is used by the Svelte build plugin to merge local configuration, not a demonstrated runtime untrusted-request path. The [official CNA CVE record](https://cveawg.mitre.org/api/cve/CVE-2026-93753) is REJECTED because it does not describe a security vulnerability. GitHub/npm still report the advisory; it is explicitly accepted, not silently erased or called withdrawn. [Maintainer discussion](https://github.com/TehShrike/deepmerge/issues/273) is supplementary, not the authority for rejection. |
 
-Exact lock versions reviewed: `@sveltejs/kit` **2.70.3**,
-`@sveltejs/adapter-static` **3.0.10**, `@sveltejs/vite-plugin-svelte` **7.3.1**,
+Exact lock versions reviewed: `@sveltejs/kit` **2.70.4**,
+`@sveltejs/adapter-static` **3.0.11**, `@sveltejs/vite-plugin-svelte` **7.3.1**,
 `deepmerge` **4.3.1**. Four affected-package entries propagate three underlying
 advisories in the original reviewed report. Acceptance is **not by package name
 alone or by severity threshold**. The checker walks every `via` edge and matches
@@ -82,9 +82,11 @@ uploaded even on failure. Branch/environment protection and publication/retry
 identity logic are unchanged. Hosted CI success must still be independently
 verified; local results are not publication approval.
 
-## Current blocker discovered during implementation
+## Narrow patch remediation and renewed review
 
-A fresh registry audit additionally reports these **unapproved moderate** findings:
+The user separately authorized only Kit 2.70.3 → 2.70.4 and adapter-static
+3.0.10 → 3.0.11. These patch releases remediate the previously blocking,
+**unapproved moderate** findings:
 
 - [GHSA-jf9x-2fg2-hx4w](https://github.com/advisories/GHSA-jf9x-2fg2-hx4w):
   adapter-static prerendered paths interpreted as regular expressions in Vercel
@@ -93,19 +95,56 @@ A fresh registry audit additionally reports these **unapproved moderate** findin
   Kit adapter-node unhandled URIError after reroute of malformed pathnames;
   audit suggests Kit 2.70.4 as the fixed floor.
 
-These are registry statements, not independently established application
-exploitability or tested remediation. **The current lock remains blocked.** No
-additional exception or dependency update was authorized or performed. A narrow
-patch review, if authorized separately, must reassess the new lock and context
-before rebinding the original exceptions. Do not broaden this policy to pass CI.
+Fresh GitHub advisory API responses confirm these fixed floors on the existing
+major branches. The npm package source diffs confirm literal escaping of Vercel
+route regex paths and decoding the original pathname inside the guarded reroute
+block. LAN/static deployment is not used as an exemption for either finding.
+The Kit patch additionally changes client route-resolution import origins,
+server fetch redirect handling, preview path containment and prerender header
+escaping; it is not merely a version-label change.
+
+The renewed review found:
+
+- The lock changes only the two requested packages (version, resolved URL and
+  integrity), plus their root manifest declarations. All other package objects
+  and dependency counts are unchanged; no Python dependencies changed.
+- Every frontend source/configuration file matches the prior reviewed hashes.
+  `frontend/src` still has no `use:enhance` or `setHeaders` calls. Static adapter
+  fallback remains `index.html`, with root `ssr = false` and `prerender = false`.
+- Enhanced-form redirection remains an accepted low finding; the patch does not
+  change the forms implementation. Shipped Kit client code remains in scope.
+- Kit 2.70.4 now escapes the prerender cache-control meta content in
+  `src/runtime/server/page/render.js`. Nevertheless, GitHub/npm still report
+  GHSA-27mw-82g8-phjj for `<3.0.0`; retain the existing explicit low exception,
+  not a claim that the registry finding vanished or a new exception.
+- Plugin 7.3.1 and deepmerge 4.3.1 are unchanged. Plugin
+  `src/utils/options.js` merges local defaults/Svelte configuration/inline
+  options during configuration. No app import or untrusted runtime deepmerge
+  path was found. The official CNA record remains REJECTED while npm remains
+  active; this accepted-risk distinction is unchanged.
+
+Only the manifest/lock hashes and the two exact version bindings were updated;
+all advisory objects, remaining hashes and inventory guards are unchanged.
+Fresh real npm audit reports **four low affected packages propagating exactly
+three approved advisory IDs**, with no moderate/high/critical findings. Its exit
+is still **1**; the policy accepts the reviewed exceptions, **not a clean raw
+audit**. Historical new-moderate evidence must still fail for unapproved severity.
+Local verification covers npm ci, frontend checks/build, Chromium browser tests,
+Python checks/tests/audit and real browser → Companion → isolated Homebox with
+synthetic provider boundaries. This is not hosted CI or publication approval.
+Independent combined review is required before push, merge or image publication.
 
 ## Offline evidence
 
 `tests/fixtures/frontend-audit/reviewed.json` is the original public npm response
-containing only the approved findings. `new-moderate.json` is the fresh public
-registry response proving that additional findings block. Neither fixture has
-private inventory, addresses or credentials. These fixtures are offline test
-inputs, not substitutes for the runner's current live registry result.
+containing only the approved findings; it is retained byte-for-byte as historical
+evidence. `new-moderate.json` is the historical public registry response proving
+that additional findings block. `patched-reviewed.json` is the actual public
+response collected against Kit 2.70.4 / adapter-static 3.0.11; active acceptance
+and mutation tests use this new snapshot and assert exact reviewed versions.
+Historical version bindings cannot authorize the patched graph. These fixtures
+have no private inventory, addresses or credentials and are offline test inputs,
+not substitutes for the runner's current live registry result.
 
 Tests cover acceptance, honest zero findings, new findings on the same packages,
 identity/severity changes, schema/count errors, graph cycles/dangling links,
