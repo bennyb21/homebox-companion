@@ -21,7 +21,7 @@ Environment Variables:
     HBC_SERVER_PORT: Port for the web server (default: 8000). In production,
         this single port serves both the API and the static frontend.
     HBC_LOG_LEVEL: Logging level (default: INFO)
-    HBC_DISABLE_UPDATE_CHECK: Set to true to disable GitHub update checks (default: false)
+    HBC_DISABLE_UPDATE_CHECK: Set to true to disable GitHub update checks (fork default: true)
     HBC_MAX_UPLOAD_SIZE_MB: Maximum file upload size in MB (default: 20)
     HBC_MAX_REQUEST_SIZE_MB: Maximum total streamed request body in MB (default: 100)
     HBC_CORS_ORIGINS: Allowed CORS origins, comma-separated or "*" for all (default: "*")
@@ -104,8 +104,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Update check configuration
-    disable_update_check: bool = False
-    github_repo: str = "Duelion/homebox-companion"
+    disable_update_check: bool = True
+    github_repo: str = "bennyb21/homebox-companion"
 
     # Security configuration
     max_upload_size_mb: int = Field(default=20, gt=0)  # Maximum individual file size in MB

@@ -19,6 +19,50 @@ async function loadModule(path, bindings = {}) {
 }
 const log = { debug() {}, info() {}, warn() {}, error() {} };
 const image = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+test('automatic capture mode never sends its UI marker as a native identifier', async () => {
+	let sent;
+	const { vision } = await loadModule('api/vision.ts', {
+		requestFormData: async (_url, body) => {
+			sent = body;
+			return {};
+		},
+		getAiRequestTimeoutMs: () => 90000,
+		getIsDemoMode: () => false,
+		log,
+	});
+	await vision.detect(image, { entityTypeId: '__auto__' });
+	assert.equal(sent.get('auto_profile'), 'true');
+	assert.equal(sent.has('entity_type_id'), false);
+});
+for (const operation of ['correct', 'merge']) {
+	test(`${operation} rejects native profile items without a provider request`, async () => {
+		let calls = 0;
+		const { vision } = await loadModule('api/vision.ts', {
+			request: async () => {
+				calls++;
+				return {};
+			},
+			requestFormData: async () => {
+				calls++;
+				return {};
+			},
+			getAiRequestTimeoutMs: () => 90000,
+			getIsDemoMode: () => false,
+			log,
+		});
+		const item = {
+			name: 'Native',
+			quantity: 1,
+			entity_type_id: 'native',
+			custom_fields: { Code: '0007' },
+		};
+		await assert.rejects(
+			operation === 'merge' ? vision.merge([item]) : vision.correct(image, item, 'fix'),
+			/native.*manual/i
+		);
+		assert.equal(calls, 0);
+	});
+}
 const operations = {
 	detect: (vision, signal) => vision.detect(image, { signal }),
 	analyze: (vision, signal) => vision.analyze([image], 'Camera', undefined, { signal }),

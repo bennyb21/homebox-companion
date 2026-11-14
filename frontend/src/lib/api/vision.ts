@@ -15,6 +15,8 @@ import type {
 } from '../types';
 
 export interface DetectOptions {
+	entityTypeId?: string | null;
+	templateId?: string | null;
 	singleItem?: boolean;
 	extraInstructions?: string;
 	extractExtendedFields?: boolean;
@@ -69,6 +71,9 @@ export const vision = {
 		const formData = new FormData();
 		formData.append('image', image);
 
+		if (options.entityTypeId === '__auto__') formData.append('auto_profile', 'true');
+		else if (options.entityTypeId) formData.append('entity_type_id', options.entityTypeId);
+		if (options.templateId) formData.append('template_id', options.templateId);
 		if (options.singleItem !== undefined) {
 			formData.append('single_item', String(options.singleItem));
 		}
@@ -134,6 +139,8 @@ export const vision = {
 		itemsToMerge: MergeItem[],
 		options: MergeOptions = {}
 	): Promise<MergedItemResponse> => {
+		if (itemsToMerge.some((item) => item.entity_type_id || item.template_id))
+			throw new Error('AI merge is unavailable for native profiles. Edit fields manually.');
 		log.debug(`Preparing merge request: ${itemsToMerge.length} items`);
 
 		const headers = await buildVisionHeaders();
@@ -156,6 +163,8 @@ export const vision = {
 		correctionInstructions: string,
 		options: CorrectOptions = {}
 	): Promise<CorrectionResponse> => {
+		if (currentItem.entity_type_id || currentItem.template_id)
+			throw new Error('AI correction is unavailable for native profiles. Edit fields manually.');
 		log.debug(`Preparing correction request: item="${currentItem.name}"`);
 		log.debug(
 			`Correction instructions: ${correctionInstructions.substring(0, 100)}${correctionInstructions.length > 100 ? '...' : ''}`

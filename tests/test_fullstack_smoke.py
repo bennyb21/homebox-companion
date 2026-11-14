@@ -15,6 +15,7 @@ from pathlib import Path
 import httpx
 import pytest
 from conftest import HomeboxTestAccount, _find_free_port
+from image_harness import start_server
 
 pytestmark = pytest.mark.live
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,8 +85,11 @@ def chat_provider():
             thread.join(timeout=5)
 
 
+@pytest.mark.parametrize(
+    "native_profile", [False, True, "auto"], ids=["legacy", "native-text-profile", "automatic-profile"]
+)
 def test_reviewed_photo_reaches_homebox(
-    homebox_test_account: HomeboxTestAccount, homebox_key_factory, chat_provider, tmp_path
+    homebox_test_account: HomeboxTestAccount, homebox_key_factory, chat_provider, tmp_path, native_profile
 ):
     """Drive the real UI, then verify persisted data with an independent control credential."""
     node = shutil.which("node")
@@ -109,6 +113,8 @@ def test_reviewed_photo_reaches_homebox(
         LITELLM_LOCAL_MODEL_COST_MAP="True",
         PYTHONPATH=os.pathsep.join([str(ROOT), str(ROOT / "src")]),
     )
+    if native_profile:
+        env["HBC_NATIVE_SMOKE"] = "1"
     headers = {"Authorization": f"Bearer {account.control_token}"}
     with httpx.Client(base_url=account.api_url + "/", headers=headers, trust_env=False, timeout=15) as control:
         types = control.get("entity-types")
@@ -120,16 +126,71 @@ def test_reviewed_photo_reaches_homebox(
         tag = control.post("tags", json={"name": "Smoke verified", "description": "", "color": "#336699"})
         tag.raise_for_status()
         tag_id = tag.json()["id"]
+        native_type_id = None
+        if native_profile:
+            template = control.post(
+                "templates",
+                json={
+                    "name": "Synthetic parts",
+                    "description": "Text-only acceptance",
+                    "defaultQuantity": 1,
+                    "defaultManufacturer": "Synthetic factory",
+                    "fields": [
+                        {"name": "Part number", "type": "text", "textValue": ""},
+                        {"name": "Condition", "type": "text", "textValue": "unknown"},
+                        {"name": "Operator note", "type": "text", "textValue": "Keep this"},
+                    ],
+                },
+            )
+            template.raise_for_status()
+            template_id = template.json()["id"]
+            native_type = control.post(
+                "entity-types",
+                json={
+                    "name": "Synthetic spare part",
+                    "isLocation": False,
+                    "defaultTemplateId": template_id,
+                },
+            )
+            native_type.raise_for_status()
+            native_type_id = native_type.json()["id"]
+            env["HBC_AUTO_TYPE"] = native_type_id
+            readback = control.get("entity-types")
+            readback.raise_for_status()
+            assert (
+                next(row for row in readback.json() if row["id"] == native_type_id)["defaultTemplateId"] == template_id
+            )
+
+        if native_profile:
+            alternate_template = control.post(
+                "templates",
+                json={
+                    "name": "Synthetic alternate",
+                    "description": "Review switch",
+                    "defaultQuantity": 1,
+                    "defaultManufacturer": "Synthetic factory",
+                    "fields": [
+                        {"name": "Condition", "type": "text", "textValue": "new default"},
+                        {"name": "New field", "type": "text", "textValue": "new value"},
+                    ],
+                },
+            )
+            alternate_template.raise_for_status()
+            alternate_type = control.post(
+                "entity-types",
+                json={
+                    "name": "Synthetic alternate",
+                    "isLocation": False,
+                    "defaultTemplateId": alternate_template.json()["id"],
+                },
+            )
+            alternate_type.raise_for_status()
+            native_type_id = alternate_type.json()["id"]
+
         log_path = ROOT / "frontend/test-results/fullstack-server.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("w", encoding="utf-8") as log:
-            process = subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), str(port), str(build)],
-                cwd=tmp_path,
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
+            process = start_server(Path(__file__).resolve(), port, build, tmp_path, env, log)
             try:
                 deadline = time.monotonic() + 40
                 with httpx.Client(trust_env=False, timeout=2) as probe:
@@ -143,7 +204,12 @@ def test_reviewed_photo_reaches_homebox(
                         time.sleep(0.2)
                     else:
                         pytest.fail(f"Companion did not become ready; see {log_path}")
-                browser_env = {**os.environ, "HBC_SMOKE_URL": url}
+                browser_env = {
+                    **os.environ,
+                    "HBC_SMOKE_URL": url,
+                    "HBC_NATIVE_SMOKE": "1" if native_profile else "0",
+                    "HBC_AUTO_SMOKE": "1" if native_profile == "auto" else "0",
+                }
                 with httpx.Client(
                     base_url=url, headers={"X-Companion-Request": "1"}, trust_env=False, timeout=15
                 ) as companion:
@@ -170,6 +236,42 @@ def test_reviewed_photo_reaches_homebox(
                 response = control.get(f"entities/{items[0]['id']}")
                 response.raise_for_status()
                 item = response.json()
+                if native_profile:
+                    assert item["entityType"]["id"] == native_type_id
+                    assert item["name"] == "Synthetic spare part reviewed"
+                    assert item["manufacturer"] == "Synthetic factory"
+                    values = {field["name"]: field["textValue"] for field in item["fields"]}
+                    assert values == {
+                        "Part number": "0007-SYN-A",
+                        "Condition": "manual condition",
+                        "Operator note": "Keep this",
+                        "New field": "new value",
+                    }
+                    assert all(field["id"] for field in item["fields"])
+                    assert item["parent"]["id"] == location_id
+                    assert {row["id"] for row in item["tags"]} == {tag_id}
+                    assert len(item["attachments"]) == 1
+                    attachment = control.get(f"entities/{item['id']}/attachments/{item['attachments'][0]['id']}")
+                    attachment.raise_for_status()
+                    assert attachment.content and attachment.headers["content-type"].startswith("image/")
+                    import hashlib
+
+                    artifact_dir = Path(os.environ.get("HBC_SMOKE_ARTIFACT_DIR", ROOT / "frontend/test-results"))
+                    artifact_dir.mkdir(parents=True, exist_ok=True)
+                    (artifact_dir / "native-readback.json").write_text(
+                        json.dumps(
+                            {
+                                "image": account.server.image,
+                                "item": item,
+                                "photo_bytes": len(attachment.content),
+                                "photo_sha256": hashlib.sha256(attachment.content).hexdigest(),
+                                "independent_control_credential": True,
+                            },
+                            indent=2,
+                        )
+                    )
+                    (artifact_dir / "native-photo.jpg").write_bytes(attachment.content)
+                    return
                 assert item["name"] == "Smoke desk lamp recovered"
                 assert item["quantity"] == 7
                 assert item["description"] == "Recovered description — verified"
@@ -208,6 +310,14 @@ if __name__ == "__main__":
 
     async def fixed_completion(**kwargs):
         """Keep actual image handling and model validation; replace the provider call only."""
+        if os.environ.get("HBC_NATIVE_SMOKE") == "1":
+            schema = kwargs["response_model"].model_json_schema()
+            if "captureTypeChoice" in json.dumps(schema):
+                return {"items": [{"name": "Synthetic spare part", "captureTypeChoice": os.environ["HBC_AUTO_TYPE"]}]}
+            assert "partNumber" in json.dumps(schema)
+            assert "leading zeros" in kwargs["system_prompt"]
+            assert "Smoke Material" not in kwargs["system_prompt"]
+            return {"items": [{"name": "Synthetic spare part", "quantity": 1, "partNumber": "0007-SYN-A"}]}
         return {
             "items": [{"name": "Detected lamp", "quantity": 1, "description": "A desk lamp", "smokeMaterial": "Wood"}]
         }

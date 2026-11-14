@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from .auth import router as auth_router
+from .capture_profiles import router as capture_profiles_router
 from .chat import router as chat_router
 from .config import router as config_router
 from .custom_fields import router as custom_fields_router
@@ -15,6 +16,8 @@ from .locations import router as locations_router
 from .logs import router as logs_router
 from .mcp import router as mcp_router
 from .qr import router as qr_router
+from .research import router as research_router
+from .research_jobs import router as research_jobs_router
 from .tags import router as tags_router
 from .tools.vision import router as vision_router
 
@@ -23,6 +26,7 @@ api_router = APIRouter(prefix="/api")
 
 # Include all sub-routers
 api_router.include_router(auth_router, tags=["auth"])
+api_router.include_router(capture_profiles_router, tags=["capture-profiles"])
 api_router.include_router(chat_router, tags=["chat"])
 api_router.include_router(config_router, tags=["config"])
 api_router.include_router(custom_fields_router, tags=["settings"])
@@ -36,6 +40,8 @@ api_router.include_router(items_router, tags=["items"])
 api_router.include_router(logs_router, tags=["logs"])
 api_router.include_router(mcp_router, tags=["mcp"])
 api_router.include_router(qr_router, tags=["qr"])
+api_router.include_router(research_router, tags=["research"])
+api_router.include_router(research_jobs_router, tags=["research"])
 api_router.include_router(vision_router, prefix="/tools/vision", tags=["vision"])
 
 __all__ = ["api_router"]

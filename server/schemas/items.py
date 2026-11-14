@@ -17,6 +17,8 @@ class ItemInput(BaseModel):
     """
 
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+    entity_type_id: str | None = None
+    template_id: str | None = None
     quantity: int = Field(default=1, strict=True, gt=0)
     description: str | None = None
     location_id: str | None = None  # Location to place the item in

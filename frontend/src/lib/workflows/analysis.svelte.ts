@@ -175,6 +175,8 @@ export class AnalysisService {
 					);
 
 					const response = await vision.detect(image.file, {
+						entityTypeId: image.entity_type_id,
+						templateId: image.template_id,
 						singleItem: !image.separateItems,
 						extraInstructions: image.extraInstructions || undefined,
 						extractExtendedFields: true,
@@ -306,7 +308,11 @@ export class AnalysisService {
 			return {
 				success: false,
 				items: [],
-				error: 'All images failed to analyze. Please try again.',
+				error:
+					results
+						.filter((result) => !result.success)
+						.map((result) => result.error)
+						.join('; ') || 'All images failed to analyze. Please try again.',
 				failedCount,
 			};
 		}

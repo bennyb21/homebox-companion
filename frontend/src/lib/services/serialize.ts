@@ -30,6 +30,8 @@ import type {
 
 /** Serializable version of CapturedImage */
 export interface StoredImage {
+	entity_type_id?: string | null;
+	template_id?: string | null;
 	id: string;
 	filename: string;
 	mimeType: string;
@@ -243,6 +245,8 @@ export async function serializeImage(img: CapturedImage): Promise<StoredImage> {
 		dataUrl,
 		separateItems: img.separateItems,
 		extraInstructions: img.extraInstructions,
+		entity_type_id: img.entity_type_id,
+		template_id: img.template_id,
 		additionalDataUrls,
 		additionalFilenames,
 		additionalMimeTypes,
@@ -258,6 +262,8 @@ export function serializeReviewItem(item: ReviewItem): StoredReviewItem {
 	return {
 		reviewId: item.reviewId,
 		// ItemCore fields
+		entity_type_id: item.entity_type_id,
+		template_id: item.template_id,
 		name: item.name,
 		quantity: item.quantity,
 		description: item.description,
@@ -327,6 +333,8 @@ export async function deserializeImage(stored: StoredImage): Promise<CapturedIma
 		dataUrl: URL.createObjectURL(file),
 		separateItems: stored.separateItems,
 		extraInstructions: stored.extraInstructions,
+		entity_type_id: stored.entity_type_id,
+		template_id: stored.template_id,
 		additionalFiles,
 		additionalDataUrls,
 		assetId: stored.assetId,
@@ -374,6 +382,8 @@ export async function deserializeReviewItem(stored: StoredReviewItem): Promise<R
 	return {
 		reviewId: stored.reviewId,
 		// ItemCore fields
+		entity_type_id: stored.entity_type_id,
+		template_id: stored.template_id,
 		name: stored.name,
 		quantity: stored.quantity,
 		description: stored.description,

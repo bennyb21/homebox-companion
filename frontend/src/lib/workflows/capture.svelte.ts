@@ -45,7 +45,12 @@ export class CaptureService {
 	/** Update image options (separateItems, extraInstructions, assetId) */
 	updateImageOptions(
 		index: number,
-		options: Partial<Pick<CapturedImage, 'separateItems' | 'extraInstructions' | 'assetId'>>
+		options: Partial<
+			Pick<
+				CapturedImage,
+				'separateItems' | 'extraInstructions' | 'assetId' | 'entity_type_id' | 'template_id'
+			>
+		>
 	): void {
 		log.debug(`Updating options for image ${index}:`, options);
 		this.images = this.images.map((img, i) => (i === index ? { ...img, ...options } : img));

@@ -153,6 +153,8 @@ class ItemCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: Annotated[str, Field(min_length=1, max_length=255)]
+    entity_type_id: str | None = Field(default=None, alias="entityTypeId")
+    template_id: str | None = Field(default=None, alias="templateId")
     quantity: int = Field(default=1, ge=1)
     description: Annotated[str, Field(max_length=1000)] = ""
     parent_id: str | None = Field(default=None, alias="parentId")

@@ -62,7 +62,6 @@ server/static
 # Documentation
 *.md
 !README.md
-LICENSE
 
 # Linter / type checker caches
 .ruff_cache

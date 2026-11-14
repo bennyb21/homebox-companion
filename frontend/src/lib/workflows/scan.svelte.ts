@@ -54,7 +54,11 @@ class ScanWorkflow {
 	private captureService = new CaptureService();
 	private analysisService = new AnalysisService();
 	private reviewService = new ReviewService();
-	private submissionService = new SubmissionService();
+	private submissionService = new SubmissionService(async () => {
+		await this.persistAsync();
+		if (this._saveState === 'error')
+			throw new Error('Cannot safely submit: draft checkpoint failed.');
+	});
 	private persistence = new ScanPersistence();
 
 	// =========================================================================
@@ -344,7 +348,12 @@ class ScanWorkflow {
 	/** Update image options (separateItems, extraInstructions, assetId) */
 	updateImageOptions(
 		index: number,
-		options: Partial<Pick<CapturedImage, 'separateItems' | 'extraInstructions' | 'assetId'>>
+		options: Partial<
+			Pick<
+				CapturedImage,
+				'separateItems' | 'extraInstructions' | 'assetId' | 'entity_type_id' | 'template_id'
+			>
+		>
 	): void {
 		this.captureService.updateImageOptions(index, options);
 	}
@@ -869,11 +878,13 @@ class ScanWorkflow {
 		} else if (result.failCount > 0) {
 			this._error = `Created ${result.successCount + result.partialSuccessCount} items, ${result.failCount} failed`;
 			// Keep status as 'submitting' to show per-item status UI
-		} else if (result.partialSuccessCount > 0) {
-			this._error = `${result.partialSuccessCount} item(s) created with incomplete details or attachments`;
+		} else if (Object.values(this.submissionService.itemStatuses).includes('partial_success')) {
+			this._error = 'Some items need attention in Homebox; the draft is retained.';
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
+			// Keep original fields/photos and known IDs recoverable for incomplete work.
+			this._status = 'confirming';
+			await this.persistAsync();
 			this._status = 'complete';
-			await this.clearPersistedSession();
 		} else if (result.success) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
 			this._status = 'complete';
@@ -928,8 +939,11 @@ class ScanWorkflow {
 		// Check if all items are now successful
 		if (this.submissionService.allItemsSuccessful()) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
+			if (Object.values(this.submissionService.itemStatuses).includes('partial_success')) {
+				this._status = 'confirming';
+				await this.persistAsync();
+			} else await this.clearPersistedSession();
 			this._status = 'complete';
-			await this.clearPersistedSession();
 		} else if (result.failCount > 0) {
 			this._error = `Retried: ${result.successCount + result.partialSuccessCount} succeeded, ${result.failCount} still failing`;
 		}

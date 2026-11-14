@@ -77,6 +77,9 @@ async def detect_items(
     image: Annotated[UploadFile, File(description="Primary image file to analyze")],
     ctx: Annotated[VisionContext, Depends(get_vision_context)],
     api_key: Annotated[str, Depends(require_llm_configured)],
+    entity_type_id: Annotated[str | None, Form()] = None,
+    template_id: Annotated[str | None, Form()] = None,
+    auto_profile: Annotated[bool, Form()] = False,
     single_item: Annotated[bool, Form()] = False,
     extra_instructions: Annotated[str | None, Form()] = None,
     extract_extended_fields: Annotated[bool, Form()] = True,
@@ -95,6 +98,41 @@ async def detect_items(
         extract_extended_fields: If True, also extract extended fields.
         additional_images: Optional additional images for the same item(s).
     """
+    from homebox_companion.homebox.capture_profiles import template_text_fields, template_vision_fields
+
+    profile = None
+    defaults: dict[str, str] = {}
+    if template_id is not None and entity_type_id is None:
+        raise HTTPException(status_code=400, detail="A template requires an explicit item type")
+    if entity_type_id is not None:
+        try:
+            profile = await ctx.gateway.get_capture_profile(entity_type_id, template_id)
+            template = profile["template"]
+            ctx.custom_fields = template_vision_fields(template)
+            defaults = {field["name"]: field.get("textValue", "") for field in template_text_fields(template)}
+            template_id = template["id"] if template else None
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Manual references always win. Automatic selection is a separate discovery
+    # pass; never mix unrelated native schemas in one extraction response.
+    automatic = auto_profile and entity_type_id is None
+    candidates = []
+    if automatic:
+        from homebox_companion.core.persistent_settings import CustomFieldDefinition
+
+        candidates = [row for row in await ctx.gateway.list_entity_types() if row.get("isLocation") is False]
+        ctx.custom_fields = [
+            CustomFieldDefinition(
+                name="Capture type choice",
+                ai_instruction=(
+                    "Select exactly one existing item type ID for this object from this catalog: "
+                    + json.dumps([{"id": row["id"], "name": row["name"]} for row in candidates])
+                    + ". Return null if unknown, uncertain or ambiguous. Never choose by list order."
+                ),
+            )
+        ]
+
     additional_count = len(additional_images) if additional_images else 0
     logger.info(f"Detecting items from image: {image.filename} (+ {additional_count} additional)")
     logger.info(f"Single item mode: {single_item}, Extra instructions: {extra_instructions}")
@@ -167,10 +205,60 @@ async def detect_items(
             purchase_price=item.purchase_price,
             purchase_from=item.purchase_from,
             notes=item.notes,
-            custom_fields=get_custom_fields_dict(item, ctx.custom_fields),
+            custom_fields={
+                **defaults,
+                **{k: v for k, v in (get_custom_fields_dict(item, ctx.custom_fields) or {}).items() if v},
+            }
+            if profile
+            else get_custom_fields_dict(item, ctx.custom_fields),
+            entity_type_id=entity_type_id,
+            template_id=template_id,
         )
         for item in detected
     ]
+
+    if automatic:
+        response_items = []
+        allowed = {row["id"] for row in candidates}
+        for item in detected:
+            choice = (get_custom_fields_dict(item, ctx.custom_fields) or {}).get("Capture type choice")
+            if choice not in allowed:
+                raise HTTPException(400, "Item type is uncertain. Select an explicit item type and retry.")
+            try:
+                selected = await ctx.gateway.get_capture_profile(choice)
+                template = selected["template"]
+                definitions = template_vision_fields(template)
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            values = {field["name"]: field.get("textValue", "") for field in template_text_fields(template)}
+            if definitions:
+                extracted = await detect_items_from_bytes(
+                    image_bytes=image_bytes,
+                    mime_type=content_type,
+                    tags=ctx.tags,
+                    single_item=True,
+                    extra_instructions=(
+                        f"Extract ONLY the previously identified object {item.name!r}, "
+                        f"description {item.description!r}. "
+                        "Ignore other objects in the image. " + (extra_instructions or "")
+                    ),
+                    extract_extended_fields=extract_extended_fields,
+                    additional_images=additional_image_data,
+                    field_preferences=ctx.field_preferences,
+                    output_language=ctx.output_language,
+                    custom_fields=definitions,
+                )
+                if len(extracted) != 1:
+                    raise HTTPException(400, "Cannot isolate the selected object. Capture it separately and retry.")
+                values.update({k: v for k, v in (get_custom_fields_dict(extracted[0], definitions) or {}).items() if v})
+            response_items.append(
+                DetectedItemResponse(
+                    **item.model_dump(include=set(DetectedItemResponse.model_fields) - {"custom_fields"}),
+                    custom_fields=values,
+                    entity_type_id=choice,
+                    template_id=template["id"] if template else None,
+                )
+            )
 
     # ==========================================================================
     # DUPLICATE DETECTION: Check items with serial numbers for existing matches

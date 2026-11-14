@@ -97,6 +97,29 @@ class HomeboxTimeoutError(HomeboxCompanionError):
 # =============================================================================
 
 
+class CaptureProfileError(HomeboxCompanionError):
+    """An explicit native capture selection is invalid or no longer available."""
+
+    status_code = 400
+    error_code = "CAPTURE_PROFILE_INVALID"
+    log_level: LogLevel = "warning"
+
+    def __init__(self, message: str):
+        super().__init__(message, user_message=message)
+
+
+class HomeboxCreateNotDispatchedError(HomeboxCompanionError):
+    """Item creation failed before its mutating request could be sent.
+
+    Emitted only by the client at the read-only preparation/POST boundary.
+    Unlike a generic timeout or network error, this guarantees safe replay.
+    """
+
+    status_code = 502
+    error_code = "HOMEBOX_CREATE_NOT_DISPATCHED"
+    log_level: LogLevel = "warning"
+
+
 class HomeboxAPIError(HomeboxCompanionError):
     """Homebox returned an error response (5xx, unexpected 4xx)."""
 

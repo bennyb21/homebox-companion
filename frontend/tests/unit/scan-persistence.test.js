@@ -63,6 +63,21 @@ function harness() {
 	});
 	return { persistence: new ScanPersistence(), pending, writes };
 }
+test('native profile references survive review and confirmed reloads', async () => {
+	const item = {
+		...draft().detectedItems[0],
+		entity_type_id: 'synthetic-type',
+		template_id: 'synthetic-template',
+	};
+	for (const confirmed of [false, true]) {
+		const stored = confirmed
+			? serialize.serializeConfirmedItem(item)
+			: serialize.serializeReviewItem(item);
+		const recovered = await serialize.deserializeReviewItem(JSON.parse(JSON.stringify(stored)));
+		assert.equal(recovered.entity_type_id, item.entity_type_id);
+		assert.equal(recovered.template_id, item.template_id);
+	}
+});
 test('custom fields survive serialized review and confirmed reloads', async () => {
 	const item = draft().detectedItems[0];
 	for (const confirmed of [false, true]) {

@@ -52,6 +52,8 @@ export interface ItemSummary {
 
 /** Core item fields shared across all item types */
 export interface ItemCore {
+	entity_type_id?: string | null;
+	template_id?: string | null;
 	name: string;
 	quantity: number;
 	description?: string | null;
@@ -82,6 +84,8 @@ export interface Item extends ItemCore, ItemExtended {
 
 /** Image captured for analysis */
 export interface CapturedImage {
+	entity_type_id?: string | null;
+	template_id?: string | null;
 	file: File;
 	/**
 	 * URL for displaying preview thumbnail in UI.
@@ -346,6 +350,8 @@ export interface CreatedItem {
 
 /** Response from batch item creation */
 export interface BatchCreateResponse {
+	/** Per-input write certainty; never infer rejection from an empty created list. */
+	outcomes?: Array<{ index: number; status: 'created' | 'rejected' | 'unknown_write' }>;
 	/** Successfully created items */
 	created: CreatedItem[];
 	/** Error messages for items that failed to create */

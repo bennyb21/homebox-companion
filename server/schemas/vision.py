@@ -36,6 +36,8 @@ class DuplicateMatchResponse(BaseModel):
 class DetectedItemResponse(ItemBaseMixin, ItemExtendedFieldsMixin):
     """Detected item from image analysis."""
 
+    entity_type_id: str | None = None
+    template_id: str | None = None
     # Custom field values extracted by AI (display name → text value)
     custom_fields: dict[str, str] | None = None
     # Duplicate detection - populated if serial number matches an existing item

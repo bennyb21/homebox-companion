@@ -2,6 +2,7 @@
 
 from typing import Annotated, Any
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from loguru import logger
@@ -14,6 +15,7 @@ from homebox_companion import (
 )
 from homebox_companion.ai.images import compress_image_for_upload
 from homebox_companion.core import HomeboxAPIError
+from homebox_companion.core.exceptions import CaptureProfileError, HomeboxCreateNotDispatchedError
 from homebox_companion.homebox import ItemCreate
 from homebox_companion.homebox.asset_id import normalize_asset_id
 from homebox_companion.homebox.relationships import (
@@ -98,6 +100,7 @@ async def create_items(
 
     created: list[dict[str, Any]] = []
     errors: list[str] = []
+    outcomes: list[dict[str, Any]] = []
 
     # Fetch valid tag IDs once for the batch to validate against
     valid_tag_ids = await get_valid_tag_ids(gateway)
@@ -121,6 +124,8 @@ async def create_items(
             if filtered_count > 0:
                 logger.warning(f"Filtered out {filtered_count} invalid tag ID(s) for '{item_input.name}'")
 
+        create_started = False
+        item_id = None
         try:
             detected_item = DetectedItem(
                 name=item_input.name,
@@ -143,6 +148,8 @@ async def create_items(
                 description=detected_item.description or "",
                 parent_id=detected_item.parent_id,
                 tag_ids=detected_item.tag_ids,
+                entity_type_id=item_input.entity_type_id,
+                template_id=item_input.template_id,
             )
             if item_input.parent_id and selected_location_id and selected_location_id != item_input.parent_id:
                 location_override = await _parent_location_override(
@@ -150,8 +157,14 @@ async def create_items(
                 )
                 if location_override:
                     item_create.location_id = location_override
+            # Gateway entry is not POST dispatch: the client certifies read-only
+            # preparation failures with HomeboxCreateNotDispatchedError.
+            create_started = True
             result = await gateway.create_item(item_create)
             item_id = result.get("id")
+            if not isinstance(item_id, str) or not item_id:
+                item_id = None
+                raise ValueError("Creation response has no valid item identity")
             logger.info(f"Created item: {result.get('name')} (id: {item_id})")
 
             # Step 2: If there are extended fields or custom fields, update the item
@@ -169,11 +182,22 @@ async def create_items(
                         if item_input.custom_fields:
                             from homebox_companion.tools.vision.models import HomeboxItemField
 
-                            update_data["fields"] = [
-                                HomeboxItemField(name=name, textValue=value).model_dump(by_alias=True)
-                                for name, value in item_input.custom_fields.items()
-                                if value  # skip empty/null values
-                            ]
+                            fields = [dict(field) for field in full_item.get("fields", [])]
+                            for name, value in item_input.custom_fields.items():
+                                # Submitted review values are explicit, including manual clearing.
+                                # Missing observations must be omitted by detection, not by saving.
+                                matches = [field for field in fields if field["name"] == name]
+                                if len(matches) > 1:
+                                    raise ValueError(f"Ambiguous custom field: {name}")
+                                if matches:
+                                    if matches[0].get("type") != "text":
+                                        raise ValueError(f"Unsupported custom field type: {name}")
+                                    matches[0]["textValue"] = value
+                                else:
+                                    fields.append(
+                                        HomeboxItemField(name=name, textValue=value).model_dump(by_alias=True)
+                                    )
+                            update_data["fields"] = fields
                         result = await gateway.update_item(item_id, update_data)
                         logger.info("  Updated item with extended fields")
                     except HomeboxAuthError:
@@ -199,10 +223,12 @@ async def create_items(
                         raise update_err
 
             created.append(result)
+            outcomes.append({"index": index, "status": "created"})
         except HomeboxAuthError:
             # Auth failure means all subsequent items will also fail - abort early
             logger.error(f"Authentication failed while creating '{item_input.name}'")
             errors.append(f"Authentication failed for '{item_input.name}'")
+            outcomes.append({"index": index, "status": "created" if item_id else "rejected"})
             # Add remaining items as not attempted
             remaining = len(request.items) - index - 1
             if remaining > 0:
@@ -210,6 +236,24 @@ async def create_items(
             break
         except Exception as e:
             # Log full error details and include error type in response
+            safe_failure = (
+                not create_started
+                or isinstance(
+                    e,
+                    (
+                        CaptureProfileError,
+                        HomeboxCreateNotDispatchedError,
+                        httpx.ConnectError,
+                        httpx.ConnectTimeout,
+                        httpx.PoolTimeout,
+                    ),
+                )
+                or (
+                    isinstance(e, HomeboxAPIError)
+                    and e.context.get("status_code") in {400, 401, 403, 404, 409, 422, 429}
+                )
+            )
+            outcomes.append({"index": index, "status": "rejected" if safe_failure or item_id else "unknown_write"})
             logger.exception(f"Failed to create '{item_input.name}'")
             error_type = type(e).__name__
             error_msg = str(e) if str(e) else "Unknown error"
@@ -234,6 +278,7 @@ async def create_items(
         content={
             "created": created,
             "errors": errors,
+            "outcomes": outcomes,
             "message": (f"Created {len(created)} items" + (f", {len(errors)} failed" if errors else "")),
         },
         status_code=200 if not errors else 207,  # 207 Multi-Status if partial success

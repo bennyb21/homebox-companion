@@ -1,15 +1,13 @@
 import { test, expect } from '@playwright/test';
-import {
-	analyzePhotos,
-	confirmItems,
-	selectLocation,
-	submitItems,
-	uploadPhoto,
-} from '../browser/helpers/scan';
+import { uploadSyntheticPhoto } from './synthetic-photo';
+import { analyzePhotos, confirmItems, selectLocation, submitItems } from '../browser/helpers/scan';
 
 test('saves a reviewed photo through Companion to Homebox', async ({ page }) => {
+	test.skip(process.env.HBC_NATIVE_SMOKE === '1', 'Native profile has its own acceptance path');
 	await selectLocation(page, 'Smoke storage');
-	await uploadPhoto(page);
+	await uploadSyntheticPhoto(page);
+	await page.getByRole('button', { name: 'Expand options', exact: true }).click();
+	await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption('');
 	await analyzePhotos(page);
 	await expect(page.getByRole('button', { name: 'Smoke verified', exact: true })).toHaveAttribute(
 		'aria-pressed',

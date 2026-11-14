@@ -65,6 +65,10 @@ def _configure_loguru_for_tests():
 # ---------------------------------------------------------------------------
 
 HOMEBOX_IMAGES = {
+    "0.27.1": (
+        "ghcr.io/sysadminsmedia/homebox:0.27.1-rootless@sha256:"
+        "0d90e0ea77f582e774e0345892e2daac285c58b612dc380670a86f0648482978"
+    ),
     "0.27.0": "ghcr.io/sysadminsmedia/homebox@sha256:d49f12caf25ce3fa7f44102bb74953f3dff2dfdad38d87bd9057f3f611e797bb",
     "0.26.2": "ghcr.io/sysadminsmedia/homebox@sha256:b1ad7e3c63f732a5f6daa466e8116be4f545b3b120383a64dcb62beb00a660cc",
 }
@@ -221,6 +225,7 @@ class HomeboxDockerServer:
     environment: dict[str, str]
     image: str
     volume: str | None = None
+    host_port: str = ""
     docker_args: tuple[str, ...] = ()
     base_url: str = field(init=False, repr=False)
 
@@ -233,7 +238,7 @@ class HomeboxDockerServer:
             self.name,
             *self.docker_args,
             "-p",
-            f"127.0.0.1::{HOMEBOX_CONTAINER_PORT}",
+            f"127.0.0.1:{self.host_port}:{HOMEBOX_CONTAINER_PORT}",
         ]
         if self.volume is not None:
             command.extend(["-v", f"{self.volume}:/data"])
@@ -583,6 +588,9 @@ def isolated_homebox_server(homebox_version: str, homebox_image: str) -> Generat
     server = HomeboxDockerServer(
         name=f"homebox-isolated-{suffix}",
         image=homebox_image,
+        # Docker copies /data's ownership from the pinned image into this fresh named volume
+        # (65532:65532 for rootless 0.27.1). Unlike tmpfs, it survives container recreation.
+        # Keep copy-up enabled and remove only this fixture's volume at final teardown.
         volume=f"homebox-isolated-data-{suffix}",
         environment={
             "HBOX_DEMO": "false",
