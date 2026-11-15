@@ -27,11 +27,13 @@ export interface ScanDraft extends Omit<
 	| 'detectedItems'
 	| 'confirmedItems'
 	| 'activeReviewDraft'
+	| 'removedItems'
 > {
 	images: CapturedImage[];
 	detectedItems: ReviewItem[];
 	confirmedItems: ConfirmedItem[];
 	activeReviewDraft?: ReviewItem;
+	removedItems?: Array<{ index: number; item: ConfirmedItem }>;
 }
 type RecoveredScan = ScanDraft & Pick<StoredSession, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -63,10 +65,11 @@ export class ScanPersistence {
 				additionalFiles: image.additionalFiles ? [...image.additionalFiles] : undefined,
 			}));
 			// JSON detaches nested Svelte proxies without attempting to clone Files.
-			const { detectedItems, confirmedItems, activeReviewDraft } = draft;
+			const { detectedItems, confirmedItems, activeReviewDraft, removedItems = [] } = draft;
 			const reviewItems = [
 				...detectedItems,
 				...confirmedItems,
+				...removedItems.map((entry) => entry.item),
 				...(activeReviewDraft ? [activeReviewDraft] : []),
 			].map((item) => ({
 				...item,
@@ -78,6 +81,10 @@ export class ScanPersistence {
 					images: undefined,
 					detectedItems: detectedItems.map(serializeReviewItem),
 					confirmedItems: confirmedItems.map(serializeConfirmedItem),
+					removedItems: removedItems.map((entry) => ({
+						index: entry.index,
+						item: serializeConfirmedItem(entry.item),
+					})),
 					activeReviewDraft: activeReviewDraft ? serializeReviewItem(activeReviewDraft) : undefined,
 				})
 			);
@@ -87,6 +94,7 @@ export class ScanPersistence {
 			for (const item of [
 				...snapshot.detectedItems,
 				...snapshot.confirmedItems,
+				...snapshot.removedItems.map((entry: { item: unknown }) => entry.item),
 				...(snapshot.activeReviewDraft ? [snapshot.activeReviewDraft] : []),
 			]) {
 				item.photos = photos[photoIndex++];
@@ -175,7 +183,14 @@ export class ScanPersistence {
 			this.createdAt = session.createdAt;
 			this.sessionId = session.id;
 			recovered = true;
-			return { ...session, images, detectedItems, confirmedItems, activeReviewDraft };
+			const removedItems = await Promise.all(
+				(session.removedItems ?? []).map(async (entry) => ({
+					index: entry.index,
+					item: await deserializeConfirmedItem(entry.item),
+				}))
+			);
+			if (!current()) return null;
+			return { ...session, images, detectedItems, confirmedItems, activeReviewDraft, removedItems };
 		} finally {
 			if (!recovered) images.forEach(revokeImageObjectUrls);
 		}

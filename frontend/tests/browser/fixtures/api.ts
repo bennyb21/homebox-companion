@@ -76,7 +76,7 @@ export class MockApi {
 		const request = route.request();
 		const url = new URL(request.url());
 		const path = url.pathname;
-		if (url.origin !== 'http://127.0.0.1:4173') {
+		if (url.origin !== (process.env.HBC_BROWSER_TEST_ORIGIN || 'http://127.0.0.1:4173')) {
 			// app.html imports Google Fonts. Local, pinned fonts keep rendering deterministic.
 			if (url.hostname === 'fonts.googleapis.com' && path.startsWith('/css')) {
 				await route.fulfill({ status: 200, contentType: 'text/css', body: fontCss });
@@ -112,6 +112,9 @@ export class MockApi {
 	}
 
 	private installBaseline(): void {
+		this.on('GET', '/api/settings/research', () =>
+			json({ enabled: false, profile_name: null, profiles: [] })
+		);
 		this.on('GET', '/api/config', () => json(config(this.mode)));
 		this.on('GET', '/api/homebox/connection', () =>
 			json({

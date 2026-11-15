@@ -118,6 +118,13 @@ export interface ConfigResponse {
 	demo_mode_explicit: boolean;
 	homebox_url: string;
 	llm_model: string;
+	llm_model_source?: string;
+	llm_profile_name?: string | null;
+	llm_credential_source?: string;
+	llm_has_api_key?: boolean;
+	fallback_model?: string | null;
+	research_model?: string | null;
+	research_enabled?: boolean;
 	ai_request_timeout_seconds: number;
 	update_check_enabled: boolean;
 	image_quality: string;
@@ -290,7 +297,8 @@ export const fieldPreferences = {
 // LLM PROFILES
 // =============================================================================
 
-export type ProfileStatus = 'primary' | 'fallback' | 'off';
+export type ProfileStatus = 'primary' | 'fallback' | 'research' | 'off';
+export type CredentialSource = 'own' | 'env' | 'profile';
 
 export interface LLMProfile {
 	name: string;
@@ -298,6 +306,11 @@ export interface LLMProfile {
 	has_api_key: boolean;
 	api_base: string | null;
 	status: ProfileStatus;
+	credential_source?: CredentialSource;
+	credential_profile_name?: string | null;
+	research_reasoning_effort?: string | null;
+	research_assigned?: boolean;
+	can_share_credential?: boolean;
 }
 
 export interface LLMProfileCreate {
@@ -306,6 +319,9 @@ export interface LLMProfileCreate {
 	api_key?: string | null;
 	api_base?: string | null;
 	status?: ProfileStatus;
+	credential_source?: CredentialSource;
+	credential_profile_name?: string | null;
+	research_reasoning_effort?: string | null;
 }
 
 export interface LLMProfileUpdate {
@@ -314,6 +330,9 @@ export interface LLMProfileUpdate {
 	api_key?: string | null;
 	api_base?: string | null;
 	status?: ProfileStatus | null;
+	credential_source?: CredentialSource;
+	credential_profile_name?: string | null;
+	research_reasoning_effort?: string | null;
 }
 
 export interface TestConnectionResponse {
@@ -327,7 +346,12 @@ export interface TestConnectionResponse {
 
 export const llmProfiles = {
 	/** List all LLM profiles (API keys masked) */
-	list: () => request<{ profiles: LLMProfile[] }>('/llm/profiles'),
+	list: () =>
+		request<{
+			profiles: LLMProfile[];
+			reasoning_options?: Record<string, string[]>;
+			environment_credential_available?: boolean;
+		}>('/llm/profiles'),
 
 	/** Create a new LLM profile */
 	create: (profile: LLMProfileCreate) =>

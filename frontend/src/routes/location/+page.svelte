@@ -97,7 +97,7 @@
 
 		// Check for recoverable session
 		try {
-			hasRecovery = await scanWorkflow.hasRecoverableSession();
+			hasRecovery = !scanWorkflow.visitingLocation && (await scanWorkflow.hasRecoverableSession());
 			if (hasRecovery) {
 				recoverySummary = await scanWorkflow.getRecoverySummary();
 			}

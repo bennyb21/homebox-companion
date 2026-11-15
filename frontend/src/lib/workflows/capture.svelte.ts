@@ -23,11 +23,45 @@ export class CaptureService {
 	// IMAGE OPERATIONS
 	// =========================================================================
 
-	/** Add a captured image */
+	oneItemPerPhoto = $state(false);
+
+	/** Regroup only photos, never inferred objects. Files and preview URLs remain intact. */
+	setOneItemPerPhoto(value: boolean): void {
+		const photos = this.images.flatMap((image) => [
+			{ ...image, additionalFiles: undefined, additionalDataUrls: undefined },
+			...(image.additionalFiles ?? []).map((file, index) => ({
+				...image,
+				file,
+				assetId: null,
+				dataUrl: image.additionalDataUrls?.[index] ?? '',
+				additionalFiles: undefined,
+				additionalDataUrls: undefined,
+			})),
+		]);
+		this.oneItemPerPhoto = value;
+		this.images = value
+			? photos.map((image) => ({ ...image, separateItems: false }))
+			: photos.length
+				? [
+						{
+							...photos[0],
+							separateItems: false,
+							additionalFiles: photos.slice(1).map((image) => image.file),
+							additionalDataUrls: photos.slice(1).map((image) => image.dataUrl),
+						},
+					]
+				: [];
+	}
+
+	/** Add a photo in selection order to this session's grouping. */
 	addImage(image: CapturedImage): void {
-		log.debug(`Adding image: file="${image.file.name}", size=${image.file.size} bytes`);
-		this.images = [image, ...this.images];
-		log.info(`Image added. Total images: ${this.images.length}`);
+		if (!this.oneItemPerPhoto && this.images.length) {
+			this.addAdditionalImages(
+				0,
+				[image.file, ...(image.additionalFiles ?? [])],
+				[image.dataUrl, ...(image.additionalDataUrls ?? [])]
+			);
+		} else this.images = [...this.images, { ...image, separateItems: false }];
 	}
 
 	/** Remove an image by index */

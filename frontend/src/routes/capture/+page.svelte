@@ -5,7 +5,6 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { resetLocationState } from '$lib/stores/locations.svelte';
 	import { showToast } from '$lib/stores/ui.svelte';
 	import { markSessionExpired } from '$lib/stores/auth.svelte';
 	import { scanWorkflow } from '$lib/workflows/scan.svelte';
@@ -18,6 +17,8 @@
 	import { captureSessionScope } from '$lib/services/scanPersistence';
 	import CaptureProfileSelector from '$lib/components/CaptureProfileSelector.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	let showInputChange = $state(false);
 	import AppContainer from '$lib/components/AppContainer.svelte';
 	import StepIndicator from '$lib/components/StepIndicator.svelte';
 	import AnalysisProgressBar from '$lib/components/AnalysisProgressBar.svelte';
@@ -100,7 +101,9 @@
 	// Get workflow state for reading
 	const workflow = scanWorkflow;
 	// A history visit keeps the review checkpoint; restarting capture is an explicit review action.
-	let reviewPreview = $state(untrack(() => workflow.state.status === 'reviewing'));
+	let reviewPreview = $state(
+		untrack(() => ['reviewing', 'confirming'].includes(workflow.state.status))
+	);
 
 	// Derived values from workflow state
 	// Using getter pattern to ensure reactivity with class-based $state
@@ -155,7 +158,7 @@
 		await getInitPromise();
 
 		if (disposed || !routeGuards.capture()) return;
-		reviewPreview = workflow.state.status === 'reviewing';
+		reviewPreview = ['reviewing', 'confirming'].includes(workflow.state.status);
 
 		// Load capture limits from config
 		try {
@@ -353,10 +356,8 @@
 		return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 	}
 
-	function goBack() {
-		resetLocationState();
-		workflow.clearLocation();
-		goto(resolve('/location'));
+	async function goBack() {
+		if (await workflow.visitStep(1)) await goto(resolve('/location'));
 	}
 
 	// ==========================================================================
@@ -422,6 +423,20 @@
 	}
 </script>
 
+<ConfirmDialog
+	open={showInputChange}
+	title="Discard analysis results and manual edits?"
+	message="Changing photos, grouping or analysis options discards all current results, manual edits and removed-draft undo history. Source and added review photos, location and capture options are kept. Reanalysis only runs when you explicitly request it."
+	confirmLabel="Discard results and edit inputs"
+	onCancel={() => {
+		showInputChange = false;
+	}}
+	onConfirm={async () => {
+		if (await workflow.discardAnalysisForInputChange()) reviewPreview = false;
+		showInputChange = false;
+	}}
+/>
+
 <svelte:head>
 	<title>Capture Items - Homebox Companion</title>
 </svelte:head>
@@ -437,6 +452,13 @@
 		{#if locationPath}
 			<p class="mb-4 text-body-sm text-neutral-300">Location: {locationPath}</p>
 		{/if}
+		<Button
+			variant="secondary"
+			onclick={() => {
+				showInputChange = true;
+			}}
+			disabled={workflow.captureLocked}>Change photos or analysis options</Button
+		>
 		<div class="space-y-4">
 			{#each images as image, index (image.dataUrl)}
 				<div class="card space-y-3">
@@ -462,6 +484,46 @@
 		</div>
 	{:else}
 		<p class="mb-6 text-body-sm text-neutral-400">Add photos and configure detection options</p>
+		<p class="mb-3 text-caption text-neutral-400">
+			HBC_IMAGE_QUALITY controls stored Homebox photos, not AI input. AI images are normally resized
+			to at most 2048 pixels on the longest side and JPEG quality 85. Add a sharp, well-lit close-up
+			of engraved numbers or labels for identification.
+		</p>
+		<label class="mb-3 flex items-center gap-3 text-body-sm text-neutral-200">
+			<input
+				type="checkbox"
+				role="switch"
+				checked={workflow.oneItemPerPhoto}
+				disabled={isAnalyzing || status === 'partial_analysis'}
+				onchange={(event) => {
+					workflow.setOneItemPerPhoto(event.currentTarget.checked);
+					event.currentTarget.checked = workflow.oneItemPerPhoto;
+				}}
+			/>
+			One item per photo
+		</label>
+		<p class="mb-3 text-caption text-neutral-400">
+			{workflow.oneItemPerPhoto
+				? 'Each photo creates one item, not multiple objects within a photo.'
+				: 'All photos show one item and are analyzed together.'}
+		</p>
+		<p class="mb-3 text-body-sm text-neutral-200">
+			{images.length}
+			{images.length === 1 ? 'item' : 'items'} · {totalImageCount}
+			{totalImageCount === 1 ? 'photo' : 'photos'}
+		</p>
+		{#if workflow.legacyGrouping}
+			<p class="mb-3 text-caption text-warning-300">
+				Legacy draft: existing photo groups and results are preserved. Choose a grouping mode
+				explicitly to adopt the new behavior.
+			</p>
+		{/if}
+		{#if workflow.analysisStale}
+			<p class="mb-3 text-body-sm text-warning-300">
+				Analysis is stale. Review the inputs, then explicitly Reanalyze with AI. No analysis has
+				been started.
+			</p>
+		{/if}
 
 		<!-- Current location display -->
 		{#if locationPath}
@@ -656,7 +718,7 @@
 							<!-- Title, Image count and total size -->
 							<div class="min-w-0 flex-1">
 								<p class="text-body-sm font-semibold text-neutral-100">
-									Item # {String(images.length - index).padStart(3, '0')}
+									Item # {String(index + 1).padStart(3, '0')}
 								</p>
 								<p class="text-caption text-neutral-400">
 									Image Count: {1 + (image.additionalFiles?.length || 0)}
@@ -715,31 +777,6 @@
 									onChange={(entity_type_id, template_id) =>
 										workflow.updateImageOptions(index, { entity_type_id, template_id })}
 								/>
-								<!-- Separate into multiple items toggle -->
-								<label class="flex cursor-pointer items-center gap-3 pt-3">
-									<div class="relative">
-										<input
-											type="checkbox"
-											checked={image.separateItems}
-											onchange={(e) =>
-												updateImageOption(
-													index,
-													'separateItems',
-													(e.target as HTMLInputElement).checked
-												)}
-											class="peer sr-only"
-											disabled={isAnalyzing}
-										/>
-										<div
-											class="h-6 w-10 rounded-full bg-neutral-700 transition-colors peer-checked:bg-primary-600"
-										></div>
-										<div
-											class="absolute left-1 top-1 rounded-full bg-neutral-400 transition-all peer-checked:translate-x-4 peer-checked:bg-neutral-100 size-4"
-										></div>
-									</div>
-									<span class="text-body-sm text-neutral-200">Separate into multiple items</span>
-								</label>
-
 								<!-- Asset ID section -->
 								{#if !image.separateItems}
 									<div>
@@ -957,8 +994,15 @@
 >
 	<AppContainer>
 		{#if reviewPreview}
-			<Button variant="primary" full onclick={() => goto(resolve('/review'))}>
-				<span>Return to Review</span>
+			<Button
+				variant="primary"
+				full
+				onclick={() =>
+					goto(workflow.state.status === 'confirming' ? resolve('/summary') : resolve('/review'))}
+			>
+				<span
+					>{workflow.state.status === 'confirming' ? 'Return to Summary' : 'Return to Review'}</span
+				>
 				<ChevronRight size={20} strokeWidth={1.5} />
 			</Button>
 		{:else if showAnalyzingUI && isAnalyzing}
@@ -976,7 +1020,7 @@
 				{#if isStartingAnalysis}
 					<span>Starting...</span>
 				{:else}
-					<span>Analyze with AI</span>
+					<span>{workflow.analysisStale ? 'Reanalyze with AI' : 'Analyze with AI'}</span>
 				{/if}
 				<Lightbulb size={20} strokeWidth={1.5} />
 			</Button>

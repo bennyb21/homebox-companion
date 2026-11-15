@@ -11,7 +11,14 @@
 	import Zap from '@lucide/svelte/icons/zap';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import { llmProfiles, type LLMProfile, type ProfileStatus } from '$lib/api/settings';
+	import {
+		llmProfiles,
+		getConfig,
+		type CredentialSource,
+		type LLMProfile,
+		type ProfileStatus,
+	} from '$lib/api/settings';
+	import { settingsService } from '$lib/workflows/settings.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 
@@ -32,6 +39,14 @@
 	let formApiKey = $state('');
 	let formApiBase = $state('');
 	let formStatus = $state<ProfileStatus>('off');
+	let credentialSource = $state<CredentialSource>('own');
+	let credentialProfile = $state('');
+	let reasoningEffort = $state('');
+	let reasoningOptions = $state<Record<string, string[]>>({});
+	let environmentAvailable = $state(false);
+	const peers = $derived(
+		profiles.filter((p) => p.name !== editingProfile?.name && p.can_share_credential)
+	);
 
 	let saving = $state(false);
 	let disposed = false;
@@ -39,8 +54,13 @@
 	let loadGeneration = 0;
 	let testTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-	onMount(async () => {
-		await loadProfiles();
+	onMount(() => {
+		void loadProfiles();
+		const changed = () => {
+			void loadProfiles();
+		};
+		window.addEventListener('research-assignment-changed', changed);
+		return () => window.removeEventListener('research-assignment-changed', changed);
 	});
 
 	onDestroy(() => {
@@ -52,15 +72,41 @@
 		}
 	});
 
-	async function loadProfiles(errorPrefix = '') {
+	async function loadProfiles(errorPrefix = '', expected?: LLMProfile) {
 		if (disposed) return;
 		const operation = ++loadGeneration;
 		const isCurrent = () => !disposed && operation === loadGeneration;
 		loading = true;
 		sectionError = null;
+		settingsService.config = null;
 		try {
 			const result = await llmProfiles.list();
-			if (isCurrent()) profiles = result.profiles;
+			if (expected) {
+				const actual = result.profiles.find((p) => p.name === expected.name);
+				const fields: (keyof LLMProfile)[] = [
+					'name',
+					'model',
+					'status',
+					'credential_source',
+					'credential_profile_name',
+					'research_reasoning_effort',
+					'api_base',
+					'has_api_key',
+					'research_assigned',
+				];
+				if (!actual || fields.some((field) => actual[field] !== expected[field])) {
+					throw new Error(
+						'Profile readback differs from the save response. Reload settings before further changes.'
+					);
+				}
+			}
+			if (isCurrent()) {
+				profiles = result.profiles;
+				reasoningOptions = result.reasoning_options ?? {};
+				environmentAvailable = result.environment_credential_available ?? false;
+			}
+			const config = await getConfig();
+			if (isCurrent()) settingsService.config = config;
 		} catch (e) {
 			if (isCurrent()) {
 				const message = e instanceof Error ? e.message : 'Failed to load profiles';
@@ -81,6 +127,9 @@
 		formApiKey = '';
 		formApiBase = '';
 		formStatus = 'off';
+		credentialSource = 'own';
+		credentialProfile = '';
+		reasoningEffort = '';
 		showModal = true;
 	}
 
@@ -94,6 +143,9 @@
 		formApiKey = ''; // Don't pre-fill - user must re-enter
 		formApiBase = profile.api_base || '';
 		formStatus = profile.status;
+		credentialSource = profile.credential_source ?? 'own';
+		credentialProfile = profile.credential_profile_name ?? '';
+		reasoningEffort = profile.research_reasoning_effort ?? '';
 		showModal = true;
 	}
 
@@ -112,30 +164,38 @@
 		saving = true;
 		formError = null;
 		try {
+			let savedProfile: LLMProfile;
 			if (editingProfile) {
 				// Update existing
-				await llmProfiles.update(editingProfile.name, {
+				savedProfile = await llmProfiles.update(editingProfile.name, {
 					new_name: formName !== editingProfile.name ? formName : undefined,
 					model: formModel,
-					api_key: formApiKey || undefined, // undefined = keep existing, value = set new
-					api_base: formApiBase || null,
+					api_key: credentialSource === 'own' ? formApiKey || undefined : undefined, // blank retains stored key
+					api_base: formApiBase,
 					status: formStatus,
+					credential_source: credentialSource,
+					credential_profile_name: credentialSource === 'profile' ? credentialProfile : null,
+					research_reasoning_effort: reasoningEffort || null,
 				});
 			} else {
 				// Create new
-				await llmProfiles.create({
+				savedProfile = await llmProfiles.create({
 					name: formName,
 					model: formModel,
-					api_key: formApiKey || undefined,
+					api_key: credentialSource === 'own' ? formApiKey || undefined : undefined,
 					api_base: formApiBase || undefined,
 					status: formStatus,
+					credential_source: credentialSource,
+					credential_profile_name: credentialSource === 'profile' ? credentialProfile : null,
+					research_reasoning_effort: reasoningEffort || null,
 				});
 			}
 			if (!isCurrent()) return;
 			// The mutation is complete. Close before refreshing so a failed list
 			// request cannot invite a duplicate create.
 			closeModal();
-			await loadProfiles('Profile saved, but the list could not be refreshed: ');
+			await loadProfiles('Profile saved, but the list could not be refreshed: ', savedProfile);
+			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
 			if (isCurrent()) {
 				formError = e instanceof Error ? e.message : 'Failed to save profile';
@@ -153,6 +213,7 @@
 		try {
 			await llmProfiles.delete(name);
 			await loadProfiles();
+			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
 			sectionError = e instanceof Error ? e.message : 'Failed to delete profile';
 		}
@@ -163,6 +224,7 @@
 		try {
 			await llmProfiles.activate(name);
 			await loadProfiles();
+			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
 			sectionError = e instanceof Error ? e.message : 'Failed to activate profile';
 		}
@@ -261,8 +323,16 @@
 							>
 								{profile.status}
 							</span>
+							{#if profile.research_assigned && profile.status !== 'research'}
+								<span class="text-caption text-neutral-400">+ Research</span>
+							{/if}
 						</div>
 						<p class="mt-0.5 truncate text-body-sm text-neutral-400">{profile.model}</p>
+						<p class="text-caption text-neutral-500">
+							Credential: {profile.credential_source ?? 'own'}{profile.credential_profile_name
+								? ` (${profile.credential_profile_name})`
+								: ''} — {profile.has_api_key ? 'available' : 'not configured'}
+						</p>
 						{#if profile.api_base}
 							<p class="truncate text-caption text-neutral-500">{profile.api_base}</p>
 						{/if}
@@ -327,7 +397,7 @@
 	onclose={closeModal}
 >
 	<form
-		class="space-y-4"
+		class="max-h-[calc(100dvh-12rem)] space-y-4 overflow-y-auto p-1"
 		aria-describedby={formError ? 'profile-form-error' : undefined}
 		onsubmit={(e) => {
 			e.preventDefault();
@@ -377,21 +447,71 @@
 		</div>
 
 		<div>
-			<label for="profile-api-key" class="mb-1 block text-body-sm font-medium text-neutral-300">
-				API Key
-			</label>
-			<input
-				id="profile-api-key"
-				type="password"
-				bind:value={formApiKey}
-				placeholder={editingProfile?.has_api_key ? '••••••••' : 'sk-...'}
-				class="input-sm"
-			/>
-			{#if editingProfile}
-				<p class="mt-1 text-caption text-neutral-500">Leave blank to keep existing key</p>
-			{/if}
+			<label for="credential-source" class="mb-1 block text-body-sm font-medium text-neutral-300"
+				>Credential source</label
+			>
+			<select id="credential-source" class="input-sm" bind:value={credentialSource}>
+				<option value="own">Own stored key</option>
+				<option value="profile">Reuse another OpenAI profile's key</option>
+				<option value="env"
+					>Environment key{environmentAvailable ? '' : ' (unavailable or incompatible)'}</option
+				>
+			</select>
+			<p class="mt-1 text-caption text-neutral-500">
+				Reuse is limited to the official OpenAI endpoint. No key is copied. Saving never calls the
+				provider.
+			</p>
 		</div>
-
+		{#if credentialSource === 'profile'}
+			<div>
+				<label for="credential-profile" class="mb-1 block text-body-sm font-medium text-neutral-300"
+					>Credential profile</label
+				>
+				<select id="credential-profile" class="input-sm" bind:value={credentialProfile} required>
+					<option value="">Choose a stored OpenAI credential</option>
+					{#each peers as peer (peer.name)}<option value={peer.name}>{peer.name}</option>{/each}
+				</select>
+			</div>
+		{/if}
+		<div>
+			<label for="research-reasoning" class="mb-1 block text-body-sm font-medium text-neutral-300"
+				>Research reasoning effort</label
+			>
+			<select id="research-reasoning" class="input-sm" bind:value={reasoningEffort}>
+				<option value="">Provider default (unset)</option>
+				{#each reasoningOptions[formModel] ?? [] as effort (effort)}<option value={effort}
+						>{effort}</option
+					>{/each}
+			</select>
+			<p class="mt-1 text-caption text-neutral-500">
+				Research uses Responses with web search. Reasoning tokens share the 2400 output-token
+				budget; higher effort may leave incomplete output. No automatic retry or budget increase.
+			</p>
+			{#if !(formModel in reasoningOptions)}<p class="text-caption text-neutral-500">
+					No verified reasoning options for this exact model. Leave unset.
+				</p>{/if}
+			{#if formModel === 'gpt-6-luna'}<p class="text-caption text-neutral-500">
+					Capture/chat use Chat Completions with reasoning none for function-tool compatibility.
+					This research setting does not change capture/chat.
+				</p>{/if}
+		</div>
+		{#if credentialSource === 'own'}
+			<div>
+				<label for="profile-api-key" class="mb-1 block text-body-sm font-medium text-neutral-300">
+					API Key
+				</label>
+				<input
+					id="profile-api-key"
+					type="password"
+					bind:value={formApiKey}
+					placeholder={editingProfile?.has_api_key ? '••••••••' : 'sk-...'}
+					class="input-sm"
+				/>
+				{#if editingProfile}
+					<p class="mt-1 text-caption text-neutral-500">Leave blank to keep existing key</p>
+				{/if}
+			</div>
+		{/if}
 		<div>
 			<label for="profile-api-base" class="mb-1 block text-body-sm font-medium text-neutral-300">
 				API Base URL <span class="text-neutral-500">(optional)</span>
@@ -412,13 +532,18 @@
 			<select id="profile-status" bind:value={formStatus} class="input-sm">
 				<option value="primary">Primary</option>
 				<option value="fallback">Fallback</option>
+				<option value="research">Research</option>
 				<option value="off">Off</option>
 			</select>
 			<p class="mt-1 text-caption text-neutral-500">
 				{#if formStatus === 'primary'}
-					Primary model used for all AI features
+					Primary model for capture and chat. To also use it for research, select it in Product
+					research without changing this role.
 				{:else if formStatus === 'fallback'}
 					Used automatically if the primary model fails
+				{:else if formStatus === 'research'}
+					Dedicated research only; never used as capture/chat fallback. Research remains off until
+					explicitly enabled.
 				{:else}
 					Profile saved but not in use
 				{/if}

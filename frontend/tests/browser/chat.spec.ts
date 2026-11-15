@@ -58,7 +58,10 @@ async function chatContext(context: BrowserContext): Promise<string> {
 }
 
 test('separate browsers use distinct chat contexts', async ({ browser }) => {
-	const options = { baseURL: 'http://127.0.0.1:4173', serviceWorkers: 'block' as const };
+	const options = {
+		baseURL: process.env.HBC_BROWSER_TEST_ORIGIN || 'http://127.0.0.1:4173',
+		serviceWorkers: 'block' as const,
+	};
 	const first = await browser.newContext(options);
 	const second = await browser.newContext(options);
 	try {

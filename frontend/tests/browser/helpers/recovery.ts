@@ -6,8 +6,8 @@ const databaseName = 'hbc-scan-recovery';
 // reload in the same tab, so a broken app recovery path cannot be hidden by reseeding.
 export async function seedDraftOnce(page: Page, scope: string, draft: Record<string, unknown>) {
 	await page.addInitScript(
-		async ({ scope, draft }) => {
-			if (location.origin !== 'http://127.0.0.1:4173') return;
+		async ({ scope, draft, origin }) => {
+			if (location.origin !== origin) return;
 			const marker = `hbc-test-seeded-${scope}`;
 			if (sessionStorage.getItem(marker)) return;
 			const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -32,7 +32,7 @@ export async function seedDraftOnce(page: Page, scope: string, draft: Record<str
 				db.close();
 			}
 		},
-		{ scope, draft }
+		{ scope, draft, origin: process.env.HBC_BROWSER_TEST_ORIGIN || 'http://127.0.0.1:4173' }
 	);
 }
 

@@ -1,5 +1,23 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
+	import ConfirmDialog from './ConfirmDialog.svelte';
+	import { resetLocationState } from '$lib/stores/locations.svelte';
+	let discardOpen = $state(false);
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { scanWorkflow } from '$lib/workflows/scan.svelte';
+	const names = ['Location', 'Capture', 'Review', 'Summary'];
+	async function visit(step: number) {
+		if (!(await scanWorkflow.visitStep(step))) return;
+		const routes = [
+			resolve('/location'),
+			resolve('/capture'),
+			resolve('/review'),
+			resolve('/summary'),
+		];
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- All routes resolved above.
+		await goto(routes[step - 1]);
+	}
 
 	interface Props {
 		currentStep: number;
@@ -24,7 +42,12 @@
 			></span>
 		{/if}
 		<!-- Step circle -->
-		<span
+		<button
+			type="button"
+			aria-label={`Step ${step}: ${names[step - 1]}`}
+			aria-current={step === currentStep ? 'step' : undefined}
+			disabled={step === currentStep || !scanWorkflow.canVisitStep(step)}
+			onclick={() => visit(step)}
 			class="flex items-center justify-center rounded-full text-body-sm font-semibold shadow-sm transition-all duration-300 size-10 {step ===
 			currentStep
 				? 'bg-primary-600 text-neutral-100 ring-4 ring-primary-500/20'
@@ -37,6 +60,32 @@
 			{:else}
 				{step}
 			{/if}
-		</span>
+		</button>
 	{/each}
 </div>
+{#if !scanWorkflow.captureLocked && !scanWorkflow.isAnalyzing && scanWorkflow.state.images.length > 0}
+	<button
+		type="button"
+		class="mb-4 text-caption text-neutral-400 underline"
+		onclick={() => {
+			discardOpen = true;
+		}}>Discard entire draft</button
+	>
+{/if}
+<ConfirmDialog
+	open={discardOpen}
+	title="Discard entire draft?"
+	message="This removes all unsaved photos, results, manual edits and undo history from this capture session. It never deletes items in Homebox."
+	confirmLabel="Discard draft"
+	onCancel={() => {
+		discardOpen = false;
+	}}
+	onConfirm={async () => {
+		if (scanWorkflow.captureLocked || scanWorkflow.isAnalyzing) return;
+		await scanWorkflow.clearPersistedSession();
+		scanWorkflow.reset(false);
+		resetLocationState();
+		discardOpen = false;
+		await goto(resolve('/location'));
+	}}
+/>

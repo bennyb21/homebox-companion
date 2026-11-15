@@ -48,6 +48,9 @@ test('reduced motion reveals expandable controls without a slide transition', as
 	await uploadPhoto(page);
 	const expand = page.getByRole('button', { name: /options|expand/i }).first();
 	await expand.click();
-	await expect(page.getByText('Separate into multiple items')).toBeVisible();
-	await expect(page.getByText('Separate into multiple items')).toHaveCSS('animation-name', 'none');
+	await expect(page.getByText('Additional photos', { exact: true })).toBeVisible();
+	await expect(page.getByText('Additional photos', { exact: true })).toHaveCSS(
+		'animation-name',
+		'none'
+	);
 });

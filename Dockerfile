@@ -8,7 +8,7 @@ RUN npm run build --silent 2>/dev/null
 
 # Stage 2: Python runtime
 FROM python:3.14.10-slim@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999
-ARG VERSION=0.1.0
+ARG VERSION=0.2.0
 ARG REVISION=unknown
 LABEL org.opencontainers.image.version=$VERSION \
       org.opencontainers.image.revision=$REVISION \

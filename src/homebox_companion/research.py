@@ -8,6 +8,8 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from homebox_companion.core.credential_policy import RESEARCH_REASONING
+from homebox_companion.core.llm_utils import resolve_profile_key
 from homebox_companion.core.persistent_settings import ModelProfile
 
 
@@ -178,8 +180,10 @@ def parse_response(data: dict, identity: ProductIdentity) -> ResearchResult:
 class _SingleDispatchTransport(httpx.AsyncBaseTransport):
     """Final egress boundary: fixed URL, no proxy, redirect, or second POST."""
 
-    def __init__(self, transport: httpx.AsyncBaseTransport):
+    def __init__(self, transport: httpx.AsyncBaseTransport, model: str | None = None, effort: str | None = None):
         self.transport = transport
+        self.model = model
+        self.effort = effort
         self.sent = False
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
@@ -198,6 +202,11 @@ class _SingleDispatchTransport(httpx.AsyncBaseTransport):
         }
         if any(body.get(k) != v for k, v in required.items()):
             raise RuntimeError("Research budget contract rejected")
+        if self.model is not None and body.get("model") != self.model:
+            raise RuntimeError("Research model contract rejected")
+        expected_reasoning = {"effort": self.effort} if self.effort is not None else None
+        if body.get("reasoning") != expected_reasoning:
+            raise RuntimeError("Research reasoning contract rejected")
         self.sent = True
         return await self.transport.handle_async_request(request)
 
@@ -208,9 +217,10 @@ class _SingleDispatchTransport(httpx.AsyncBaseTransport):
 class OpenAIResponsesResearchProvider:
     """No Router, fallback, automatic JSON repair, or source URL fetches."""
 
-    def __init__(self, policy: ResearchPolicy, profile: ModelProfile | None, *, transport=None):
+    def __init__(self, policy: ResearchPolicy, profile: ModelProfile | None, *, transport=None, settings=None):
         self.policy = policy
-        self.profile = profile
+        self.profile = profile.model_copy(deep=True) if profile else None
+        self._api_key = resolve_profile_key(profile, settings) if profile else None
         self.transport = transport
 
     @property
@@ -220,9 +230,12 @@ class OpenAIResponsesResearchProvider:
             self.policy.enabled
             and p
             and p.name == self.policy.profile_name
-            and p.api_key
-            and p.api_key.get_secret_value()
-            and not p.api_base
+            and self._api_key
+            and (
+                p.research_reasoning_effort is None
+                or p.research_reasoning_effort in RESEARCH_REASONING.get(p.model, ())
+            )
+            and p.api_base in (None, "", "https://api.openai.com/v1")
             and re.fullmatch(r"[A-Za-z0-9._-]+", p.model)
         )
 
@@ -233,15 +246,22 @@ class OpenAIResponsesResearchProvider:
         from litellm.llms.custom_httpx.http_handler import AsyncHTTPHandler
 
         p = self.profile
-        assert p is not None and p.api_key is not None
-        boundary = _SingleDispatchTransport(self.transport or httpx.AsyncHTTPTransport(retries=0, verify=True))
+        assert p is not None and self._api_key is not None
+        boundary = _SingleDispatchTransport(
+            self.transport or httpx.AsyncHTTPTransport(retries=0, verify=True), p.model, p.research_reasoning_effort
+        )
         handler = AsyncHTTPHandler(transport=boundary, follow_redirects=False, timeout=45.0)
         try:
             async with asyncio.timeout(45):
                 response = await litellm.aresponses(
                     model=p.model,
                     custom_llm_provider="openai",
-                    api_key=p.api_key.get_secret_value(),
+                    api_key=self._api_key,
+                    **(
+                        {"reasoning": {"effort": p.research_reasoning_effort}}
+                        if p.research_reasoning_effort is not None
+                        else {}
+                    ),
                     api_base="https://api.openai.com/v1",
                     client=handler,
                     input=json.dumps(identity.model_dump(exclude_none=True), ensure_ascii=False),

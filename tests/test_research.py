@@ -11,7 +11,8 @@ from homebox_companion.research import ProductIdentity
 
 
 @pytest.mark.asyncio
-async def test_official_responses_wire_contract_and_single_send():
+@pytest.mark.parametrize("api_base", [None, "https://api.openai.com/v1"])
+async def test_official_responses_wire_contract_and_single_send(api_base):
     import homebox_companion.research as research
 
     assert hasattr(research, "OpenAIResponsesResearchProvider")
@@ -25,7 +26,9 @@ async def test_official_responses_wire_contract_and_single_send():
 
     provider = research.OpenAIResponsesResearchProvider(
         research.ResearchPolicy(enabled=True, profile_name="research"),
-        ModelProfile(name="research", model="gpt-4.1-mini", api_key=SecretStr("synthetic-not-a-key")),
+        ModelProfile(
+            name="research", model="gpt-4.1-mini", api_key=SecretStr("synthetic-not-a-key"), api_base=api_base
+        ),
         transport=httpx.MockTransport(respond),
     )
     result = await provider.research(
@@ -115,7 +118,13 @@ def test_research_settings_roundtrip_is_explicit_and_default_off():
     )
 
     assert getattr(PersistentSettings(), "research_enabled", None) is False
-    settings = PersistentSettings(research_enabled=True, research_profile_name="dedicated")
+    from homebox_companion.core.persistent_settings import ModelProfile, ProfileStatus
+
+    settings = PersistentSettings(
+        research_enabled=True,
+        research_profile_name="dedicated",
+        llm_profiles=[ModelProfile(name="dedicated", model="gpt-4.1", status=ProfileStatus.RESEARCH)],
+    )
     restored = _yaml_dict_to_settings(_settings_to_yaml_dict(settings))
     assert restored.research_enabled is True
     assert restored.research_profile_name == "dedicated"

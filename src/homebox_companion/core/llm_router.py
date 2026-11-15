@@ -22,7 +22,8 @@ from litellm.integrations.custom_logger import CustomLogger
 from litellm.router import Router
 from loguru import logger
 
-from .persistent_settings import get_fallback_profile
+from .credential_policy import OPENAI_BASE, official_openai
+from .persistent_settings import _settings_lock, get_fallback_profile
 
 if TYPE_CHECKING:
     from .persistent_settings import ModelProfile
@@ -111,9 +112,10 @@ def get_router() -> Router:
         ValueError: If no PRIMARY profile or env defaults are available.
     """
     global _router
-    if _router is None:
-        _router = _build_router_from_profiles()
-    return _router
+    with _settings_lock:
+        if _router is None:
+            _router = _build_router_from_profiles()
+        return _router
 
 
 def invalidate_router() -> None:
@@ -124,9 +126,10 @@ def invalidate_router() -> None:
     - PRIMARY/FALLBACK status changes
     """
     global _router
-    if _router is not None:
-        logger.debug("Invalidating LLM Router - will rebuild on next access")
-    _router = None
+    with _settings_lock:
+        if _router is not None:
+            logger.debug("Invalidating LLM Router - will rebuild on next access")
+        _router = None
 
 
 def get_primary_model_name() -> str:
@@ -175,10 +178,15 @@ def _build_router_from_profiles() -> Router:
     primary_params: dict[str, Any] = {
         "model": primary_creds.model,
     }
-    if primary_creds.api_key:
-        primary_params["api_key"] = primary_creds.api_key
+    # Explicit sentinel prevents SDK ambient OPENAI_API_KEY fallback when absent.
+    primary_params["api_key"] = primary_creds.api_key or "hbc-no-configured-key"
+    if primary_creds.model in {"gpt-6-luna", "openai/gpt-6-luna"}:
+        # This exact model's Chat Completions function tools require none.
+        primary_params["reasoning_effort"] = "none"
     if primary_creds.api_base:
         primary_params["api_base"] = primary_creds.api_base
+    elif official_openai(primary_creds.model, None):
+        primary_params["api_base"] = OPENAI_BASE
 
     model_list.append(
         {
@@ -194,7 +202,7 @@ def _build_router_from_profiles() -> Router:
     # Add fallback deployment if configured
     fallback = get_fallback_profile()
     if fallback:
-        fallback_params = _profile_to_params(fallback, inherit_key=primary_creds.api_key)
+        fallback_params = _profile_to_params(fallback)
         model_list.append(
             {
                 "model_name": "fallback",
@@ -225,13 +233,11 @@ def _build_router_from_profiles() -> Router:
 
 def _profile_to_params(
     profile: ModelProfile,
-    inherit_key: str | None = None,
 ) -> dict[str, Any]:
     """Convert a ModelProfile to Router litellm_params format.
 
     Args:
         profile: The LLM profile to convert.
-        inherit_key: API key to use if profile doesn't specify one.
 
     Returns:
         Dict suitable for litellm_params in Router model_list.
@@ -240,13 +246,15 @@ def _profile_to_params(
         "model": profile.model,
     }
 
-    # Use profile's key, or inherit from primary if not specified
-    if profile.api_key:
-        params["api_key"] = profile.api_key.get_secret_value()
-    elif inherit_key:
-        params["api_key"] = inherit_key
+    from .llm_utils import resolve_profile_key
+
+    params["api_key"] = resolve_profile_key(profile) or "hbc-no-configured-key"
+    if profile.model in {"gpt-6-luna", "openai/gpt-6-luna"}:
+        params["reasoning_effort"] = "none"
 
     if profile.api_base:
         params["api_base"] = profile.api_base
+    elif official_openai(profile.model, None):
+        params["api_base"] = OPENAI_BASE
 
     return params

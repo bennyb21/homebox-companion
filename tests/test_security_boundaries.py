@@ -187,13 +187,11 @@ async def test_destination_changes_reuse_saved_key(overrides, test_connection, p
         method = "POST" if test_connection else "PUT"
         path = "/api/llm/profiles/primary" + ("/test" if test_connection else "")
         response = await client.request(method, path, json=overrides)
-    assert response.status_code == 200, response.text
+    assert response.status_code == (400 if test_connection else 200), response.text
     assert store.llm_profiles[0].api_key.get_secret_value() == "synthetic-saved-key"
     if test_connection:
         save.assert_not_called()
-        assert completion.call_args.kwargs["api_key"] == "synthetic-saved-key"
-        for field, value in overrides.items():
-            assert completion.call_args.kwargs[field] == value
+        completion.assert_not_called()
     else:
         save.assert_called_once_with(store)
         completion.assert_not_called()
@@ -223,7 +221,7 @@ async def test_explicit_key_is_used_for_new_destination(profile_store):
     assert profile_store[2].call_args.kwargs["api_key"] == "synthetic-new-key"
 
 
-def test_primary_inherits_environment_key_for_different_destination(monkeypatch):
+def test_primary_does_not_inherit_environment_key_for_different_destination(monkeypatch):
     monkeypatch.setattr(
         config,
         "settings",
@@ -243,10 +241,10 @@ def test_primary_inherits_environment_key_for_different_destination(monkeypatch)
             api_base="https://different.test/v1",
         ),
     )
-    assert llm_utils.resolve_llm_credentials().api_key == "synthetic-env-key"
+    assert llm_utils.resolve_llm_credentials().api_key is None
 
 
-def test_fallback_inherits_primary_key_for_different_destination(monkeypatch):
+def test_fallback_does_not_inherit_primary_key_for_different_destination(monkeypatch):
     from homebox_companion.core import llm_router
 
     monkeypatch.setattr(
@@ -271,13 +269,13 @@ def test_fallback_inherits_primary_key_for_different_destination(monkeypatch):
     monkeypatch.setattr(llm_router, "Router", router)
     llm_router._build_router_from_profiles()
     fallback = router.call_args.kwargs["model_list"][1]["litellm_params"]
-    assert fallback["api_key"] == "synthetic-primary-key"
+    assert fallback["api_key"] == "hbc-no-configured-key"
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("field", ["api_key", "model", "api_base"])
 @pytest.mark.parametrize("operation", ["create", "update", "test"])
-async def test_profile_requests_accept_environment_references(field, operation, profile_store):
+async def test_profile_requests_reject_sdk_environment_indirection(field, operation, profile_store):
     body = {field: "os.environ/HBC_SYNTHETIC_KEY"}
     if operation == "create":
         body = {"name": "new", "model": "gpt-5.6-luna", **body}
@@ -286,16 +284,10 @@ async def test_profile_requests_accept_environment_references(field, operation, 
         path += "/test"
     async with security_client() as (client, _, _):
         response = await client.request("PUT" if operation == "update" else "POST", path, json=body)
-    assert response.status_code == (201 if operation == "create" else 200), response.text
-    store, save, completion = profile_store
-    if operation == "test":
-        assert completion.call_args.kwargs[field] == body[field]
-        save.assert_not_called()
-    else:
-        save.assert_called_once_with(store)
-        value = getattr(store.llm_profiles[-1 if operation == "create" else 0], field)
-        assert (value.get_secret_value() if isinstance(value, SecretStr) else value) == body[field]
-        completion.assert_not_called()
+    assert response.status_code in {400, 422}, response.text
+    _, save, completion = profile_store
+    save.assert_not_called()
+    completion.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -306,5 +298,5 @@ async def test_keyless_profile_can_change_endpoint_and_test_without_key(profile_
         response = await client.post("/api/llm/profiles/primary/test", json={})
     assert update.status_code == 200
     assert response.status_code == 200
-    assert profile_store[2].call_args.kwargs["api_key"] is None
+    assert profile_store[2].call_args.kwargs["api_key"] == "hbc-no-configured-key"
     assert profile_store[2].call_args.kwargs["api_base"] == "http://localhost:11434/v1"

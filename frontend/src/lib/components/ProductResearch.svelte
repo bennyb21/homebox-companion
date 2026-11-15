@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { request } from '$lib/api/client';
 	import Button from '$lib/components/Button.svelte';
@@ -51,6 +51,9 @@
 		message = 'Research cancelled. Any already dispatched search may still cost money.';
 	}
 	onDestroy(() => controller?.abort());
+	onMount(() => {
+		if (window.location.hash === '#product-research') void open();
+	});
 	async function open() {
 		opened = !opened;
 		if (!opened) {
@@ -159,8 +162,8 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations, not application routes -->
-<div class="space-y-3">
-	<Button variant="secondary" size="sm" type="button" onclick={open}>Product research</Button>
+<div id="product-research" class="space-y-3">
+	<Button variant="secondary" size="sm" type="button" onclick={open}>Research product data</Button>
 	{#if opened}
 		<a href={resolve('/research')}>Research saved items and review background jobs</a>
 		<p>
@@ -169,6 +172,7 @@
 		</p>
 		{#if !enabled}<p>
 				Research is disabled or unavailable. Capture and save remain available.
+				<a href={`${resolve('/settings')}#product-research`}>Research settings</a>
 			</p>{/if}
 		{#if !item.template_id}<p>
 				Select a supported native text template to adopt research fields.

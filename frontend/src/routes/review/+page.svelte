@@ -529,6 +529,11 @@
 					/>
 				{/if}
 
+				<p class="text-caption text-neutral-400">
+					Photo changes here update attachments only and keep your manual fields; they do not rerun
+					AI. To analyze new views, use Back to Capture, then Change photos or analysis options and
+					explicitly Reanalyze with AI.
+				</p>
 				<!-- Images panel -->
 				<ImagesPanel
 					bind:images={() => allImages, setReviewImages}

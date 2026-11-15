@@ -338,9 +338,45 @@ test('photo replacement and ordering invalidate compressed data while unchanged 
 	assert.equal(replaced.additionalImages.length, 0);
 });
 
+test('a pending autosave flushed after completion preserves the recoverable checkpoint', async () => {
+	const writes = [];
+	const EmptyService = class {};
+	const { scanWorkflow } = load(
+		'../workflows/scan.svelte.ts',
+		{
+			'./capture.svelte': { CaptureService: EmptyService },
+			'./analysis.svelte': { AnalysisService: EmptyService },
+			'./review.svelte': { ReviewService: EmptyService },
+			'./submission.svelte': { SubmissionService: EmptyService },
+			'$lib/services/scanPersistence': {
+				ScanPersistence: class {
+					async save() {
+						writes.push('overwritten checkpoint');
+						return true;
+					}
+				},
+			},
+		},
+		{ $state: (value) => value, clearTimeout: () => {} }
+	);
+	// Completion retains the confirming checkpoint when a POST outcome is unknown.
+	// A previously scheduled autosave must not overwrite it on pagehide.
+	for (const terminalStatus of ['complete', 'idle']) {
+		scanWorkflow._status = terminalStatus;
+		scanWorkflow._persistTimeout = 1;
+		scanWorkflow.flushPendingPersist();
+		await Promise.resolve();
+	}
+	assert.deepEqual(writes, []);
+});
+
 test('an obsolete autosave cannot replace the latest completed Saved indicator', async () => {
 	const saves = [];
-	const EmptyService = class {};
+	const EmptyService = class {
+		itemStatuses = {};
+		detectedItems = [];
+		confirmedItems = [];
+	};
 	const { scanWorkflow } = load(
 		'../workflows/scan.svelte.ts',
 		{
