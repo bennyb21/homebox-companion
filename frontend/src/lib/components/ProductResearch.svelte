@@ -3,6 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { request } from '$lib/api/client';
 	import Button from '$lib/components/Button.svelte';
+	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
+	import ResearchProfileSummary from '$lib/components/ResearchProfileSummary.svelte';
+	import { researchOutcome, type ResearchResult } from '$lib/api/research';
 	import { createUuidV4 } from '$lib/utils/uuid';
 	import type { DeepReadonly, ReviewItem } from '$lib/types';
 	let {
@@ -19,7 +22,7 @@
 	};
 	type Review = {
 		id: string;
-		result: { status: string; sources: { url: string; title: string }[] };
+		result: ResearchResult;
 		proposals: Proposal[];
 	};
 	let opened = $state(false);
@@ -28,7 +31,6 @@
 	let manufacturer = $state('');
 	let identifier = $state('');
 	let kind = $state('part_number');
-	let confirmed = $state(false);
 	let message = $state('');
 	let review = $state<Review | null>(null);
 	let selected = $state<number[]>([]);
@@ -70,10 +72,18 @@
 			item.custom_fields?.['Part number'] || item.custom_fields?.Teilenummer
 				? 'part_number'
 				: 'model_number';
+		const active = new AbortController();
+		controller?.abort();
+		controller = active;
+		enabled = false;
 		try {
-			enabled = (await request<{ enabled: boolean }>('/research/capabilities')).enabled;
+			const capabilities = await request<{ enabled: boolean }>('/research/capabilities', {
+				signal: active.signal,
+			});
+			if (!active.signal.aborted) enabled = capabilities.enabled;
 		} catch {
-			message = 'Research unavailable. You can continue saving normally.';
+			if (!active.signal.aborted)
+				message = 'Research unavailable. You can continue saving normally.';
 		}
 	}
 	async function lookup() {
@@ -99,7 +109,6 @@
 					identity: {
 						identifier_exact: identifier,
 						identifier_kind: kind,
-						identity_confirmed: confirmed,
 						...(manufacturer ? { manufacturer } : {}),
 					},
 					current_values: item.custom_fields || {},
@@ -110,7 +119,7 @@
 				return;
 			}
 			review = result;
-			message = result.result.status;
+			message = researchOutcome(result.result.status, result.result.diagnostic);
 		} catch {
 			if (!active.signal.aborted)
 				message =
@@ -167,13 +176,14 @@
 	{#if opened}
 		<a href={resolve('/research')}>Research saved items and review background jobs</a>
 		<p>
-			Optional paid product research. No automatic inventory changes. Never enter serial numbers or
-			personal notes.
+			Public model/part search inputs are sent to OpenAI and may incur API costs. No automatic
+			inventory changes.
 		</p>
 		{#if !enabled}<p>
 				Research is disabled or unavailable. Capture and save remain available.
 				<a href={`${resolve('/settings')}#product-research`}>Research settings</a>
 			</p>{/if}
+		<ResearchProfileSummary />
 		{#if !item.template_id}<p>
 				Select a supported native text template to adopt research fields.
 			</p>{/if}
@@ -184,7 +194,7 @@
 				maxlength="80"
 			/></label
 		>
-		<label
+		<label class="block text-body-sm text-neutral-200"
 			>Identifier kind<select class="input mt-2" bind:value={kind}
 				><option value="part_number">Part number</option><option value="model_number"
 					>Model number</option
@@ -198,23 +208,21 @@
 				maxlength="120"
 			/></label
 		>
-		<label
-			><input type="checkbox" bind:checked={confirmed} />I confirm this is a public part/model
-			number, not a serial number</label
-		>
+
 		<Button
 			variant="secondary"
 			size="sm"
 			type="button"
-			disabled={!enabled || !confirmed || !identifier || !item.template_id || busy}
+			disabled={!enabled || !identifier || !item.template_id || busy}
 			onclick={lookup}>Research this product</Button
 		>
 		{#if busy}<Button variant="secondary" size="sm" type="button" onclick={cancel}
 				>Cancel research</Button
 			>{/if}
-		<p role="status">{message}</p>
-		{#if review}
-			{#each review.result.sources as source (source.url)}<a
+		<p role="status" class="wrap-break-word text-body-sm text-neutral-200">{message}</p>
+		{#if review?.result.diagnostic}<DiagnosticDetails diagnostic={review.result.diagnostic} />{/if}
+		{#if review?.result.status === 'matched'}
+			{#each review.result.sources ?? [] as source (source.url)}<a
 					href={source.url}
 					target="_blank"
 					rel="noopener noreferrer">{source.title}</a

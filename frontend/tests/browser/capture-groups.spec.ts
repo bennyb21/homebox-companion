@@ -95,9 +95,8 @@ test('capture explains stored-photo quality separately from AI close-up input', 
 	page,
 }) => {
 	await selectLocation(page);
-	await expect(
-		page.getByText(/HBC_IMAGE_QUALITY controls stored Homebox photos, not AI input/)
-	).toBeVisible();
+	await page.getByText('Saved photo quality — not AI input', { exact: true }).click();
+	await expect(page.getByText(/HBC_IMAGE_QUALITY changes stored Homebox photos/)).toBeVisible();
 	await expect(page.getByText(/2048.*85/)).toBeVisible();
 	await expect(page.getByText(/engraved numbers/)).toBeVisible();
 });

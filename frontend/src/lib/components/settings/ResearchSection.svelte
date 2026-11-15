@@ -2,6 +2,12 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { request } from '$lib/api/client';
 	import Button from '$lib/components/Button.svelte';
+	import Switch from '$lib/components/Switch.svelte';
+	let {
+		onedit,
+		oncreate,
+		editorReady,
+	}: { onedit: (name: string) => void; oncreate: () => void; editorReady: boolean } = $props();
 
 	type ResearchSettings = {
 		enabled: boolean;
@@ -11,6 +17,7 @@
 	let settings = $state<ResearchSettings | null>(null);
 	let selected = $state('');
 	let busy = $state(false);
+	let reloadPending = false;
 	let message = $state('');
 	let error = $state('');
 	const controller = new AbortController();
@@ -19,7 +26,8 @@
 	onMount(() => {
 		void load();
 		const changed = () => {
-			void load();
+			if (busy) reloadPending = true;
+			else void load();
 		};
 		window.addEventListener('model-profiles-changed', changed);
 		return () => window.removeEventListener('model-profiles-changed', changed);
@@ -33,7 +41,7 @@
 		if (controller.signal.aborted) return;
 		settings = result;
 		const choices = result.profiles.filter((profile) => profile.eligible);
-		selected = choices.some((profile) => profile.name === result.profile_name)
+		selected = result.profiles.some((profile) => profile.name === result.profile_name)
 			? result.profile_name!
 			: choices.length === 1
 				? choices[0].name
@@ -53,12 +61,18 @@
 			if (!controller.signal.aborted)
 				error = 'Cannot load research settings. Retry before changing them.';
 		} finally {
-			if (!controller.signal.aborted) busy = false;
+			if (!controller.signal.aborted) {
+				busy = false;
+				if (reloadPending) {
+					reloadPending = false;
+					void load();
+				}
+			}
 		}
 	}
 
 	async function save(enabled: boolean) {
-		if (busy || !settings) return;
+		if (busy || !settings || (enabled && !eligible.some((p) => p.name === selected))) return;
 		busy = true;
 		error = '';
 		message = '';
@@ -83,7 +97,13 @@
 				error = 'Save outcome could not be verified. Reload research settings before trying again.';
 			}
 		} finally {
-			if (!controller.signal.aborted) busy = false;
+			if (!controller.signal.aborted) {
+				busy = false;
+				if (reloadPending) {
+					reloadPending = false;
+					void load();
+				}
+			}
 		}
 	}
 </script>
@@ -91,57 +111,72 @@
 <section id="product-research" class="card space-y-3" aria-labelledby="research-settings-heading">
 	<h2 id="research-settings-heading" class="text-h3 text-neutral-100">Product research</h2>
 	<p class="text-body-sm text-neutral-400">
-		Optional paid product searches, started explicitly for each item. Enabling makes no provider
-		call. Select an existing Primary/Fallback without changing its capture role, or add a dedicated
-		Research profile in AI Models with a different model and a shared credential. No key is copied
-		or requested here.
+		Choose which model researches public product information. Enabling and saving settings make no
+		provider request. Each search is a separate, explicit action.
 	</p>
 	{#if settings}
-		<label class="flex min-h-touch items-center gap-3">
-			<input
-				type="checkbox"
-				role="switch"
-				checked={settings.enabled}
-				disabled={busy || (!settings.enabled && !selected)}
-				onchange={(event) => {
-					const enabled = event.currentTarget.checked;
-					void save(enabled);
-				}}
-			/>
-			Enable product research
-		</label>
-		{#if eligible.length > 1}
-			<label class="block" for="research-profile">Research profile</label>
-			<select id="research-profile" class="input mt-2" bind:value={selected} disabled={busy}>
-				<option value="">Choose an existing OpenAI profile</option>
-				{#each eligible as profile (profile.name)}<option value={profile.name}
-						>{profile.name} — {profile.model}</option
-					>{/each}
-			</select>
-		{:else if eligible.length === 1}
-			<p>Existing profile: {eligible[0].name} — {eligible[0].model}</p>
-		{:else}
-			<p>
-				No eligible existing profile. Edit an AI model profile below/above, keeping its stored API
-				key, then reload research settings.
-			</p>
-		{/if}
+		<Switch
+			label="Enable product research"
+			checked={settings.enabled}
+			disabled={busy || (!settings.enabled && !eligible.some((p) => p.name === selected))}
+			onchange={(enabled) => void save(enabled)}
+		/>
+		<p class="text-body-sm text-neutral-200">
+			{settings.enabled ? 'Research uses' : 'Saved research profile'}: {settings.profile_name ||
+				'Not selected'}{settings.profile_name
+				? ` — ${settings.profiles.find((p) => p.name === settings?.profile_name)?.model || 'Model unavailable'}`
+				: ''}
+		</p>
+		<label class="block" for="research-profile">Research profile</label>
+		<select id="research-profile" class="input mt-2" bind:value={selected} disabled={busy}>
+			<option value="">Choose an existing OpenAI profile</option>
+			{#each settings.profiles as profile (profile.name)}
+				<option value={profile.name}
+					>{profile.name} — {profile.model}{profile.eligible ? '' : ' (not eligible)'}</option
+				>
+			{/each}
+		</select>
+		<div class="flex flex-wrap gap-2">
+			<Button
+				variant="secondary"
+				size="sm"
+				disabled={busy || !selected || !editorReady}
+				onclick={() => onedit(selected)}>Edit selected profile</Button
+			>
+			<Button variant="secondary" size="sm" disabled={busy || !editorReady} onclick={oncreate}
+				>Create research profile</Button
+			>
+		</div>
+		<p class="text-caption text-neutral-400">
+			Editing or testing a profile does not select it for research. Save your selection here.
+			Editing a shared Primary profile also changes its capture model; create a research-only
+			profile for a different model.
+		</p>
+		{#if eligible.length === 0}<p>
+				No eligible profile yet. Edit a profile or create one using an existing credential.
+			</p>{/if}
 		{#each settings.profiles.filter((profile) => !profile.eligible) as profile (profile.name)}
 			<!-- Server-provided eligibility is shared with settings validation. -->
 			<p class="text-body-sm text-neutral-400">{profile.name}: {profile.reason}</p>
 		{/each}
 		{#if settings.enabled}
-			<p>Saved research profile: {settings.profile_name || '(none)'}</p>
 			{#if selected && selected !== settings.profile_name}
-				<Button variant="secondary" size="sm" disabled={busy} onclick={() => save(true)}
-					>Save research profile</Button
+				<Button
+					variant="secondary"
+					size="sm"
+					disabled={busy || !eligible.some((p) => p.name === selected)}
+					onclick={() => save(true)}>Save research profile</Button
 				>
 			{/if}
 		{/if}
-		<p class="text-caption text-neutral-400">
-			Eligibility uses the installed model catalog, not a live test. API key validity, model access,
-			billing and search quality are not verified.
-		</p>
+		<details class="text-caption text-neutral-400">
+			<summary class="min-h-touch cursor-pointer py-3">About eligibility and credentials</summary>
+			<p>
+				Eligibility uses available model metadata, not a live test. Model access and search quality
+				are not verified. Existing Primary/Fallback profiles keep their capture role. Research-only
+				profiles can reference the same stored credential; no key is copied.
+			</p>
+		</details>
 	{/if}
 	{#if error}<p role="alert">{error}</p>{/if}
 	{#if message}<p role="status">{message}</p>{/if}

@@ -46,7 +46,7 @@ test('profile connection tests serialize their shared result state', async ({ pa
 		return json({ success: true, message: 'One connected' });
 	});
 	await page.goto('/settings');
-	const tests = page.getByRole('button', { name: 'Test connection' });
+	const tests = page.getByRole('button', { name: 'Check API access' });
 	await tests.first().click();
 	await expect(tests.first()).toBeDisabled();
 	await expect(tests.nth(1)).toBeDisabled();

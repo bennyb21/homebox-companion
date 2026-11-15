@@ -63,9 +63,9 @@ test('optional part-number-only research requires explicit field adoption', asyn
 		expect(request.postDataJSON().identity).toMatchObject({
 			identifier_exact: 'AB-123',
 			identifier_kind: 'part_number',
-			identity_confirmed: true,
 		});
 		expect(request.postDataJSON().identity.manufacturer).toBeUndefined();
+		expect(request.postDataJSON().identity).not.toHaveProperty('identity_confirmed');
 		return json({
 			id: 'lookup-1',
 			result: {
@@ -92,9 +92,7 @@ test('optional part-number-only research requires explicit field adoption', asyn
 	await analyzePhotos(page);
 	await page.getByRole('button', { name: 'Research product data', exact: true }).click();
 	await expect(page.getByLabel('Exact part/model number')).toHaveValue('AB-123');
-	await page
-		.getByLabel('I confirm this is a public part/model number, not a serial number')
-		.check();
+	await expect(page.getByText(/inputs are sent to OpenAI/)).toBeVisible();
 	await page.getByRole('button', { name: 'Research this product', exact: true }).click();
 	await expect(page.getByRole('link', { name: 'Synthetic source' })).toHaveAttribute(
 		'href',

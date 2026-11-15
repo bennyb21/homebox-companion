@@ -8,7 +8,6 @@
 	import FlaskConical from '@lucide/svelte/icons/flask-conical';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
-	import Zap from '@lucide/svelte/icons/zap';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import {
@@ -17,10 +16,19 @@
 		type CredentialSource,
 		type LLMProfile,
 		type ProfileStatus,
+		type TestConnectionResponse,
+		type ProfileTestRequest,
 	} from '$lib/api/settings';
 	import { settingsService } from '$lib/workflows/settings.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
+	import { researchOutcome } from '$lib/api/research';
+
+	let { onavailability = () => {} }: { onavailability?: (ready: boolean) => void } = $props();
+	$effect(() => {
+		onavailability(!loading && !sectionError && !saving);
+	});
 
 	// State
 	let profiles = $state<LLMProfile[]>([]);
@@ -29,7 +37,13 @@
 	let formError = $state<string | null>(null);
 	let formErrorElement = $state<HTMLDivElement>();
 	let testingProfile = $state<string | null>(null);
-	let testResult = $state<{ success: boolean; message: string } | null>(null);
+	let testResult = $state<TestConnectionResponse | null>(null);
+	let testedLabel = $state('');
+	let researchTestProfile = $state<LLMProfile | null>(null);
+	let showResearchTest = $state(false);
+	let testManufacturer = $state('');
+	let testIdentifier = $state('');
+	let testKind = $state<'model_number' | 'part_number'>('model_number');
 
 	// Edit modal state
 	let showModal = $state(false);
@@ -52,10 +66,12 @@
 	let disposed = false;
 	let editorGeneration = 0;
 	let loadGeneration = 0;
-	let testTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	onMount(() => {
-		void loadProfiles();
+		void loadProfiles().then(() => {
+			const name = new URLSearchParams(window.location.search).get('editProfile');
+			if (name) openResearchEditor(name);
+		});
 		const changed = () => {
 			void loadProfiles();
 		};
@@ -67,9 +83,6 @@
 		disposed = true;
 		editorGeneration++;
 		loadGeneration++;
-		if (testTimeoutId) {
-			clearTimeout(testTimeoutId);
-		}
 	});
 
 	async function loadProfiles(errorPrefix = '', expected?: LLMProfile) {
@@ -115,6 +128,22 @@
 		} finally {
 			if (isCurrent()) loading = false;
 		}
+	}
+
+	export function openResearchEditor(name?: string) {
+		if (loading || sectionError || disposed || saving) return;
+		if (name) {
+			const profile = profiles.find((p) => p.name === name);
+			if (profile) openEditModal(profile);
+			return;
+		}
+		openCreateModal();
+		formStatus = 'research';
+		const source = profiles.find((p) => p.can_share_credential);
+		if (source) {
+			credentialSource = 'profile';
+			credentialProfile = source.name;
+		} else if (environmentAvailable) credentialSource = 'env';
 	}
 
 	function openCreateModal() {
@@ -230,27 +259,48 @@
 		}
 	}
 
-	async function handleTest(name: string) {
+	function openResearchTest(profile: LLMProfile) {
+		if (testingProfile !== null) return;
+		researchTestProfile = profile;
+		testManufacturer = '';
+		testIdentifier = '';
+		testKind = 'model_number';
+		showResearchTest = true;
+	}
+
+	async function handleTest(
+		name: string,
+		options: ProfileTestRequest = { test_kind: 'connection' }
+	) {
 		if (disposed || testingProfile !== null) return;
-		if (testTimeoutId) clearTimeout(testTimeoutId);
 		testingProfile = name;
+		testedLabel = `${options.test_kind === 'research' ? 'Research test' : 'API access check'}: ${name} — ${profiles.find((p) => p.name === name)?.model || ''}`;
 		testResult = null;
 		try {
-			const result = await llmProfiles.test(name);
-			if (disposed) return;
-			testResult = result;
-			// Auto-clear after 5 seconds
-			if (testTimeoutId) clearTimeout(testTimeoutId);
-			testTimeoutId = setTimeout(() => {
-				if (testResult?.message === result.message) testResult = null;
-				testTimeoutId = null;
-			}, 5000);
-		} catch (e) {
-			if (disposed) return;
-			testResult = { success: false, message: e instanceof Error ? e.message : 'Test failed' };
+			const result = await llmProfiles.test(name, options);
+			if (!disposed) testResult = result;
+		} catch {
+			if (!disposed)
+				testResult = {
+					success: false,
+					message:
+						'Test outcome unknown. A dispatched request may incur API costs. No automatic retry; check provider activity before another attempt.',
+				};
 		} finally {
 			if (!disposed) testingProfile = null;
 		}
+	}
+
+	function runResearchTest() {
+		if (!researchTestProfile || !testIdentifier.trim() || testingProfile !== null) return;
+		const name = researchTestProfile.name;
+		const identity = {
+			identifier_kind: testKind,
+			identifier_exact: testIdentifier,
+			...(testManufacturer ? { manufacturer: testManufacturer } : {}),
+		};
+		showResearchTest = false;
+		void handleTest(name, { test_kind: 'research', identity });
 	}
 
 	function getStatusBadgeClass(status: ProfileStatus): string {
@@ -277,6 +327,14 @@
 		</Button>
 	</div>
 
+	<p class="text-caption text-neutral-400">
+		Check API access checks model access, not web research. Official OpenAI profiles use a metadata
+		request; other providers may use a billable completion. Run research test is a potentially paid
+		search on the named profile, even when Off. Neither selects or activates a profile.
+	</p>
+	{#if testingProfile}<p role="status">
+			Testing {testingProfile}… One request only; no automatic retry.
+		</p>{/if}
 	{#if sectionError}
 		<div
 			role="alert"
@@ -292,7 +350,22 @@
 				? 'text-success-400 border-success-500/30 bg-success-500/10'
 				: 'text-error-400 border-error-500/30 bg-error-500/10'}"
 		>
-			{testResult.message}
+			<p class="font-medium text-neutral-100">{testedLabel}</p>
+			<p role="status" class="mt-2 wrap-break-word">{testResult.message}</p>
+			{#if testResult.research_result}<p class="mt-2 text-neutral-200">
+					{researchOutcome(
+						testResult.research_result.status,
+						testResult.research_result.diagnostic
+					)}
+				</p>{/if}
+			{#if testResult.diagnostic || testResult.research_result?.diagnostic}
+				<DiagnosticDetails
+					diagnostic={(testResult.diagnostic || testResult.research_result?.diagnostic)!}
+				/>
+			{/if}
+			<Button variant="ghost" size="sm" onclick={() => (testResult = null)}
+				>Dismiss test result</Button
+			>
 		</div>
 	{/if}
 
@@ -311,7 +384,9 @@
 		<div class="space-y-2">
 			{#each profiles as profile (profile.name)}
 				<div
-					class="flex items-center gap-3 rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-3"
+					role="group"
+					aria-label={`Profile ${profile.name}`}
+					class="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-3"
 				>
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center gap-2">
@@ -337,7 +412,7 @@
 							<p class="truncate text-caption text-neutral-500">{profile.api_base}</p>
 						{/if}
 					</div>
-					<div class="flex items-center gap-1">
+					<div class="flex flex-wrap items-center gap-1">
 						{#if profile.status !== 'primary'}
 							<button
 								type="button"
@@ -349,22 +424,18 @@
 								<Check size={16} strokeWidth={2} />
 							</button>
 						{/if}
-						<button
-							type="button"
-							class="btn-icon-touch hover:text-primary-400"
-							title="Test connection"
-							aria-label="Test connection"
+						<Button
+							variant="secondary"
+							size="sm"
 							disabled={testingProfile !== null}
-							onclick={() => handleTest(profile.name)}
+							onclick={() => handleTest(profile.name)}>Check API access</Button
 						>
-							{#if testingProfile === profile.name}
-								<div
-									class="animate-spin rounded-full border-2 border-primary-500 border-t-transparent size-4"
-								></div>
-							{:else}
-								<Zap size={16} strokeWidth={2} />
-							{/if}
-						</button>
+						<Button
+							variant="secondary"
+							size="sm"
+							disabled={testingProfile !== null}
+							onclick={() => openResearchTest(profile)}>Run research test</Button
+						>
 						<button
 							type="button"
 							class="btn-icon-touch hover:text-neutral-100"
@@ -389,6 +460,55 @@
 		</div>
 	{/if}
 </section>
+
+<Modal bind:open={showResearchTest} title="Run research test">
+	<form
+		class="max-h-[calc(100dvh-12rem)] space-y-4 overflow-y-auto p-1"
+		onsubmit={(event) => {
+			event.preventDefault();
+			runResearchTest();
+		}}
+	>
+		<p class="wrap-break-word font-medium text-neutral-100">
+			{researchTestProfile?.name} — {researchTestProfile?.model}
+		</p>
+		<p class="text-body-sm text-neutral-300">
+			Public model/part search inputs are sent to OpenAI and may incur API costs. This tests this
+			saved profile only, without activating it or changing inventory.
+		</p>
+		<label class="block"
+			>Manufacturer (optional)<input
+				class="input mt-2"
+				bind:value={testManufacturer}
+				maxlength="80"
+			/></label
+		>
+		<label class="block" for="test-identifier-kind">Identifier kind</label><select
+			id="test-identifier-kind"
+			class="input mt-2"
+			bind:value={testKind}
+			><option value="model_number">Model number</option><option value="part_number"
+				>Part number</option
+			></select
+		>
+		<label class="block"
+			>Exact part/model number<input
+				class="input mt-2"
+				bind:value={testIdentifier}
+				maxlength="120"
+				required
+			/></label
+		>
+		<div class="flex flex-wrap gap-2">
+			<Button variant="ghost" type="button" onclick={() => (showResearchTest = false)}
+				>Cancel</Button
+			>
+			<Button type="submit" disabled={testingProfile !== null || !testIdentifier.trim()}
+				>Run paid research test</Button
+			>
+		</div>
+	</form>
+</Modal>
 
 <!-- Modal -->
 <Modal
@@ -438,11 +558,17 @@
 				type="text"
 				bind:value={formModel}
 				required
-				placeholder="e.g., gpt-4o, ollama/mistral"
+				placeholder="Exact model ID"
 				class="input-sm"
 			/>
 			<p class="mt-1 text-caption text-neutral-500">
-				LiteLLM model format: gpt-4o, claude-3-opus, ollama/mistral
+				Enter the exact provider model ID. It is saved as typed, never automatically corrected.
+				<a
+					class="text-primary-400 underline"
+					href="https://developers.openai.com/api/docs/models"
+					target="_blank"
+					rel="noopener noreferrer">OpenAI model documentation</a
+				>
 			</p>
 		</div>
 
@@ -483,16 +609,19 @@
 						>{effort}</option
 					>{/each}
 			</select>
-			<p class="mt-1 text-caption text-neutral-500">
-				Research uses Responses with web search. Reasoning tokens share the 2400 output-token
-				budget; higher effort may leave incomplete output. No automatic retry or budget increase.
+			<p class="mt-1 text-caption text-neutral-400">
+				Optional. Provider default is a good starting point; only supported options are listed.
 			</p>
+			<details class="text-caption text-neutral-400">
+				<summary class="min-h-touch cursor-pointer py-3">Reasoning and request limits</summary>
+				<p>
+					Research uses Responses with web search. Reasoning tokens share the 2400 output-token
+					budget; higher effort may leave incomplete output. No automatic retry or budget increase.
+				</p>
+				<p>This research setting does not change capture/chat.</p>
+			</details>
 			{#if !(formModel in reasoningOptions)}<p class="text-caption text-neutral-500">
 					No verified reasoning options for this exact model. Leave unset.
-				</p>{/if}
-			{#if formModel === 'gpt-6-luna'}<p class="text-caption text-neutral-500">
-					Capture/chat use Chat Completions with reasoning none for function-tool compatibility.
-					This research setting does not change capture/chat.
 				</p>{/if}
 		</div>
 		{#if credentialSource === 'own'}
@@ -545,7 +674,7 @@
 					Dedicated research only; never used as capture/chat fallback. Research remains off until
 					explicitly enabled.
 				{:else}
-					Profile saved but not in use
+					Saved but not assigned. Editing or testing does not activate this profile.
 				{/if}
 			</p>
 		</div>
