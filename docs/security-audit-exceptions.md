@@ -159,6 +159,30 @@ Historical version bindings cannot authorize the patched graph. These fixtures
 have no private inventory, addresses or credentials and are offline test inputs,
 not substitutes for the runner's current live registry result.
 
+## Research settings and entry-point source reassessment
+
+The next-version research UX changes were reviewed against the three accepted
+low advisories before rebinding source hashes. The changes add an authenticated
+JSON settings read/write UI and fixed local navigation fragments, not SvelteKit
+form actions. They introduce no `use:enhance`, `setHeaders`, dynamic HTML or
+runtime deepmerge imports. Profile names, reasons and model names use escaped
+Svelte text; keys are absent from the new response and browser payloads. The
+summary control preserves the existing failed-row editor and excludes written,
+partial and unknown rows. Opening research only reads capabilities; paid lookup
+and field adoption remain separate explicit actions.
+
+Only the reviewed changed source hashes and the new ResearchSection source entry
+are rebound. Package versions, manifest/lock/.npmrc bindings, all three exact
+advisory objects, raw historical audit fixtures and the fail-closed runner/checker
+are unchanged. This is a source-context reassessment for the same private pilot,
+not another waiver, a clean raw audit, independent acceptance or publication
+approval. The remaining capture/navigation/undo work requires its own reassessment.
+
+The separately requested About-section project and release links now target the
+maintained `bennyb21/homebox-companion` fork. Both are constant HTTPS URLs with
+the existing `noopener noreferrer` policy; upstream attribution and LICENSE
+remain unchanged. That exact AboutSection source hash is also deliberately rebound.
+
 Tests cover acceptance, honest zero findings, new findings on the same packages,
 identity/severity changes, schema/count errors, graph cycles/dangling links,
 source/lock/config changes, raw error/truncation/duplicate keys, actual process

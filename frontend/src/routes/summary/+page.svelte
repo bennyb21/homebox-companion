@@ -90,13 +90,18 @@
 		}
 	}
 
-	async function editItem(index: number) {
+	async function editItem(index: number, research = false) {
+		if (isSubmitting) return;
+		const status = itemStatuses[index];
+		if (status && status !== 'pending' && status !== 'failed') return;
+		if (research && Object.keys(itemStatuses).length > 0 && status !== 'failed') return;
 		if (itemStatuses[index] === 'failed') {
 			await workflow.editFailedItem(index);
 		} else {
 			await workflow.editConfirmedItem(index);
 		}
-		goto(resolve('/review'));
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- Base path resolved above a fixed local fragment.
+		goto(`${resolve('/review')}${research ? '#product-research' : ''}`);
 	}
 
 	function getThumbnail(
@@ -283,6 +288,16 @@
 								</span>
 							{/if}
 						</div>
+					{/if}
+					{#if Object.keys(itemStatuses).length === 0 || itemStatuses[index] === 'failed'}
+						<Button
+							variant="secondary"
+							size="sm"
+							disabled={isSubmitting}
+							onclick={() => editItem(index, true)}
+						>
+							Research product data
+						</Button>
 					{/if}
 				</div>
 

@@ -30,7 +30,7 @@
 			<span class="font-mono text-neutral-100">{uiStore.appVersion || 'Loading...'}</span>
 			{#if service.updateAvailable && service.latestVersion}
 				<a
-					href="https://github.com/Duelion/homebox-companion/releases/latest"
+					href="https://github.com/bennyb21/homebox-companion/releases/latest"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="inline-flex items-center gap-1 rounded-full bg-warning-500/20 px-2 py-0.5 text-caption text-warning-500 transition-colors hover:bg-warning-500/30"
@@ -72,7 +72,7 @@
 	<!-- GitHub Link -->
 	<div class="space-y-2 border-t border-neutral-800 pt-3">
 		<a
-			href="https://github.com/Duelion/homebox-companion"
+			href="https://github.com/bennyb21/homebox-companion"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="group flex items-center justify-between py-2 text-neutral-400 transition-colors hover:text-neutral-100"

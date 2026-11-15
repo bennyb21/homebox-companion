@@ -2,22 +2,41 @@
 
 Research is **off by default**. Capture, review, and save do not require it. No source/confidence fields are added to Homebox. Research never changes an item without selecting fields and confirming adoption.
 
-## Configuration (administrator, before any live pilot)
+## Configuration (existing settings permissions)
 
-Use an explicitly selected existing `llm_profiles` entry in `data/settings.yaml`:
+Open **Settings → Product research**, then enable **Enable product research**.
+The sole eligible existing profile is selected automatically; with several,
+choose one explicitly. The server persists only its name and the enabled flag,
+reusing the stored key by reference. No key copy/re-entry or provider test occurs.
+The settings page reads back the saved configuration before reporting success.
+
+Eligibility is checked on the server against the adapter's existing credential,
+model-name and official-endpoint constraints and the installed LiteLLM catalog's
+OpenAI web-search flag. The UI uses these server results rather than its own
+model list. Catalog eligibility is **not** verification of API key validity,
+model access, billing or live research quality. Unsupported profiles show a reason;
+edit the existing AI profile's model while leaving its key unchanged, then reload
+research settings. Custom API bases and provider-prefixed model names are not
+accepted by this adapter. Profile primary/fallback status does not select research.
+Research settings use the same authenticated Homebox-identity policy as existing
+LLM-profile settings; this does not introduce a separate admin role.
+
+The existing file configuration remains supported:
 
 ```yaml
 research_enabled: false
-research_profile_name: dedicated-research
+research_profile_name: existing-openai-profile
 ```
 
-Create that named profile with an explicitly chosen OpenAI Responses/web-search-capable model and an API key through the existing profile configuration. Leave `api_base` unset. The profile status used by the capture/chat Router does not select research; research uses only `research_profile_name`. Enable only after agreeing API billing, model access, and a pilot budget. No key, billing, model access or live search quality is verified by the offline tests. ChatGPT/Codex subscriptions do not establish API credit.
+Enable only after agreeing API billing, model access, and a pilot budget. No key,
+billing, model access or live search quality is verified by offline tests.
+ChatGPT/Codex subscriptions do not establish API credit.
 
 There is one provider: LiteLLM SDK `aresponses` directly to `https://api.openai.com/v1/responses`, hosted `web_search`, required tool use, at most one tool call, 2400 output tokens and a 45-second total deadline. Store/background/stream are disabled, SDK retries are zero, no Router/fallback/paid repair is used. A final transport checks the serialized request contract and refuses a second POST, a different URL, or redirects. No source URLs, previews, favicons, or remote images are fetched. These are local request limits, **not a guaranteed monetary spending cap**.
 
 ## Review workflow
 
-Open **Product research** in capture review. The number and optional manufacturer are prefilled where known. Confirm whether the exact identifier is a part number or model number; serial numbers are not accepted as an identifier kind. Manufacturer can remain unknown. Keep punctuation/suffixes unchanged. This version preserves bounded embedded spaces literally (for example `A 000 123 45 67`); it rejects leading/trailing whitespace, URL/control-character input rather than silently repairing it.
+Open **Research product data** in capture review or on an unsaved summary item. The summary entry opens that item's editor at the research panel; it does not start a search. Written/uncertain rows cannot be reopened as fresh research drafts. Disabled research links to Settings. The number and optional manufacturer are prefilled where known. Confirm whether the exact identifier is a part number or model number; serial numbers are not accepted as an identifier kind. Manufacturer can remain unknown. Keep punctuation/suffixes unchanged. This version preserves bounded embedded spaces literally (for example `A 000 123 45 67`); it rejects leading/trailing whitespace, URL/control-character input rather than silently repairing it.
 
 Only public identity is sent to the provider: no item IDs, collection/account IDs, location, notes, purchase price, serial field, images or inventory description. Input cannot guarantee that a person never pastes private information into a product field; review it before confirming.
 

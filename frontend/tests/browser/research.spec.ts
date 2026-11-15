@@ -1,7 +1,46 @@
 import { test, expect } from './fixtures/test';
 import { json } from './fixtures/api';
 import { detectedItems } from './fixtures/data';
-import { selectLocation, uploadPhoto, analyzePhotos } from './helpers/scan';
+import { selectLocation, analyzePhotos, confirmItems } from './helpers/scan';
+import { uploadSyntheticPhoto as uploadPhoto } from '../fullstack/synthetic-photo';
+
+test('summary opens research for the selected draft without a paid request', async ({
+	page,
+	api,
+}) => {
+	api.on('POST', '/api/tools/vision/detect', () =>
+		json(detectedItems(['First part', 'Second part']))
+	);
+	api.on('GET', '/api/research/capabilities', () => json({ enabled: false }));
+	await selectLocation(page);
+	await uploadPhoto(page);
+	await analyzePhotos(page);
+	await page.getByLabel('Name', { exact: true }).fill('Manual first part');
+	await confirmItems(page, 2);
+	await expect(
+		page.getByRole('button', { name: 'Research product data', exact: true })
+	).toHaveCount(2);
+	await page.getByRole('button', { name: 'Research product data', exact: true }).first().click();
+	await expect(page).toHaveURL(/\/review#product-research$/);
+	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Manual first part');
+	await expect(page.getByLabel('Exact part/model number')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Research settings' })).toHaveAttribute(
+		'href',
+		'/settings#product-research'
+	);
+	await expect(
+		page.getByRole('button', { name: 'Research this product', exact: true })
+	).toBeDisabled();
+	expect(
+		api.requests.filter(
+			(request) => request.method() === 'POST' && request.url().includes('/research/')
+		)
+	).toHaveLength(0);
+	await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+	await expect(page).toHaveURL(/\/summary$/);
+	await expect(page.getByRole('heading', { name: 'Manual first part', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Second part', exact: true })).toBeVisible();
+});
 
 test('optional part-number-only research requires explicit field adoption', async ({
 	page,
@@ -51,7 +90,7 @@ test('optional part-number-only research requires explicit field adoption', asyn
 	await selectLocation(page);
 	await uploadPhoto(page);
 	await analyzePhotos(page);
-	await page.getByRole('button', { name: 'Product research', exact: true }).click();
+	await page.getByRole('button', { name: 'Research product data', exact: true }).click();
 	await expect(page.getByLabel('Exact part/model number')).toHaveValue('AB-123');
 	await page
 		.getByLabel('I confirm this is a public part/model number, not a serial number')

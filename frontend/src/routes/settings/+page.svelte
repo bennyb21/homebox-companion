@@ -18,6 +18,7 @@
 	import AboutSection from '$lib/components/settings/AboutSection.svelte';
 	import FieldPrefsSection from '$lib/components/settings/FieldPrefsSection.svelte';
 	import LLMProfilesSection from '$lib/components/settings/LLMProfilesSection.svelte';
+	import ResearchSection from '$lib/components/settings/ResearchSection.svelte';
 	import LogsSection from '$lib/components/settings/LogsSection.svelte';
 
 	onMount(async () => {
@@ -71,6 +72,7 @@
 	<AccountSection />
 	<AboutSection />
 	<LLMProfilesSection />
+	<ResearchSection />
 	<FieldPrefsSection />
 	<LogsSection />
 

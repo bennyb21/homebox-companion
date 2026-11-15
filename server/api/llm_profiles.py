@@ -10,7 +10,7 @@ import litellm
 from fastapi import APIRouter, Depends, HTTPException
 from litellm.exceptions import APIConnectionError, AuthenticationError, NotFoundError
 from loguru import logger
-from pydantic import BaseModel, SecretStr, ValidationError
+from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
 
 from homebox_companion.core.persistent_settings import (
     ModelProfile,
@@ -20,6 +20,7 @@ from homebox_companion.core.persistent_settings import (
     load_settings,
     mutate_settings,
 )
+from homebox_companion.research import OpenAIResponsesResearchProvider, ResearchPolicy
 
 from ..dependencies import require_auth
 
@@ -126,6 +127,61 @@ def _mutate_profiles(mutate: Callable[[PersistentSettings], None]) -> Persistent
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+
+class ResearchSettingsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    enabled: bool
+    profile_name: str | None = None
+
+
+def research_profile_reason(profile: ModelProfile) -> str | None:
+    """Offline eligibility only; never verifies billing, access or live quality."""
+    if not OpenAIResponsesResearchProvider(ResearchPolicy(enabled=True, profile_name=profile.name), profile).configured:
+        return "Use an existing key, an unprefixed OpenAI model name and no custom API base."
+    try:
+        supported = litellm.supports_web_search(profile.model, custom_llm_provider="openai")
+    except Exception:
+        supported = False
+    if not supported:
+        return (
+            "The installed model catalog does not list OpenAI web search support. "
+            "Edit the model while keeping its existing key."
+        )
+    return None
+
+
+def _research_settings_response(settings: PersistentSettings) -> dict:
+    return {
+        "enabled": settings.research_enabled,
+        "profile_name": settings.research_profile_name,
+        "profiles": [
+            {"name": p.name, "model": p.model, "eligible": reason is None, "reason": reason}
+            for p in settings.llm_profiles
+            for reason in [research_profile_reason(p)]
+        ],
+    }
+
+
+@router.get("/settings/research")
+async def get_research_settings() -> dict:
+    return _research_settings_response(load_settings())
+
+
+@router.put("/settings/research")
+async def update_research_settings(request: ResearchSettingsRequest) -> dict:
+    def mutate(settings: PersistentSettings) -> None:
+        name = request.profile_name
+        if request.enabled:
+            eligible = [p for p in settings.llm_profiles if research_profile_reason(p) is None]
+            if name is None and len(eligible) == 1:
+                name = eligible[0].name
+            if name is None or name not in {p.name for p in eligible}:
+                raise HTTPException(400, "Select one eligible existing OpenAI research profile")
+        settings.research_enabled = request.enabled
+        settings.research_profile_name = name
+
+    return _research_settings_response(mutate_settings(mutate))
 
 
 @router.get("/llm/profiles", response_model=ProfileListResponse)
