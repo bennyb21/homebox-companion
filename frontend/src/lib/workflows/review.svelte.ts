@@ -211,6 +211,13 @@ export class ReviewService {
 		if (currentItemOverride && currentItemOverride.reviewId !== this.currentItem?.reviewId)
 			return 0;
 		this.discardDraft();
+		// Focused editing retains the canonical row; apply only its explicit override.
+		if (currentItemOverride) {
+			const existingIndex = this._confirmedItems.findIndex(
+				(existing) => existing.reviewId === currentItemOverride.reviewId
+			);
+			if (existingIndex >= 0) this.replaceConfirmedItem(existingIndex, currentItemOverride);
+		}
 		const newItems: ConfirmedItem[] = [];
 		for (let i = this._currentReviewIndex; i < this._detectedItems.length; i++) {
 			// Use the override for the current item (index matches currentReviewIndex),
