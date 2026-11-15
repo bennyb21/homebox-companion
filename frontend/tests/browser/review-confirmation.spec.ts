@@ -69,6 +69,15 @@ for (const bulk of [false, true]) {
 		await page.reload();
 		await page.getByRole('button', { name: 'Resume Session', exact: true }).click();
 		await page.getByRole('button', { name: 'Remove item', exact: true }).nth(1).click();
+		await expect
+			.poll(async () => (await readDrafts(page, 'deployment:user:g1'))[0]?.confirmedItems)
+			.toEqual(expected.filter((_, index) => index !== 1));
+		await expect
+			.poll(
+				async () =>
+					((await readDrafts(page, 'deployment:user:g1'))[0]?.removedItems as unknown[])?.length
+			)
+			.toBe(1);
 		await page.reload();
 		await page.getByRole('button', { name: 'Resume Session', exact: true }).click();
 		await page.getByRole('button', { name: 'Undo removal', exact: true }).click();
