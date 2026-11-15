@@ -51,7 +51,19 @@ for that item. **It never deletes or recreates the known item.**
 Partial drafts retain original photos, order, manual fields, known item IDs,
 per-slot attempt states and received receipts. Interrupted `in_flight` becomes
 `unconfirmed` on recovery. Earlier drafts without photo-attempt fields remain
-readable; a known created ID cannot become a retryable creation.
+readable but their success claim is not promoted to verified completion; a known
+created ID cannot become a retryable creation. Present receipts are checked against
+the known entity, exact attempt UUID, ordered slot, original filename and retained
+photo list, as well as shape, MIME, length/hash syntax and duplicate identities.
+Inconsistent records remain partial/unconfirmed. This checks declared consistency,
+not cryptographic authenticity of arbitrary browser storage.
+
+Reset invalidates the active submission run, including late catch/finally and
+checkpoint callbacks. A collection switch preserves the old scope's durable
+in-flight record without letting its completion mutate or persist the new scope.
+Explicit submission checkpoints require their own acknowledged durable write;
+a superseded save fails closed even while the shared visual indicator says Saving.
+Debounced autosave scheduling and the late-terminal guard are unchanged.
 
 The summary/success view offers original-photo downloads and the known Homebox
 item link. Repair is manual: inspect Homebox first because an unconfirmed photo
@@ -111,9 +123,13 @@ CMD launched successfully and the new test rejected its missing `verified`
 receipt. This is not acceptance of a new 0.3.0 image; that exact image build/run
 remains required in hosted CI. No image was rebuilt or retagged for this control.
 
-After reloading the display-only success URL, use **Scan/Location → Resume
-Session** to restore the retained record; the success route itself does not
-rehydrate recovery. The retained-state tests explicitly use that entry point.
+Reloading the success URL without an in-memory result shows **Submission status
+unavailable**, never a generic verified-success claim. After authentication and
+collection verification, **Resume Session** opens the same scoped retained draft
+with its warnings, known-item links and original downloads. Resume performs no
+upload, inventory creation or provider request. Scan/Location remains an alternate
+entry point. A fully verified in-memory result retains its success actions; no new
+submission-history feature is introduced.
 
 Run live tests only against disposable fixtures with
 `TEST_HOMEBOX_VERSION=0.27.1`, and select `-m live`. Fresh artifact directories are

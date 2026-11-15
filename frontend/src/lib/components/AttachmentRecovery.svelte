@@ -62,7 +62,7 @@
 							>Download original photo {photoIndex + 1}: {file.name}</Button
 						>
 					{/each}
-					{#each workflow.submissionCheckpoint.photoAttempts[index] ?? [] as attempt (attempt.slot)}
+					{#each workflow.submissionCheckpoint.photoAttempts[index] ?? [] as attempt, attemptIndex (attemptIndex)}
 						<p class="text-caption text-neutral-300">
 							Photo {Number(attempt.slot) + 1}: {attempt.state} — {attempt.original_filename}
 						</p>

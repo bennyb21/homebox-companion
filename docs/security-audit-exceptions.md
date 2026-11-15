@@ -318,3 +318,30 @@ acceptance still triggers framework migration and fresh review. This is scoped
 integration review, not a substitute for the parallel independent guard review
 or the subsequent hosted image gates. Production source is unchanged from the
 pinned review candidate.
+
+## Guard review fix-cycle source reassessment
+
+Before rebinding the guard corrections based on `c017404e456569a40adfff9cabc799199d1c7094`,
+the seven changed production frontend files were reviewed against each accepted
+low-advisory context: SubmissionService, ScanWorkflow, sessionPersistence,
+AttachmentRecovery, and the review, summary and success routes.
+
+- Run ownership, receipt consistency and exact save acknowledgement use existing
+  local state/IndexedDB and authenticated APIs. They add no enhanced form action,
+  `use:enhance`, arbitrary redirect destination or multipart retry. The review
+  navigation hook still awaits persistence, now discarding its boolean result.
+- Unknown success-page reloads use neutral escaped text and an explicit same-scope
+  Resume action after verified authentication; its destination is fixed `/summary`.
+  Recovery retains original downloads and the configured/encoded Homebox link.
+  Invalid duplicate slot declarations no longer serve as UI keys. No dynamic HTML,
+  `setHeaders`, prerender input or new external URL source was added.
+- These runtime inputs do not feed build options. Svelte/Vite configuration,
+  static fallback, plugin 7.3.1 and build-time deepmerge 4.3.1 are unchanged.
+  Source inspection is not a formal absence-of-exploit or reachability proof.
+
+Only those seven changed source hashes are rebound; no source inventory addition.
+The three exact low advisory objects, dependencies, manifest/lock/config hashes,
+phase, expiry policy and historical raw reports are unchanged. This remains the
+same private usability pilot and accepted risk, not a clean raw audit or a new
+exception. Independent corrected-candidate review and actual built-image gates
+remain separate requirements before any authorized publication.

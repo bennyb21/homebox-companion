@@ -413,7 +413,7 @@
 	class="bottom-nav-offset fixed z-40 border-t border-neutral-800 bg-neutral-950/95 p-4 backdrop-blur-lg inset-x-0"
 >
 	<AppContainer class="space-y-3">
-		{#if !workflow.hasFailedItems() && !workflow.allItemsSuccessful()}
+		{#if Object.keys(workflow.state.itemStatuses).length === 0}
 			<Button variant="primary" full size="lg" loading={isSubmitting} onclick={submitAll}>
 				<Check size={20} strokeWidth={2} />
 				<span>Submit All Items ({confirmedItems.length})</span>

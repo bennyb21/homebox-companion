@@ -56,8 +56,7 @@ class ScanWorkflow {
 	private analysisService = new AnalysisService();
 	private reviewService = new ReviewService();
 	private submissionService = new SubmissionService(async () => {
-		await this.persistAsync();
-		if (this._saveState === 'error')
+		if (!(await this.persistAsync()))
 			throw new Error('Cannot safely submit: draft checkpoint failed.');
 	});
 	private persistence = new ScanPersistence();
@@ -1064,6 +1063,7 @@ class ScanWorkflow {
 			// Keep original fields/photos and known IDs recoverable for incomplete work.
 			this._status = 'confirming';
 			await this.persistAsync();
+			if (generation !== this.contextGeneration) return result;
 			this._status = 'complete';
 		} else if (result.success) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
@@ -1071,6 +1071,7 @@ class ScanWorkflow {
 			await this.clearPersistedSession();
 		}
 
+		if (generation !== this.contextGeneration) return result;
 		if (this._status !== 'complete') await this.persistAsync();
 		return result;
 	}
@@ -1117,17 +1118,24 @@ class ScanWorkflow {
 		}
 
 		// Check if all items are now successful
-		if (this.submissionService.allItemsSuccessful()) {
+		if (
+			Object.keys(this.submissionService.itemStatuses).length > 0 &&
+			Object.values(this.submissionService.itemStatuses).every(
+				(s) => s === 'success' || s === 'partial_success'
+			)
+		) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
 			if (Object.values(this.submissionService.itemStatuses).includes('partial_success')) {
 				this._status = 'confirming';
 				await this.persistAsync();
 			} else await this.clearPersistedSession();
+			if (generation !== this.contextGeneration) return result;
 			this._status = 'complete';
 		} else if (result.failCount > 0) {
 			this._error = `Retried: ${result.successCount + result.partialSuccessCount} succeeded, ${result.failCount} still failing`;
 		}
 
+		if (generation !== this.contextGeneration) return result;
 		if (this._status !== 'complete') await this.persistAsync();
 		return result;
 	}
@@ -1152,28 +1160,28 @@ class ScanWorkflow {
 	 * Use this when the data MUST be saved before continuing
 	 * (e.g., after analysis completes before navigation can occur).
 	 */
-	async persistAsync(): Promise<void> {
-		if (this.isEditingFailedItem) return;
+	async persistAsync(): Promise<boolean> {
+		if (this.isEditingFailedItem) return false;
 		if (this._persistTimeout) {
 			clearTimeout(this._persistTimeout);
 			this._persistTimeout = null;
 		}
 		// Don't persist terminal states
 		if (this._status === 'idle' || this._status === 'complete') {
-			return;
+			return false;
 		}
 
-		await this._doPersist();
+		return this._doPersist();
 	}
 
 	/**
 	 * Internal persist implementation - serializes and saves to IndexedDB.
 	 */
-	private async _doPersist(): Promise<void> {
-		if (this.isEditingFailedItem) return;
+	private async _doPersist(): Promise<boolean> {
+		if (this.isEditingFailedItem) return false;
 		// A queued autosave/pagehide flush may run after submission completes.
 		// Keep the last recoverable checkpoint instead of storing a terminal draft.
-		if (this._status === 'idle' || this._status === 'complete') return;
+		if (this._status === 'idle' || this._status === 'complete') return false;
 		const attempt = ++this.persistAttempt;
 		const generation = this.contextGeneration;
 		const revision = this.saveRevision;
@@ -1206,6 +1214,8 @@ class ScanWorkflow {
 			attempt === this.persistAttempt
 		)
 			this._saveState = saved ? 'saved' : 'error';
+		// A superseded/no-op save is not acknowledgement of this checkpoint.
+		return saved && generation === this.contextGeneration;
 	}
 
 	/**
@@ -1263,7 +1273,8 @@ class ScanWorkflow {
 			}
 
 			// Restore status - handle mid-analysis state
-			if (session.submission) this.submissionService.restore(session.submission);
+			if (session.submission)
+				this.submissionService.restore(session.submission, session.confirmedItems);
 
 			if (session.status === 'analyzing') {
 				// If crashed during analysis, go back to capturing

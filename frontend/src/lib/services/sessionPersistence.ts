@@ -68,9 +68,10 @@ function hasUnconfirmedWrites(session: StoredSession): boolean {
 		(Object.values(submission.itemStatuses ?? {}).some(
 			(status) => status === 'creating' || status === 'partial_success'
 		) ||
-			Object.keys(submission.createdItemIds ?? {}).some(
-				(index) => submission.itemStatuses?.[Number(index)] !== 'success'
-			) ||
+			// A surviving known-ID checkpoint is recovery evidence, even if its stored
+			// status claims success. Receipt consistency is checked during restore.
+			// Only the live fully verified workflow or explicit discard may clear it.
+			Object.keys(submission.createdItemIds ?? {}).length > 0 ||
 			Object.values(submission.photoAttempts ?? {}).some((attempts) =>
 				attempts.some((attempt) => attempt.state !== 'verified')
 			))
