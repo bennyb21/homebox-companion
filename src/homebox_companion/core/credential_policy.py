@@ -12,6 +12,13 @@ def official_openai(model: str, api_base: str | None) -> bool:
     )
 
 
+def official_openai_model_id(model: str, api_base: str | None) -> str | None:
+    """Provider ID at the validated boundary, not a mutation of the saved routing string."""
+    if not official_openai(model, api_base):
+        return None
+    return model.removeprefix("openai/")
+
+
 # Exact first-party model specification, not a union across reasoning models.
 # https://developers.openai.com/api/docs/models/gpt-6-luna
 RESEARCH_REASONING = {

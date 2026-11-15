@@ -20,6 +20,7 @@ from homebox_companion.core.credential_policy import (
     OPENAI_BASE,
     RESEARCH_REASONING,
     official_openai,
+    official_openai_model_id,
     research_eligibility_source,
 )
 from homebox_companion.core.llm_utils import resolve_profile_key
@@ -453,7 +454,7 @@ async def activate_profile(name: str) -> ProfileResponse:
     return _profile_to_response(_find_profile(settings, name)[1], settings)
 
 
-async def _test_openai_model_access(model: str, api_key: str) -> TestConnectionResponse:
+async def _test_openai_model_access(model: str, api_key: str, provider_model: str) -> TestConnectionResponse:
     """One explicit read-only request, fixed destination, no SDK catalog inference."""
     status = None
     request_id = None
@@ -462,13 +463,13 @@ async def _test_openai_model_access(model: str, api_key: str) -> TestConnectionR
             trust_env=False, follow_redirects=False, transport=httpx.AsyncHTTPTransport(retries=0), timeout=15
         ) as client:
             response = await client.get(
-                f"{OPENAI_BASE}/models/{quote(model, safe='')}", headers={"Authorization": f"Bearer {api_key}"}
+                f"{OPENAI_BASE}/models/{quote(provider_model, safe='')}", headers={"Authorization": f"Bearer {api_key}"}
             )
         status = response.status_code
         request_id = safe_request_id(response.headers.get("x-request-id"))
         if status != 200:
             code = http_error_code(status)
-        elif response.json().get("id") != model or response.json().get("object") != "model":
+        elif response.json().get("id") != provider_model or response.json().get("object") != "model":
             code = "response_invalid"
         else:
             code = "connection_verified"
@@ -544,9 +545,8 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
         return TestConnectionResponse(success=False, message=detail.message or detail.code, diagnostic=detail)
     api_key = api_key or "hbc-no-configured-key"
     # Match inference: an omitted official base must not inherit an SDK gateway.
-    if official_openai(model, api_base):
-        api_base = OPENAI_BASE
-        return await _test_openai_model_access(model, api_key)
+    if (provider_model := official_openai_model_id(model, api_base)) is not None:
+        return await _test_openai_model_access(model, api_key, provider_model)
 
     try:
         # Simple completion test
