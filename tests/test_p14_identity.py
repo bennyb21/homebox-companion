@@ -38,4 +38,5 @@ async def test_grouped_identifier_is_sent_and_matched_literally():
     compact = identity.model_copy(update={"identifier_exact": exact.replace(" ", "")})
     rejected = parse_response(data, compact)
     assert rejected.status == "failed"
+    assert rejected.diagnostic is not None
     assert rejected.diagnostic.code == "identity_mismatch"

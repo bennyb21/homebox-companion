@@ -24,19 +24,21 @@ import json
 import socket
 from copy import deepcopy
 from types import SimpleNamespace
+from typing import Never
 from unittest.mock import AsyncMock, patch
 
 attempts = []
 
 
-def forbidden(*args, **kwargs):
+def forbidden(*args: object, **kwargs: object) -> Never:
     attempts.append("blocked")
     raise AssertionError("Socket/DNS forbidden in offline browser bridge")
 
 
 socket.socket.connect = forbidden
 socket.socket.connect_ex = forbidden
-socket.getaddrinfo = forbidden
+# ty treats this module function as an exact function object, not a callable signature.
+patch.object(socket, "getaddrinfo", forbidden).start()
 
 import httpx
 from pydantic import SecretStr

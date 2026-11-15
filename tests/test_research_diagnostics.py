@@ -1,5 +1,7 @@
 """Synthetic provider metadata only; never a paid search acceptance test."""
 
+from typing import Never
+
 import httpx
 import pytest
 from pydantic import SecretStr
@@ -94,6 +96,7 @@ async def test_successful_http_parse_failure_keeps_operation_metadata():
         ),
     )
     result = await provider.research(ProductIdentity(identifier_kind="model_number", identifier_exact="PUBLIC-A"))
+    assert result.diagnostic is not None
     assert result.diagnostic.code == "response_incomplete"
     assert result.diagnostic.http_status == 200
     assert result.diagnostic.request_id == "req_0123456789abcdef"
@@ -106,6 +109,7 @@ async def test_disabled_configuration_has_no_dispatch_and_safe_diagnostic():
     result = await OpenAIResponsesResearchProvider(ResearchPolicy(), None).research(
         ProductIdentity(identifier_kind="model_number", identifier_exact="PUBLIC-A")
     )
+    assert result.diagnostic is not None
     assert result.diagnostic.code == "configuration_invalid"
     assert result.diagnostic.dispatch_started is False
 
@@ -147,6 +151,7 @@ async def test_single_dispatch_failure_is_never_retried(failure, code):
     else:
         result = await provider.research(identity)
         assert result.status == "unknown_outcome"
+        assert result.diagnostic is not None
         assert result.diagnostic.code == code
         assert result.diagnostic.dispatch_started is True
         assert "SECRET-CANARY" not in result.model_dump_json()
@@ -190,12 +195,18 @@ def test_production_binding_in_fresh_process(tmp_path, mode):
 @pytest.mark.asyncio
 async def test_unverified_model_is_distinct_from_remote_denial():
     calls = []
+
+    def forbidden(request: httpx.Request) -> Never:
+        calls.append(request)
+        raise AssertionError("Unverified model must not dispatch a provider request")
+
     provider = OpenAIResponsesResearchProvider(
         ResearchPolicy(enabled=True, profile_name="test"),
         ModelProfile(name="test", model="gpt-6-terra", api_key=SecretStr("SYNTHETIC")),
-        transport=httpx.MockTransport(lambda request: calls.append(request)),
+        transport=httpx.MockTransport(forbidden),
     )
     result = await provider.research(ProductIdentity(identifier_kind="model_number", identifier_exact="PUBLIC-A"))
+    assert result.diagnostic is not None
     assert result.diagnostic.code == "model_unverified"
     assert result.diagnostic.stage == "provider_resolution"
     assert result.diagnostic.dispatch_started is False

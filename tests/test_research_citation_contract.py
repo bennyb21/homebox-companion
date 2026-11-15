@@ -70,12 +70,14 @@ def test_citation_location_is_not_a_supporting_text_span(suffix):
     assert result.status == "matched"
     assert result.claims[0].source_urls == [URL]
     assert result.claims[0].evidence == "Cited model synthesis; original source text not independently verified"
+    assert result.diagnostic is not None
     assert result.diagnostic.code == "matched"
 
 
 def test_empty_candidates_after_completed_search_need_no_annotations():
     result = parse_response(cited_response(empty=True), IDENTITY)
     assert result.status == "no_results"
+    assert result.diagnostic is not None
     assert result.diagnostic.code == "no_results"
 
 
@@ -128,5 +130,6 @@ def test_parser_has_safe_distinct_rejection_codes(mutation, code):
         part["annotations"] = []
     result = parse_response(data, IDENTITY)
     assert result.status == "failed"
+    assert result.diagnostic is not None
     assert result.diagnostic.code == code
     assert "SECRET-CANARY" not in result.model_dump_json()

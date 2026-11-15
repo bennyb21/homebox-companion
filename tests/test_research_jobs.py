@@ -150,6 +150,7 @@ def test_diagnostics_persist_across_process_restart_without_replay(tmp_path):
     )
     run = subprocess.run([sys.executable, "-c", code, str(path)], check=True, capture_output=True, text=True)
     saved = json.loads(run.stdout)[0]
+    assert result.diagnostic is not None
     assert saved["result"]["research"]["diagnostic"] == result.diagnostic.model_dump()
     assert saved["state"] == "unknown_outcome"
     assert not db.claim(row["id"], "scope")

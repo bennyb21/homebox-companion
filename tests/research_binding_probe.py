@@ -14,19 +14,21 @@ sys.dont_write_bytecode = True
 import asyncio
 import json
 import socket
+from typing import Never
 from unittest.mock import patch
 
 network_attempts = []
 
 
-def forbidden(*args, **kwargs):
+def forbidden(*args: object, **kwargs: object) -> Never:
     network_attempts.append("blocked_socket_or_dns")
     raise AssertionError("No socket or DNS allowed in synthetic acceptance")
 
 
 socket.socket.connect = forbidden
 socket.socket.connect_ex = forbidden
-socket.getaddrinfo = forbidden
+# ty treats this module function as an exact function object, not a callable signature.
+patch.object(socket, "getaddrinfo", forbidden).start()
 
 import httpx
 import httpx2
