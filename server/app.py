@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 import httpx
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +34,7 @@ from .middleware import (
     SecurityHeadersMiddleware,
     request_id_var,
 )
+from .validation import private_validation_error_handler
 
 # GitHub version check cache with async lock for thread safety within a single worker.
 # NOTE: This cache is per-worker. When running with multiple workers (e.g., uvicorn --workers N),
@@ -369,6 +371,7 @@ def create_app(app_settings: Settings | None = None, *, static_directory: str | 
 
     # Include API routes
     app.include_router(api_router)
+    app.exception_handler(RequestValidationError)(private_validation_error_handler)
 
     # Unified exception handler for all domain exceptions
     # Routes can raise domain exceptions directly without wrapping in HTTPException
