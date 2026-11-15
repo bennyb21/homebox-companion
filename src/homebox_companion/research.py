@@ -4,13 +4,16 @@ import asyncio
 import json
 import re
 from typing import Literal
+from uuid import uuid4
 
 import httpx
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from homebox_companion.core.credential_policy import RESEARCH_REASONING
+from homebox_companion.core.credential_policy import RESEARCH_REASONING, research_eligibility_source
 from homebox_companion.core.llm_utils import resolve_profile_key
 from homebox_companion.core.persistent_settings import ModelProfile
+from homebox_companion.research_diagnostics import Diagnostic, diagnostic, http_error_code, safe_request_id
 
 
 class ProductIdentity(BaseModel):
@@ -18,7 +21,8 @@ class ProductIdentity(BaseModel):
     manufacturer: str | None = Field(default=None, min_length=1, max_length=80)
     identifier_kind: Literal["part_number", "model_number"]
     identifier_exact: str = Field(min_length=1, max_length=120)
-    identity_confirmed: Literal[True]
+    # Legacy 0.2 clients may send this; it is not an attestation and is never stored/sent.
+    identity_confirmed: bool | None = Field(default=None, exclude=True, deprecated=True, strict=True)
 
     @field_validator("identifier_exact", "manufacturer")
     @classmethod
@@ -69,6 +73,7 @@ class ResearchResult(BaseModel):
     candidates: list[Candidate] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)
     response_id: str | None = None
+    diagnostic: Diagnostic | None = None
 
 
 def safe_source_url(value: str) -> bool:
@@ -88,93 +93,132 @@ def safe_source_url(value: str) -> bool:
         return False
 
 
+def _unique_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON key")
+        result[key] = value
+    return result
+
+
+class _CandidatePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    candidates: list[Candidate] = Field(max_length=8)
+
+
+# Only this documented marker grammar may occur outside the JSON object.
+_CITATION_MARKER = re.compile(r"\ue200cite(?:\ue202turn[0-9]+[a-z]+[0-9]+)+\ue201")
+
+
 def parse_response(data: dict, identity: ProductIdentity) -> ResearchResult:
-    """Only provider annotations authorize source links; JSON URLs alone do not."""
-    failed = ResearchResult(status="failed")
+    """Validate model attribution, never pretend citation locations are quotations.
+
+    Each claim explicitly maps to provider-cited URLs. Search-source listings alone
+    authorize nothing. This does not independently verify the cited page's facts.
+    """
+
+    def fail(code, stage="parse", **metadata):
+        return ResearchResult(status="failed", diagnostic=diagnostic(code, stage, **metadata))
+
     try:
+        if data.get("status") == "incomplete":
+            reason = (data.get("incomplete_details") or {}).get("reason")
+            return fail(
+                "response_incomplete",
+                "response",
+                incomplete_reason=reason if reason in {"max_output_tokens", "content_filter"} else "other",
+            )
         if data.get("status") != "completed" or len(json.dumps(data)) > 100_000:
-            return failed
+            return fail("response_invalid", "response")
         outputs = data.get("output", [])
-        searches = [o for o in outputs if o.get("type") == "web_search_call" and o.get("status") == "completed"]
-        if not searches:
-            return failed
+        parts = [p for o in outputs if o.get("type") == "message" for p in o.get("content", [])]
+        if any(p.get("type") == "refusal" for p in parts):
+            return fail("response_refused", "response")
+        if not any(o.get("type") == "web_search_call" and o.get("status") == "completed" for o in outputs):
+            return fail("search_missing")
+        if len(parts) != 1 or parts[0].get("type") != "output_text":
+            return fail("response_invalid", "response")
+        part = parts[0]
+        text = part["text"]
+        try:
+            # raw_decode exposes the precise trailing boundary; do not strip content.
+            start = len(text) - len(text.lstrip())
+            payload, end = json.JSONDecoder(object_pairs_hook=_unique_object).raw_decode(text, start)
+        except ValueError:
+            return fail("malformed_json")
         sources = {}
-        cited_text: dict[str, list[str]] = {}
-        texts = []
-        for output in outputs:
-            if output.get("type") != "message":
+        suffix_ranges = set()
+        for annotation in part.get("annotations", []):
+            if annotation.get("type") != "url_citation":
                 continue
-            for part in output.get("content", []):
-                if part.get("type") != "output_text":
-                    return failed
-                text = part["text"]
-                texts.append(text)
-                for annotation in part.get("annotations", []):
-                    if annotation.get("type") != "url_citation":
-                        continue
-                    url = annotation["url"]
-                    if not safe_source_url(url) or not 0 <= annotation["start_index"] < annotation["end_index"] <= len(
-                        text
-                    ):
-                        return failed
-                    sources[url] = Source(url=url, title=str(annotation.get("title", "Source"))[:300])
-                    cited_text.setdefault(url, []).append(text[annotation["start_index"] : annotation["end_index"]])
-        if not sources:
-            return failed
-        payload = json.loads("".join(texts))
-        if set(payload) != {"candidates"} or len(payload["candidates"]) > 8:
-            return failed
-        candidates = [Candidate.model_validate(c) for c in payload["candidates"]]
+            url = annotation.get("url")
+            left, right = annotation.get("start_index"), annotation.get("end_index")
+            if type(left) is not int or type(right) is not int or not 0 <= left < right <= len(text):
+                return fail("citation_invalid")
+            if not isinstance(url, str) or not safe_source_url(url):
+                return fail("source_invalid")
+            if right > end:
+                if left < end or not _CITATION_MARKER.fullmatch(text[left:right]):
+                    return fail("citation_invalid")
+                suffix_ranges.add((left, right))
+            sources[url] = Source(url=url, title=str(annotation.get("title", "Source"))[:300])
+        cursor = end
+        for left, right in sorted(suffix_ranges):
+            if left < cursor or text[cursor:left].strip():
+                return fail("citation_invalid")
+            cursor = right
+        if text[cursor:].strip():
+            return fail("malformed_json")
+        try:
+            candidates = _CandidatePayload.model_validate(payload).candidates
+        except ValueError:
+            return fail("schema_invalid")
+        if candidates and not sources:
+            return fail("citations_missing")
         for candidate in candidates:
-            if not set(candidate.source_urls) <= sources.keys():
-                return failed
-            if not any(
-                candidate.identifier_exact in text and candidate.manufacturer in text
-                for url in candidate.source_urls
-                for text in cited_text[url]
+            if (
+                candidate.identifier_exact != identity.identifier_exact
+                or candidate.identifier_kind != identity.identifier_kind
+                or (
+                    identity.manufacturer is not None
+                    and candidate.manufacturer.casefold() != identity.manufacturer.casefold()
+                )
             ):
-                return failed
+                return fail("identity_mismatch")
+            if not set(candidate.source_urls) <= sources.keys():
+                return fail("source_invalid")
             for claim in candidate.claims:
                 if re.search(
                     r"\b(vin|guarantee\w*|garant\w*|seriennummer|serial|montagefreigabe|fahrgestell\w*)\b",
                     claim.value,
                     re.IGNORECASE,
                 ):
-                    return failed
+                    return fail("claim_invalid")
                 if re.search(r"\b(fitment|fits)\b", claim.value, re.IGNORECASE) and (
                     claim.field != "vehicle_family"
                     or not re.search(r"\b(vehicle family|model family|baureihe)\b", claim.value, re.IGNORECASE)
                 ):
-                    return failed
+                    return fail("claim_invalid")
                 if not set(claim.source_urls) <= sources.keys():
-                    return failed
-                if not any(claim.value in text for url in claim.source_urls for text in cited_text[url]):
-                    return failed
+                    return fail("source_invalid")
                 if claim.field in {"part_number", "model_number"} and (
                     claim.field != candidate.identifier_kind or claim.value != candidate.identifier_exact
                 ):
-                    return failed
+                    return fail("claim_invalid")
                 if claim.field == "manufacturer" and claim.value != candidate.manufacturer:
-                    return failed
-                # Evidence labels are server-owned; never accept claimed direct quotations.
+                    return fail("claim_invalid")
                 claim.evidence = "Cited model synthesis; original source text not independently verified"
-        matched = [
-            c
-            for c in candidates
-            if c.identifier_exact == identity.identifier_exact
-            and c.identifier_kind == identity.identifier_kind
-            and (identity.manufacturer is None or c.manufacturer.casefold() == identity.manufacturer.casefold())
-        ]
-        status = "no_results" if not candidates else "matched" if len(candidates) == len(matched) == 1 else "ambiguous"
+        status = "no_results" if not candidates else "matched" if len(candidates) == 1 else "ambiguous"
         return ResearchResult(
             status=status,
             sources=list(sources.values()),
             candidates=candidates,
-            claims=matched[0].claims if status == "matched" else [],
-            response_id=str(data.get("id", ""))[:200],
+            claims=candidates[0].claims if status == "matched" else [],
+            diagnostic=diagnostic(status, "parse"),
         )
-    except ValueError, TypeError, KeyError:
-        return failed
+    except ValueError, TypeError, KeyError, AttributeError, RecursionError:
+        return fail("response_invalid", "response")
 
 
 class _SingleDispatchTransport(httpx.AsyncBaseTransport):
@@ -185,6 +229,8 @@ class _SingleDispatchTransport(httpx.AsyncBaseTransport):
         self.model = model
         self.effort = effort
         self.sent = False
+        self.http_status: int | None = None
+        self.request_id: str | None = None
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         if self.sent or str(request.url) != "https://api.openai.com/v1/responses" or request.method != "POST":
@@ -208,7 +254,10 @@ class _SingleDispatchTransport(httpx.AsyncBaseTransport):
         if body.get("reasoning") != expected_reasoning:
             raise RuntimeError("Research reasoning contract rejected")
         self.sent = True
-        return await self.transport.handle_async_request(request)
+        response = await self.transport.handle_async_request(request)
+        self.http_status = response.status_code
+        self.request_id = safe_request_id(response.headers.get("x-request-id"))
+        return response
 
     async def aclose(self) -> None:
         await self.transport.aclose()
@@ -240,8 +289,26 @@ class OpenAIResponsesResearchProvider:
         )
 
     async def research(self, identity: ProductIdentity) -> ResearchResult:
+        correlation_id = uuid4().hex
+
+        def finish(result: ResearchResult, boundary=None) -> ResearchResult:
+            if result.diagnostic is not None:
+                result.diagnostic.correlation_id = correlation_id
+                result.diagnostic.dispatch_started = bool(boundary and boundary.sent)
+                result.diagnostic.http_status = boundary.http_status if boundary else None
+                result.diagnostic.request_id = boundary.request_id if boundary else None
+                logger.info("Research diagnostic: {}", result.diagnostic.model_dump_json(exclude_none=True))
+            return result
+
         if not self.configured:
-            return ResearchResult(status="disabled")
+            return finish(
+                ResearchResult(status="disabled", diagnostic=diagnostic("configuration_invalid", "configuration"))
+            )
+        assert self.profile is not None
+        if research_eligibility_source(self.profile.model) == "unverified":
+            return finish(
+                ResearchResult(status="failed", diagnostic=diagnostic("model_unverified", "provider_resolution"))
+            )
         import litellm
         from litellm.llms.custom_httpx.http_handler import AsyncHTTPHandler
 
@@ -270,7 +337,11 @@ class OpenAIResponsesResearchProvider:
                         'Return only JSON: {"candidates":[{"manufacturer":"...","identifier_exact":"...",'
                         '"identifier_kind":"part_number or model_number","source_urls":["https://..."],'
                         '"claims":[{"field":"specifications","value":"...","source_urls":["https://..."]}]}]}. '
-                        "Use provider URL citations for each identity and claim. No invented references or quotes. "
+                        "Each identity and claim must explicitly list its supporting source_urls, and every listed "
+                        "URL must have a provider URL citation in this message. These are model-attributed sources, "
+                        "not quotations. Emit one JSON object, no fences or commentary. If provider citation "
+                        "markers appear outside the JSON, place only those markers after the closing brace. "
+                        "No invented references or quotes. "
                         "Allowed fields: manufacturer, part_number, model_number, specifications, vehicle_family. "
                         "vehicle_family is only a sourced coarse vehicle family/model assignment, not compatibility. "
                         "Do not infer engine, model-year, VIN-specific fit or installation approval. "
@@ -292,10 +363,33 @@ class OpenAIResponsesResearchProvider:
                     max_retries=0,
                 )
             if not isinstance(response, BaseModel):
-                return ResearchResult(status="failed")
-            return parse_response(response.model_dump(), identity)
-        except Exception:
+                return finish(
+                    ResearchResult(status="failed", diagnostic=diagnostic("response_invalid", "response")), boundary
+                )
+            return finish(parse_response(response.model_dump(), identity), boundary)
+        except Exception as exc:
             # Provider errors can contain keys/queries. Never expose or log their text.
-            return ResearchResult(status="unknown_outcome" if boundary.sent else "failed")
+            code = (
+                http_error_code(boundary.http_status)
+                if boundary.http_status is not None
+                else "timeout"
+                if isinstance(exc, (TimeoutError, httpx.TimeoutException, litellm.Timeout))
+                else "transport_error"
+                if boundary.sent
+                else "provider_resolution_failed"
+            )
+            return finish(
+                ResearchResult(
+                    status="unknown_outcome" if boundary.sent else "failed",
+                    diagnostic=diagnostic(
+                        code,
+                        "response" if boundary.http_status else "dispatch" if boundary.sent else "provider_resolution",
+                        http_status=boundary.http_status,
+                        request_id=boundary.request_id,
+                        dispatch_started=boundary.sent,
+                    ),
+                ),
+                boundary,
+            )
         finally:
             await handler.client.aclose()

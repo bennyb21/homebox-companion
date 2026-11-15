@@ -168,3 +168,45 @@ async def test_scope_and_user_edits_are_protected(harness):
         assert (await client.post(url, json=body)).status_code == 404
         gateway.access.group_id = "foreign"
         assert (await client.post("/api/research/lookups", json=BODY)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_real_adapter_business_diagnostic_survives_asgi_without_attestation(harness):
+    from pydantic import SecretStr
+
+    from homebox_companion.core.persistent_settings import ModelProfile
+    from homebox_companion.research import OpenAIResponsesResearchProvider, ResearchPolicy
+
+    app, _ = harness
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(
+            200,
+            headers={"x-request-id": "req_0123456789abcdef"},
+            json={
+                "id": "resp_synthetic",
+                "object": "response",
+                "created_at": 1,
+                "model": "gpt-6-luna",
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+                "output": [],
+            },
+        )
+
+    app.state.research_provider = OpenAIResponsesResearchProvider(
+        ResearchPolicy(enabled=True, profile_name="test"),
+        ModelProfile(name="test", model="gpt-6-luna", api_key=SecretStr("SYNTHETIC")),
+        transport=httpx.MockTransport(respond),
+    )
+    body = BODY | {"identity": {k: v for k, v in BODY["identity"].items() if k != "identity_confirmed"}}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://test") as client:
+        response = await client.post("/api/research/lookups", json=body)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["result"]["status"] == "failed"
+    assert result["result"]["diagnostic"]["code"] == "response_incomplete"
+    assert result["result"]["diagnostic"]["request_id"] == "req_0123456789abcdef"
+    assert result["proposals"] == [] and len(calls) == 1

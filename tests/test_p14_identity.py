@@ -36,4 +36,6 @@ async def test_grouped_identifier_is_sent_and_matched_literally():
     from homebox_companion.research import parse_response
 
     compact = identity.model_copy(update={"identifier_exact": exact.replace(" ", "")})
-    assert parse_response(data, compact).status == "ambiguous"
+    rejected = parse_response(data, compact)
+    assert rejected.status == "failed"
+    assert rejected.diagnostic.code == "identity_mismatch"
