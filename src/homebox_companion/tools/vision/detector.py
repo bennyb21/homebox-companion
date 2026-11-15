@@ -140,6 +140,11 @@ async def _detect_items_from_data_uris(
     # Validate LLM output with Pydantic (dynamic model if custom fields configured)
     adapter = get_items_adapter(custom_fields)
     items = adapter.validate_python(parsed_content.get("items", []))
+    if single_item and len(items) > 1:
+        raise ValueError(
+            "This capture requires exactly one item. The provider returned multiple objects; "
+            "no extra drafts were created. Refine the photos or instructions and explicitly retry."
+        )
 
     logger.info(f"Detected {len(items)} items from {len(image_data_uris)} image(s)")
     for item in items:

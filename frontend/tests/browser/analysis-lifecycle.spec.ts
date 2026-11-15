@@ -131,6 +131,7 @@ test('cancelled retry retains failed images and can be retried again', async ({ 
 	});
 
 	await beginScan(page);
+	await page.getByRole('switch', { name: 'One item per photo' }).check();
 	await uploadPhoto(page);
 	await page.getByRole('button', { name: /Analyze with AI/ }).click();
 	await expect(page.getByRole('button', { name: 'Retry Failed Images' })).toBeVisible();

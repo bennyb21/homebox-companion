@@ -21,7 +21,14 @@
 	import Button from '$lib/components/Button.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { afterNavigate, onNavigate } from '$app/navigation';
+	import { afterNavigate, onNavigate, beforeNavigate } from '$app/navigation';
+	import { scanWorkflow } from '$lib/workflows/scan.svelte';
+	beforeNavigate((navigation) => {
+		if (scanWorkflow.submissionInFlight) {
+			navigation.cancel();
+			showToast('Submission is in progress. Stay here until its outcome is known.', 'warning');
+		}
+	});
 	import { resolve } from '$app/paths';
 
 	let { children }: { children: Snippet } = $props();

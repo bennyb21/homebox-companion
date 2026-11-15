@@ -30,6 +30,7 @@ export class ReviewService {
 	/** Items confirmed by user, ready for submission */
 	private _confirmedItems = $state<ConfirmedItem[]>([]);
 	private _activeDraft = $state<ReviewItem | null>(null);
+	removedItems = $state<Array<{ index: number; item: ConfirmedItem }>>([]);
 
 	get activeDraft(): ReviewItem | null {
 		return this._activeDraft?.reviewId === this.currentItem?.reviewId ? this._activeDraft : null;
@@ -182,14 +183,16 @@ export class ReviewService {
 	 * @returns true if there are more items to review, false if review is complete
 	 */
 	confirmCurrentItem(item: ReviewItem): boolean {
-		if (
-			!item.reviewId ||
-			item.reviewId !== this.currentItem?.reviewId ||
-			this._confirmedItems.some((existing) => existing.reviewId === item.reviewId)
-		)
-			return this.hasNext;
+		if (!item.reviewId || item.reviewId !== this.currentItem?.reviewId) return this.hasNext;
 		this.discardDraft();
 		const confirmed: ConfirmedItem = { ...item, confirmed: true };
+		const existingIndex = this._confirmedItems.findIndex(
+			(existing) => existing.reviewId === item.reviewId
+		);
+		if (existingIndex >= 0) {
+			this.replaceConfirmedItem(existingIndex, item);
+			return false;
+		}
 		this._confirmedItems = [...this._confirmedItems, confirmed];
 
 		if (this.hasNext) {
@@ -249,7 +252,24 @@ export class ReviewService {
 
 	/** Remove a confirmed item by index */
 	removeConfirmedItem(index: number): void {
+		const item = this._confirmedItems[index];
+		if (!item) return;
+		this.removedItems = [
+			...this.removedItems,
+			{ index, item: { ...copyReviewItem(item), confirmed: true } },
+		];
 		this._confirmedItems = this._confirmedItems.filter((_, i) => i !== index);
+	}
+
+	undoRemoval(): void {
+		const removed = this.removedItems.at(-1);
+		if (!removed) return;
+		this._confirmedItems = [
+			...this._confirmedItems.slice(0, removed.index),
+			removed.item,
+			...this._confirmedItems.slice(removed.index),
+		];
+		this.removedItems = this.removedItems.slice(0, -1);
 	}
 
 	/**
@@ -257,8 +277,8 @@ export class ReviewService {
 	 *
 	 * This method is called from the confirmation screen, after the user has already
 	 * completed reviewing all detected items (confirming or skipping each one).
-	 * It removes the item from the confirmed list and creates a single-item review
-	 * session for focused re-editing.
+	 * It retains the canonical row in its original order and creates a single-item
+	 * review session. Confirmation replaces that row by stable review identity.
 	 *
 	 * Note: This replaces the detectedItems array with only the item being edited.
 	 * This is intentional—at the confirmation stage, all original detected items have
@@ -267,12 +287,19 @@ export class ReviewService {
 	 * @returns The item converted to a ReviewItem for editing, or null if index is invalid
 	 */
 	editConfirmedItem(index: number): ReviewItem | null {
-		this.discardDraft();
 		const item = this._confirmedItems[index];
 		if (!item) return null;
+		if (this.activeDraft?.reviewId === item.reviewId) return this.activeDraft;
+		// Switching focused rows autosaves the previous manual draft, never a Homebox write.
+		if (this.activeDraft) {
+			const previous = this._confirmedItems.findIndex(
+				(row) => row.reviewId === this.activeDraft?.reviewId
+			);
+			if (previous >= 0) this.replaceConfirmedItem(previous, this.activeDraft);
+		}
+		this.discardDraft();
 
-		// Remove from confirmed
-		this._confirmedItems = this._confirmedItems.filter((_, i) => i !== index);
+		// Keep the canonical row in place; confirmation replaces by stable identity.
 
 		// Preserve every review field, including asset IDs and custom fields.
 		const reviewItem: ReviewItem = { ...item };
@@ -321,6 +348,7 @@ export class ReviewService {
 
 	/** Reset all review state */
 	reset(): void {
+		this.removedItems = [];
 		this.discardDraft();
 		this._detectedItems = [];
 		this._currentReviewIndex = 0;

@@ -84,6 +84,9 @@ export interface StoredSession {
 	createdAt: number;
 	updatedAt: number;
 	status: ScanStatus;
+	oneItemPerPhoto?: boolean;
+	analysisStale?: boolean;
+	legacyGrouping?: boolean;
 
 	// Location context
 	locationId: string | null;
@@ -98,6 +101,7 @@ export interface StoredSession {
 	// Review state (fully serializable)
 	detectedItems: StoredReviewItem[];
 	confirmedItems: StoredConfirmedItem[];
+	removedItems?: Array<{ index: number; item: StoredConfirmedItem }>;
 	currentReviewIndex: number;
 	/** Unconfirmed edits, separate from canonical detections and confirmed rows. */
 	activeReviewDraft?: StoredReviewItem;

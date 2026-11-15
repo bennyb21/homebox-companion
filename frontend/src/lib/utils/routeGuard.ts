@@ -132,6 +132,7 @@ export const routeGuards = {
 			return false;
 		}
 
+		if (scanWorkflow.visitingLocation && scanWorkflow.canVisitStep(1)) return true;
 		// If workflow already has a location and is in an active state, redirect appropriately
 		const workflow = scanWorkflow;
 		if (workflow.state.locationId) {
@@ -165,6 +166,13 @@ export const routeGuards = {
 	 * - An existing review remains available as a read-only source-photo preview
 	 */
 	capture: (): boolean => {
+		if (scanWorkflow.captureLocked) {
+			void goto(
+				resolveNavHref(scanWorkflow.state.status === 'complete' ? '/success' : '/summary'),
+				{ replaceState: true }
+			);
+			return false;
+		}
 		const result = checkRouteAccess({
 			auth: true,
 			requireLocation: true,
@@ -185,6 +193,10 @@ export const routeGuards = {
 	 * - Must be in reviewing status
 	 */
 	review: (): boolean => {
+		if (scanWorkflow.captureLocked && !scanWorkflow.isEditingFailedItem) {
+			void goto(resolveNavHref('/summary'), { replaceState: true });
+			return false;
+		}
 		const result = checkRouteAccess({
 			auth: true,
 			requireLocation: true,

@@ -14,6 +14,7 @@
  * - SubmissionService: Homebox submission
  */
 
+import { fileToDataUrl } from '$lib/services/serialize';
 import { itemValidationError } from '$lib/utils/itemValidation';
 import { workflowLogger as log } from '$lib/utils/logger';
 import { CaptureService } from './capture.svelte';
@@ -67,6 +68,148 @@ class ScanWorkflow {
 
 	/** Current workflow status */
 	private _status = $state<ScanStatus>('idle');
+	visitingLocation = $state(false);
+	get submissionInFlight(): boolean {
+		return this.submissionService.isSubmitting;
+	}
+	canVisitStep(step: number): boolean {
+		if (this.captureLocked || this.isAnalyzing) return false;
+		if (step === 1) return !!this._locationId;
+		if (step === 2) return !!this._locationId;
+		if (step === 3)
+			return this._status === 'reviewing' || this.reviewService.confirmedItems.length > 0;
+		return (
+			step === 4 &&
+			(this._status === 'confirming' ||
+				(this.reviewService.detectedItems.length > 0 &&
+					this.reviewService.detectedItems.every((item) =>
+						this.reviewService.confirmedItems.some((row) => row.reviewId === item.reviewId)
+					)))
+		);
+	}
+	async visitStep(step: number): Promise<boolean> {
+		if (!this.canVisitStep(step)) return false;
+		this.visitingLocation = step === 1;
+		if (step === 3 && this._status !== 'reviewing') {
+			const focused = this.reviewService.confirmedItems.findIndex(
+				(item) => item.reviewId === this.reviewService.activeDraft?.reviewId
+			);
+			this.reviewService.editConfirmedItem(focused >= 0 ? focused : 0);
+			this._status = 'reviewing';
+		}
+		if (step === 4) {
+			const draft = this.reviewService.activeDraft;
+			const index = this.reviewService.confirmedItems.findIndex(
+				(item) => item.reviewId === draft?.reviewId
+			);
+			if (draft && index >= 0) this.reviewService.replaceConfirmedItem(index, draft);
+			this._status = 'confirming';
+		}
+		await this.persistAsync();
+		return true;
+	}
+	analysisStale = $state(false);
+	legacyGrouping = $state(false);
+	get oneItemPerPhoto(): boolean {
+		return this.captureService.oneItemPerPhoto;
+	}
+	get hasAnalysisResults(): boolean {
+		return (
+			this.reviewService.detectedItems.length > 0 || this.reviewService.confirmedItems.length > 0
+		);
+	}
+	get captureLocked(): boolean {
+		return (
+			this._status === 'submitting' ||
+			this._status === 'complete' ||
+			Object.keys(this.submissionService.itemStatuses).length > 0
+		);
+	}
+	private get canChangeInputs(): boolean {
+		return !this.captureLocked && !this.isAnalyzing && !this.hasAnalysisResults;
+	}
+
+	private changingInputs = false;
+	/** Only called after explicit discard confirmation. Keep photos, not inferred/manual fields. */
+	async discardAnalysisForInputChange(): Promise<boolean> {
+		if (this.captureLocked || this.isAnalyzing || this.changingInputs) return false;
+		this.changingInputs = true;
+		const generation = this.contextGeneration;
+		try {
+			const images = this.captureService.images.map((image) => ({
+				...image,
+				additionalFiles: [...(image.additionalFiles ?? [])],
+				additionalDataUrls: [...(image.additionalDataUrls ?? [])],
+			}));
+			const items = [
+				...this.reviewService.detectedItems,
+				...this.reviewService.confirmedItems,
+				...this.reviewService.removedItems.map((entry) => entry.item),
+				...(this.reviewService.activeDraft ? [this.reviewService.activeDraft] : []),
+			];
+			for (const [index, image] of images.entries()) {
+				const existing = await Promise.all(
+					[image.file, ...image.additionalFiles].map(fileToDataUrl)
+				);
+				for (const item of items.filter((item) => item.sourceImageIndex === index)) {
+					for (const file of [
+						...(item.originalFile ? [item.originalFile] : []),
+						...(item.additionalImages ?? []),
+					]) {
+						const dataUrl = await fileToDataUrl(file);
+						if (existing.includes(dataUrl)) continue;
+						existing.push(dataUrl);
+						image.additionalFiles.push(file);
+						image.additionalDataUrls.push(dataUrl);
+					}
+				}
+			}
+			if (generation !== this.contextGeneration || this.captureLocked || this.isAnalyzing)
+				return false;
+			this.captureService.images = images;
+			// Per-photo sessions stay per-photo even when review added an attachment.
+			if (this.oneItemPerPhoto && !this.legacyGrouping) {
+				this.captureService.setOneItemPerPhoto(true);
+			}
+			this.reviewService.reset();
+			this.analysisService.clearProgress();
+			this.analysisService.imageStatuses = {};
+			this.analysisStale = true;
+			this._status = 'capturing';
+			await this.persistAsync();
+			return true;
+		} catch {
+			this._error = 'Could not preserve the review photos. Your results have not been discarded.';
+			return false;
+		} finally {
+			this.changingInputs = false;
+		}
+	}
+
+	setOneItemPerPhoto(value: boolean): boolean {
+		if (!this.canChangeInputs) return false;
+		const images = this.captureService.images;
+		// Combining conflicting manual capture options is ambiguous: never pick a winner.
+		const key = (image: CapturedImage) =>
+			JSON.stringify([
+				image.entity_type_id,
+				image.template_id,
+				image.extraInstructions,
+				image.assetId ?? null,
+			]);
+		if (
+			(!value && images.some((image) => key(image) !== key(images[0]))) ||
+			(value && images.some((image) => image.assetId && image.additionalFiles?.length))
+		) {
+			this._error =
+				'Align capture profiles, descriptions and asset IDs before regrouping; a shared asset ID cannot be copied to multiple items.';
+			return false;
+		}
+		this.captureService.setOneItemPerPhoto(value);
+		this.legacyGrouping = false;
+		this.schedulePersist();
+		return true;
+	}
 
 	/** Selected location ID */
 	private _locationId = $state<string | null>(null);
@@ -297,6 +440,7 @@ class ScanWorkflow {
 
 	/** Set the selected location (clears parent item since items are location-specific) */
 	setLocation(id: string, name: string, path: string): void {
+		if (this.captureLocked || this.isAnalyzing) return;
 		// If changing to a different location, clear parent item
 		if (this._locationId !== id) {
 			this._parentItemId = null;
@@ -305,12 +449,13 @@ class ScanWorkflow {
 		this._locationId = id;
 		this._locationName = name;
 		this._locationPath = path;
-		this._status = 'capturing';
+		if (!this.hasAnalysisResults) this._status = 'capturing';
 		this._error = null;
 	}
 
 	/** Clear location selection (also clears parent item since it's location-specific) */
 	clearLocation(): void {
+		if (this.captureLocked || this.isAnalyzing || this.hasAnalysisResults) return;
 		this._locationId = null;
 		this._locationName = null;
 		this._locationPath = null;
@@ -337,11 +482,13 @@ class ScanWorkflow {
 
 	/** Add a captured image */
 	addImage(image: CapturedImage): void {
+		if (!this.canChangeInputs) return;
 		this.captureService.addImage(image);
 	}
 
 	/** Remove an image by index */
 	removeImage(index: number): void {
+		if (!this.canChangeInputs) return;
 		this.captureService.removeImage(index);
 	}
 
@@ -355,21 +502,38 @@ class ScanWorkflow {
 			>
 		>
 	): void {
-		this.captureService.updateImageOptions(index, options);
+		if (!this.canChangeInputs) return;
+		this.captureService.updateImageOptions(index, { ...options, separateItems: false });
 	}
 
 	/** Add additional images to a captured image */
 	addAdditionalImages(imageIndex: number, files: File[], dataUrls: string[]): void {
-		this.captureService.addAdditionalImages(imageIndex, files, dataUrls);
+		if (!this.canChangeInputs) return;
+		if (this.oneItemPerPhoto) {
+			const source = this.captureService.images[imageIndex];
+			if (!source) return;
+			files.forEach((file, index) =>
+				this.captureService.addImage({
+					...source,
+					file,
+					dataUrl: dataUrls[index],
+					assetId: null,
+					additionalFiles: undefined,
+					additionalDataUrls: undefined,
+				})
+			);
+		} else this.captureService.addAdditionalImages(imageIndex, files, dataUrls);
 	}
 
 	/** Remove an additional image */
 	removeAdditionalImage(imageIndex: number, additionalIndex: number): void {
+		if (!this.canChangeInputs) return;
 		this.captureService.removeAdditionalImage(imageIndex, additionalIndex);
 	}
 
 	/** Clear all captured images */
 	clearImages(): void {
+		if (!this.canChangeInputs) return;
 		this.captureService.clear();
 	}
 
@@ -380,6 +544,7 @@ class ScanWorkflow {
 	/** Start image analysis - coordinates with AnalysisService */
 	async startAnalysis(): Promise<void> {
 		log.info('ScanWorkflow.startAnalysis() called');
+		if (this.captureLocked || this.hasAnalysisResults) return;
 
 		// Prevent starting a new analysis if one is already in progress
 		if (this._status === 'analyzing') {
@@ -418,6 +583,7 @@ class ScanWorkflow {
 		}
 
 		if (result.success) {
+			this.analysisStale = false;
 			this.reviewService.setDetectedItems(result.items);
 
 			// Check if there were partial failures
@@ -490,6 +656,7 @@ class ScanWorkflow {
 		}
 
 		if (result.success) {
+			this.analysisStale = false;
 			this.reviewService.setDetectedItems(result.items);
 
 			// Check if there are still failures
@@ -650,6 +817,8 @@ class ScanWorkflow {
 	}
 
 	beginReviewDraft(): void {
+		// A departing editor must not recreate an obsolete detection overlay after confirmation.
+		if (this._status !== 'reviewing') return;
 		this.reviewService.beginDraft();
 		if (!this.isEditingFailedItem) this.schedulePersist();
 	}
@@ -683,7 +852,9 @@ class ScanWorkflow {
 	async skipItem(): Promise<void> {
 		const result = this.reviewService.skipCurrentItem();
 		if (result === 'empty') {
-			await this.backToCapture();
+			// An empty draft stays visible; never reset it through implicit back navigation.
+			this._status = 'confirming';
+			await this.persistAsync();
 		} else if (result === 'complete') {
 			await this.finishReview();
 		} else await this.persistAsync();
@@ -744,8 +915,9 @@ class ScanWorkflow {
 
 	/** Return to capture mode from review */
 	async backToCapture(): Promise<void> {
-		this._status = 'capturing';
-		this.reviewService.reset();
+		if (this.captureLocked || this.isAnalyzing) return;
+		// Keep the review/summary checkpoint; capture displays a source preview.
+		if (!this.hasAnalysisResults) this._status = 'capturing';
 		this._error = null;
 
 		// Persist the state change
@@ -758,17 +930,25 @@ class ScanWorkflow {
 
 	/** Remove a confirmed item */
 	async removeConfirmedItem(index: number): Promise<void> {
+		if (this.captureLocked || this._status !== 'confirming') return;
 		this.reviewService.removeConfirmedItem(index);
-		if (!this.reviewService.hasConfirmedItems) {
-			this._status = 'capturing';
-		}
 
 		// Persist after removal
 		await this.persistAsync();
 	}
 
+	get canUndoRemoval(): boolean {
+		return !this.captureLocked && this.reviewService.removedItems.length > 0;
+	}
+	async undoRemoval(): Promise<void> {
+		if (!this.canUndoRemoval) return;
+		this.reviewService.undoRemoval();
+		await this.persistAsync();
+	}
+
 	/** Edit a confirmed item (move back to review) */
 	async editConfirmedItem(index: number): Promise<void> {
+		if (this.captureLocked) return;
 		const item = this.reviewService.editConfirmedItem(index);
 		if (item) {
 			this._status = 'reviewing';
@@ -998,6 +1178,9 @@ class ScanWorkflow {
 		const saved = await this.persistence.save(
 			() => ({
 				status: this._status,
+				oneItemPerPhoto: this.oneItemPerPhoto,
+				analysisStale: this.analysisStale,
+				legacyGrouping: this.legacyGrouping,
 				locationId: this._locationId,
 				locationName: this._locationName,
 				locationPath: this._locationPath,
@@ -1006,6 +1189,7 @@ class ScanWorkflow {
 				images: this.captureService.images,
 				detectedItems: this.reviewService.detectedItems,
 				confirmedItems: this.reviewService.confirmedItems,
+				removedItems: this.reviewService.removedItems,
 				activeReviewDraft: this.reviewService.activeDraft ?? undefined,
 				currentReviewIndex: this.reviewService.currentReviewIndex,
 				imageStatuses: this.analysisService.imageStatuses,
@@ -1050,6 +1234,10 @@ class ScanWorkflow {
 
 			// Apply the adapter's fully hydrated image and review data.
 			this.captureService.images = session.images;
+			// Legacy drafts retain their exact grouping and write checkpoint until explicit regrouping.
+			this.captureService.oneItemPerPhoto = session.oneItemPerPhoto ?? session.images.length > 1;
+			this.legacyGrouping = session.legacyGrouping ?? session.oneItemPerPhoto === undefined;
+			this.analysisStale = session.analysisStale ?? false;
 			if (session.detectedItems.length > 0) {
 				this.reviewService.setDetectedItems(session.detectedItems);
 			}
@@ -1063,6 +1251,7 @@ class ScanWorkflow {
 				this.reviewService.setCurrentReviewIndex(session.currentReviewIndex);
 			}
 			this.reviewService.restoreDraft(session.activeReviewDraft);
+			this.reviewService.removedItems = session.removedItems ?? [];
 			this._saveState = 'saved';
 
 			// Restore image statuses (for partial_analysis recovery)
@@ -1144,6 +1333,10 @@ class ScanWorkflow {
 		this.submissionService.reset();
 		this.failedItemEditIndex = null;
 		this._status = 'idle';
+		this.visitingLocation = false;
+		this.captureService.oneItemPerPhoto = false;
+		this.analysisStale = false;
+		this.legacyGrouping = false;
 		this._locationId = null;
 		this._locationName = null;
 		this._locationPath = null;

@@ -83,11 +83,7 @@
 	onDestroy(() => urlManager.cleanup());
 
 	function removeItem(index: number) {
-		workflow.removeConfirmedItem(index);
-
-		if (confirmedItems.length === 0) {
-			goto(resolve('/capture'));
-		}
+		void workflow.removeConfirmedItem(index);
 	}
 
 	async function editItem(index: number, research = false) {
@@ -205,6 +201,15 @@
 	<h2 class="mb-1 text-h2 text-neutral-100">Review & Submit</h2>
 	<p class="mb-6 text-body-sm text-neutral-400">Confirm items to add to your inventory</p>
 
+	{#if !workflow.captureLocked}
+		<Button
+			variant="secondary"
+			onclick={async () => {
+				await workflow.backToCapture();
+				await goto(resolve('/capture'));
+			}}>Back to Capture</Button
+		>
+	{/if}
 	<!-- Compact location header -->
 	{#if locationPath}
 		<div class="mb-6 flex flex-wrap items-start gap-x-4 gap-y-2 text-body-sm text-neutral-400">
@@ -236,6 +241,19 @@
 		</div>
 	{/if}
 
+	{#if workflow.canUndoRemoval}
+		<Button variant="secondary" onclick={() => workflow.undoRemoval()}>Undo removal</Button>
+	{/if}
+	{#if confirmedItems.length === 0}
+		<p class="my-4 text-body text-neutral-300">No draft items remain.</p>
+		<Button
+			variant="secondary"
+			onclick={async () => {
+				await workflow.backToCapture();
+				await goto(resolve('/capture'));
+			}}>Add photos</Button
+		>
+	{/if}
 	<!-- Items list with improved cards -->
 	<div class="mb-6 space-y-3">
 		{#each confirmedItems as item, index (`${item.name}-${index}`)}

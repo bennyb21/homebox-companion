@@ -340,7 +340,11 @@ test('photo replacement and ordering invalidate compressed data while unchanged 
 
 test('an obsolete autosave cannot replace the latest completed Saved indicator', async () => {
 	const saves = [];
-	const EmptyService = class {};
+	const EmptyService = class {
+		itemStatuses = {};
+		detectedItems = [];
+		confirmedItems = [];
+	};
 	const { scanWorkflow } = load(
 		'../workflows/scan.svelte.ts',
 		{
