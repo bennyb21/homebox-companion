@@ -1,0 +1,34 @@
+name: Multipart wire diagnostic
+on:
+  push:
+    branches: [diagnostic/webkit-wire-receiver]
+permissions:
+  contents: read
+jobs:
+  wire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version: "26.12.1"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test multipart-wire.spec.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: multipart-wire-diagnostic
+          path: |
+            frontend/test-results
+            frontend/playwright-report
+          retention-days: 7
+          if-no-files-found: error
