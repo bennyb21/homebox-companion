@@ -43,6 +43,105 @@ async def client(disk):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("ambient_base", ["OPENAI_BASE_URL", "OPENAI_API_BASE"])
+@pytest.mark.parametrize(
+    ("source", "saved_base"),
+    [
+        ("profile", None),
+        ("env", None),
+        ("profile", "https://api.openai.com/v1"),
+        ("env", "https://api.openai.com/v1"),
+        ("own", "https://custom-owned.invalid/v1"),
+    ],
+)
+async def test_connection_credential_destination_on_actual_sdk_wire(
+    client, disk, monkeypatch, ambient_base, source, saved_base
+):
+    """The manually requested test must honor the same destination boundary as inference."""
+    import json
+    import socket
+
+    import openai
+    from litellm.llms.openai.openai import OpenAIChatCompletion
+
+    calls = []
+    sdk_clients = []
+
+    def forbid_network(*args, **kwargs):
+        raise AssertionError("Real network forbidden in credential destination regression")
+
+    monkeypatch.setattr(socket.socket, "connect", forbid_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbid_network)
+    for name in ("OPENAI_BASE_URL", "OPENAI_API_BASE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(ambient_base, "https://stale-gateway.invalid/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "SYNTHETIC-AMBIENT")
+
+    def respond(request):
+        calls.append(request)
+        body = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "id": "synthetic",
+                "object": "chat.completion",
+                "created": 1,
+                "model": body["model"],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "connection successful"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+        )
+
+    def sdk(_self, **kwargs):
+        actual = openai.AsyncOpenAI(
+            api_key=kwargs["api_key"],
+            base_url=kwargs["api_base"],
+            max_retries=0,
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
+        )
+        sdk_clients.append(actual)
+        return actual
+
+    monkeypatch.setattr(OpenAIChatCompletion, "_get_openai_client", sdk)
+    created = await client.post(
+        "/api/llm/profiles",
+        json={
+            "name": "test-target",
+            "model": "gpt-6-luna",
+            "status": "off",
+            "credential_source": source,
+            "credential_profile_name": "capture" if source == "profile" else None,
+            "api_key": "SYNTHETIC-CUSTOM" if source == "own" else None,
+            "api_base": saved_base,
+        },
+    )
+    assert created.status_code == 201
+    assert calls == []  # Saving never issues a capability probe.
+    try:
+        response = await client.post("/api/llm/profiles/test-target/test", json={})
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert len(calls) == 1
+        expected_base = saved_base or "https://api.openai.com/v1"
+        assert str(calls[0].url) == f"{expected_base}/chat/completions"
+        key = {"profile": "OWN-secret", "env": "ENV-secret", "own": "SYNTHETIC-CUSTOM"}[source]
+        assert calls[0].headers["authorization"] == f"Bearer {key}"
+        assert json.loads(calls[0].content)["model"] == "gpt-6-luna"
+        for secret in (key, "SYNTHETIC-AMBIENT"):
+            assert secret not in response.text
+            assert secret not in created.text
+    finally:
+        for actual in sdk_clients:
+            await actual.close()
+
+
+@pytest.mark.asyncio
 async def test_dedicated_research_reuses_reference_without_demoting_primary(client, disk):
     r = await client.post(
         "/api/llm/profiles",

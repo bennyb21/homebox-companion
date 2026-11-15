@@ -14,7 +14,7 @@ from loguru import logger
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError, field_validator
 
 from homebox_companion.core import config
-from homebox_companion.core.credential_policy import RESEARCH_REASONING, official_openai
+from homebox_companion.core.credential_policy import OPENAI_BASE, RESEARCH_REASONING, official_openai
 from homebox_companion.core.llm_utils import resolve_profile_key
 from homebox_companion.core.persistent_settings import (
     ModelProfile,
@@ -461,6 +461,9 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
             raise HTTPException(400, "Save and review destination changes before testing with stored credentials")
     api_key = request.api_key if request and request.api_key else resolve_profile_key(profile, settings)
     api_key = api_key or "hbc-no-configured-key"
+    # Match inference: an omitted official base must not inherit an SDK gateway.
+    if official_openai(model, api_base):
+        api_base = OPENAI_BASE
 
     try:
         # Simple completion test
