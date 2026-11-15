@@ -1,6 +1,6 @@
 import type { Page, Request } from '@playwright/test';
 import { test, expect } from './fixtures/test';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import { readDrafts } from './helpers/recovery';
 import { analyzePhotos, selectLocation, uploadPhoto } from './helpers/scan';
@@ -39,7 +39,7 @@ test('reediting a confirmed item preserves its asset ID and edited custom fields
 		creations.push(request.postDataJSON());
 		return json(createdItem('lamp-1'));
 	});
-	api.on('POST', '/api/items/lamp-1/attachments', () => json({}));
+	api.on('POST', '/api/items/lamp-1/attachments', verifiedAttachment);
 	api.on('PUT', '/api/items/lamp-1', (request) => {
 		updates.push(request.postDataJSON());
 		return json({});
@@ -82,7 +82,7 @@ test('submits a corrected item to the selected location with its photo', async (
 	});
 	api.on('POST', '/api/items/lamp-1/attachments', (request) => {
 		uploads.push(request);
-		return json({});
+		return verifiedAttachment(request);
 	});
 
 	await createConfirmedScan(page, 'Desk lamp', 'Lumina');

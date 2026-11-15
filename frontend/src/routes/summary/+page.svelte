@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AttachmentRecovery from '$lib/components/AttachmentRecovery.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount, onDestroy } from 'svelte';
@@ -194,6 +195,8 @@
 <svelte:head>
 	<title>Review & Submit - Homebox Companion</title>
 </svelte:head>
+
+<AttachmentRecovery />
 
 <div class="animate-in pb-28">
 	<StepIndicator currentStep={4} />

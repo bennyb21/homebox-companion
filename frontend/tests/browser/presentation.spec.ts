@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures/test';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import {
 	selectLocation,
@@ -17,7 +17,7 @@ test.beforeEach(async ({ api, page }) => {
 	);
 	let created = 0;
 	api.on('POST', '/api/items', () => json(createdItem(`item-${++created}`)));
-	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, () => json({}));
+	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, verifiedAttachment);
 });
 
 async function reviewItems(page: Page) {

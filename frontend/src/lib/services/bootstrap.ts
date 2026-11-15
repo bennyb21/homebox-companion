@@ -21,7 +21,7 @@ registerAuthLifecycle({
 			Promise.resolve().then(() => settingsService.clearRemoteLogs()),
 			Promise.resolve().then(() => locationStore.clear()),
 			Promise.resolve().then(() => tagStore.clear()),
-			Promise.resolve().then(() => scanWorkflow.reset()),
+			Promise.resolve().then(() => scanWorkflow.reset(false)),
 			Promise.resolve().then(() => collectionStore.clear()),
 		]);
 		for (const result of results) {

@@ -152,6 +152,10 @@
 	}
 
 	function continueToCapture() {
+		if (hasRecovery && recoverySummary?.hasUnconfirmedWrites) {
+			showToast('Resume or explicitly discard the retained upload draft first.', 'warning');
+			return;
+		}
 		if (!locationStore.selected) {
 			showToast('Please select a location', 'warning');
 			return;
@@ -295,6 +299,13 @@
 	}
 
 	async function handleDismissRecovery() {
+		if (
+			recoverySummary?.hasUnconfirmedWrites &&
+			!window.confirm(
+				'Discard retained photos and unconfirmed upload records? Resume to download originals and check the known Homebox items first. This cannot undo Homebox writes.'
+			)
+		)
+			return;
 		await scanWorkflow.clearPersistedSession();
 		hasRecovery = false;
 		recoverySummary = null;
@@ -316,7 +327,7 @@
 		<h2 class="mb-1 text-h2 text-neutral-100">Select Location</h2>
 		<p class="mb-6 text-body-sm text-neutral-400">Choose where your items will be stored</p>
 
-		{#if hasRecovery && recoverySummary && !locationStore.selected}
+		{#if hasRecovery && recoverySummary && (!locationStore.selected || recoverySummary.hasUnconfirmedWrites)}
 			<RecoveryBanner
 				summary={recoverySummary}
 				onResume={handleResumeSession}

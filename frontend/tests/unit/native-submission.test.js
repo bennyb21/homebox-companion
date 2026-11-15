@@ -17,6 +17,11 @@ async function loadSubmission(itemsApi) {
 		normalizeAssetId: (value) => value,
 		hasToken: () => true,
 		withRetry: (fn) => fn(),
+		generateId: () => crypto.randomUUID(),
+		requestScope: () => itemsApi.scope ?? 'original',
+		assertCurrentScope: (scope) => {
+			if (scope !== (itemsApi.scope ?? 'original')) throw new Error('scope changed');
+		},
 		ApiError: class extends Error {},
 		log: { info() {}, debug() {}, warn() {}, error() {} },
 	};
@@ -28,6 +33,39 @@ async function loadSubmission(itemsApi) {
 		`data:text/javascript,${encodeURIComponent(`const { ${Object.keys(globalThis[id]).join(', ')} } = globalThis.${id};\n${compiled}`)}`
 	);
 }
+test('missing upload receipt retains known item and blocks POST replay and DELETE', async () => {
+	let posts = 0,
+		deletes = 0,
+		creates = 0;
+	const { SubmissionService } = await loadSubmission({
+		create: async () => {
+			creates++;
+			return { created: [{ id: 'created-a' }], errors: [] };
+		},
+		uploadAttachment: async () => {
+			posts++;
+			return { id: 'created-a', attachments: [] };
+		},
+		delete: async () => {
+			deletes++;
+		},
+	});
+	const photos = {
+		...item,
+		originalFile: new File(['synthetic'], 'same.jpg'),
+		additionalImages: [new File(['more'], 'same.jpg')],
+	};
+	const service = new SubmissionService();
+	await service.submitAll([photos], 'location', null);
+	assert.equal(service.snapshot().itemStatuses[0], 'partial_success');
+	assert.equal(service.snapshot().createdItemIds[0], 'created-a');
+	assert.equal(service.snapshot().photoAttempts[0][0].state, 'unconfirmed');
+	await service.retryFailed([photos], 'location', null);
+	assert.equal(posts, 1);
+	assert.equal(deletes, 0);
+	assert.equal(creates, 1);
+});
+
 const item = {
 	name: 'Native',
 	quantity: 1,
@@ -145,4 +183,105 @@ test('concurrent retries cannot create the same failed row twice', async () => {
 	finish({ created: [{ id: 'created-a' }], errors: [] });
 	await Promise.all([first, second]);
 	assert.equal(calls, 2);
+});
+
+for (const failure of ['primary', 'additional', 'checkpoint-before', 'checkpoint-after', 'none']) {
+	test(`ordered photo receipts survive ${failure} and reload without replay`, async () => {
+		let calls = 0,
+			service,
+			durable;
+		const { SubmissionService } = await loadSubmission({
+			create: async () => ({ created: [{ id: 'created-a' }], errors: [] }),
+			uploadAttachment: async (entity_id, file, options) => {
+				assert.equal(durable.createdItemIds[0], entity_id);
+				assert.equal(durable.photoAttempts[0][calls].state, 'in_flight');
+				calls++;
+				if ((failure === 'primary' && calls === 1) || (failure === 'additional' && calls === 2))
+					throw new Error('lost');
+				return {
+					verified: true,
+					entity_id,
+					attachment_id: '22222222-2222-4222-8222-222222222222',
+					attempt_id: options.attemptId,
+					slot: options.slot,
+					byte_length: file.size,
+					sha256: 'a'.repeat(64),
+					mime_type: 'image/jpeg',
+					original_filename: file.name,
+					title: `same__hbc_${options.attemptId}.jpg`,
+				};
+			},
+			delete: async () => assert.fail('must not delete'),
+		});
+		service = new SubmissionService(async () => {
+			const snapshot = service.snapshot();
+			if (failure === 'checkpoint-before' && snapshot.photoAttempts[0]?.[0].state === 'in_flight')
+				throw new Error('disk full');
+			if (failure === 'checkpoint-after' && snapshot.photoAttempts[0]?.[0].receipt)
+				throw new Error('disk full');
+			durable = snapshot;
+		});
+		const photos = {
+			...item,
+			originalFile: new File(['one'], 'same.jpg'),
+			additionalImages: [new File(['two'], 'same.jpg'), new File(['three'], 'third.jpg')],
+		};
+		await service.submitAll([photos], 'location', null);
+		assert.equal(
+			calls,
+			failure === 'checkpoint-before'
+				? 0
+				: failure === 'additional'
+					? 2
+					: failure === 'none'
+						? 3
+						: 1
+		);
+		assert.equal(
+			service.snapshot().itemStatuses[0],
+			failure === 'none' ? 'success' : 'partial_success'
+		);
+		if (failure === 'additional')
+			assert.equal(service.snapshot().photoAttempts[0][0].state, 'verified');
+		const recovered = new SubmissionService();
+		recovered.restore(durable);
+		const previous = calls;
+		await recovered.submitAll([photos], 'location', null);
+		assert.equal(calls, previous);
+		assert.equal(photos.additionalImages[1].name, 'third.jpg');
+	});
+}
+
+test('collection change during checkpoint cannot dispatch a photo in another scope', async () => {
+	const api = {
+		scope: 'original',
+		create: async () => ({ created: [{ id: 'created-a' }], errors: [] }),
+		uploadAttachment: async () => assert.fail('wrong scope POST'),
+	};
+	const { SubmissionService } = await loadSubmission(api);
+	const service = new SubmissionService(async () => {
+		if (service.snapshot().createdItemIds[0]) api.scope = 'changed';
+	});
+	await service.submitAll([{ ...item, originalFile: new File(['x'], 'x.jpg') }], 'location', null);
+	assert.equal(service.snapshot().itemStatuses[0], 'partial_success');
+	assert.equal(service.snapshot().photoAttempts[0]?.[0]?.state, undefined);
+});
+
+test('legacy inconsistent failed row with known ID cannot recreate or lose its identity', async () => {
+	let creates = 0;
+	const { SubmissionService } = await loadSubmission({
+		create: async () => {
+			creates++;
+			return { created: [], errors: ['rejected'] };
+		},
+	});
+	const service = new SubmissionService();
+	service.restore({
+		itemStatuses: { 0: 'failed' },
+		createdItemIds: { 0: 'known' },
+		lastErrors: [],
+	});
+	await service.retryFailed([item], null, null);
+	assert.equal(creates, 0);
+	assert.equal(service.snapshot().itemStatuses[0], 'partial_success');
 });

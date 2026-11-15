@@ -22,7 +22,7 @@
 			log.warn('Server-side logout failed, proceeding with local cleanup', e);
 		}
 
-		scanWorkflow.reset();
+		scanWorkflow.reset(false);
 		resetLocationState();
 		settingsService.reset();
 		authStore.logout();

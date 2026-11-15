@@ -15,6 +15,8 @@ globalThis.p14 = {
 	itemValidationError: () => null,
 	normalizeAssetId: (/** @type {unknown} */ v) => v,
 	hasToken: () => true,
+	requestScope: () => 'synthetic',
+	assertCurrentScope: () => {},
 	withRetry: (/** @type {() => Promise<unknown>} */ fn) => fn(),
 	ApiError: class extends Error {},
 	log: { info() {}, debug() {}, warn() {}, error() {} },

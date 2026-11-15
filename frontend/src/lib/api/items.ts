@@ -13,8 +13,30 @@ export interface CreateOptions {
 	signal?: AbortSignal;
 }
 
+export interface AttachmentReceipt {
+	verified: true;
+	entity_id: string;
+	attachment_id: string;
+	attempt_id: string;
+	slot: string;
+	original_filename: string;
+	title: string;
+	mime_type: string;
+	byte_length: number;
+	sha256: string;
+}
+export interface PhotoAttempt {
+	slot: string;
+	original_filename: string;
+	attempt_id?: string;
+	state: 'not_sent' | 'in_flight' | 'verified' | 'unconfirmed';
+	receipt?: AttachmentReceipt;
+}
 export interface UploadOptions {
 	signal?: AbortSignal;
+	attemptId?: string;
+	slot?: string;
+	originalFilename?: string;
 }
 
 export interface ItemUpdateData {
@@ -62,8 +84,12 @@ export const items = {
 
 		const formData = new FormData();
 		formData.append('file', file);
-		return requestFormData<unknown>(`/items/${itemId}/attachments`, formData, {
-			errorMessage: 'Failed to upload attachment',
+		if (options.attemptId) formData.append('attempt_id', options.attemptId);
+		if (options.slot) formData.append('slot', options.slot);
+		if (options.originalFilename) formData.append('original_filename', options.originalFilename);
+		return requestFormData<AttachmentReceipt>(`/items/${itemId}/attachments`, formData, {
+			errorMessage: 'Photo upload not confirmed',
+			skipAuthRetry: true,
 			signal: options.signal,
 		});
 	},

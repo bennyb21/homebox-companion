@@ -27,8 +27,9 @@ from ..core.exceptions import (
     HomeboxCreateNotDispatchedError,
     HomeboxTimeoutError,
 )
+from .attachment_verification import AttachmentReceipt, upload_verified
 from .auth import HomeboxAccess
-from .models import Attachment, Group, Item, ItemCreate, Location, Tag
+from .models import Group, Item, ItemCreate, Location, Tag
 from .relationships import item_update_payload
 
 
@@ -1375,30 +1376,28 @@ class HomeboxClient:
         filename: str,
         mime_type: str = "image/jpeg",
         attachment_type: str = "photo",
+        *,
+        attempt_id: str | None = None,
+        slot: str = "photo",
     ) -> dict[str, Any]:
-        """Upload an attachment (image) to an item.
+        """Upload once and return an independently verified persistence receipt.
 
-        Args:
-            token: The bearer token from login.
-            item_id: The ID of the item to attach to.
-            file_bytes: The file content as bytes.
-            filename: Name for the uploaded file.
-            mime_type: MIME type of the file.
-            attachment_type: Type of attachment (default: "photo").
-
-        Returns:
-            The attachment response dictionary (raw API response).
+        The native POST returns entity detail, not an attachment ID. No HTTP
+        response alone establishes success. Uncertain writes must not be replayed.
         """
-        files = {"file": (filename, file_bytes, mime_type)}
-        data = {"type": attachment_type, "name": filename}
-        response = await self.client.post(
-            f"{self.base_url}/entities/{item_id}/attachments",
-            headers=self._raw_auth_headers(token),
-            files=files,
-            data=data,
+        receipt = await upload_verified(
+            self.client,
+            self.base_url,
+            self._raw_auth_headers(token),
+            item_id,
+            file_bytes,
+            filename,
+            mime_type,
+            attachment_type,
+            attempt_id,
+            slot,
         )
-        self._ensure_success(response, "Upload attachment")
-        return response.json()
+        return receipt.model_dump()
 
     async def upload_attachment_typed(
         self,
@@ -1408,27 +1407,22 @@ class HomeboxClient:
         filename: str,
         mime_type: str = "image/jpeg",
         attachment_type: str = "photo",
-    ) -> Attachment:
-        """Upload an attachment (image) to an item and return typed Attachment.
-
-        Args:
-            token: The bearer token from login.
-            item_id: The ID of the item to attach to.
-            file_bytes: The file content as bytes.
-            filename: Name for the uploaded file.
-            mime_type: MIME type of the file.
-            attachment_type: Type of attachment (default: "photo").
-
-        Returns:
-            The Attachment object.
-        """
-        raw = await self.upload_attachment(token, item_id, file_bytes, filename, mime_type, attachment_type)
-        # Handle nested document structure from API
-        doc = raw.get("document", {})
-        return Attachment(
-            id=raw.get("id", ""),
-            type=raw.get("type", ""),
-            document_id=doc.get("id") if doc else None,
+        *,
+        attempt_id: str | None = None,
+        slot: str = "photo",
+    ) -> AttachmentReceipt:
+        """Return a typed observation receipt, never the top-level entity ID."""
+        return AttachmentReceipt.model_validate(
+            await self.upload_attachment(
+                token,
+                item_id,
+                file_bytes,
+                filename,
+                mime_type,
+                attachment_type,
+                attempt_id=attempt_id,
+                slot=slot,
+            )
         )
 
     @_rate_limited

@@ -60,7 +60,25 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
  * @param session - The session to check
  * @returns true if expired, false otherwise
  */
+function hasUnconfirmedWrites(session: StoredSession): boolean {
+	// Uncertain writes and retained photo recovery are not disposable TTL cache.
+	const submission = session.submission;
+	return (
+		!!submission &&
+		(Object.values(submission.itemStatuses ?? {}).some(
+			(status) => status === 'creating' || status === 'partial_success'
+		) ||
+			Object.keys(submission.createdItemIds ?? {}).some(
+				(index) => submission.itemStatuses?.[Number(index)] !== 'success'
+			) ||
+			Object.values(submission.photoAttempts ?? {}).some((attempts) =>
+				attempts.some((attempt) => attempt.state !== 'verified')
+			))
+	);
+}
+
 function isSessionExpired(session: StoredSession): boolean {
+	if (hasUnconfirmedWrites(session)) return false;
 	const age = Date.now() - session.createdAt;
 	return age > SESSION_TTL_MS;
 }
@@ -104,6 +122,7 @@ function getDb(): Promise<IDBPDatabase> {
 // =============================================================================
 
 export interface SessionSummary {
+	hasUnconfirmedWrites?: boolean;
 	/** Age of session in human-readable format (e.g., "2 hours ago") */
 	ageText: string;
 	/** Number of captured images */
@@ -199,6 +218,7 @@ export async function getSessionSummary(
 			locationName: session.locationName,
 			status: session.status,
 			confirmedCount: session.confirmedItems?.length ?? 0,
+			hasUnconfirmedWrites: hasUnconfirmedWrites(session),
 		};
 	} catch (error) {
 		log.warn('Error getting session summary:', error);
@@ -234,21 +254,14 @@ export async function load(scope = captureSessionScope()): Promise<StoredSession
 
 		// Basic validation
 		if (!session.id || typeof session.status !== 'string') {
-			log.warn('Session data appears corrupted, clearing');
-			await clear(scope);
+			log.warn('Session data appears corrupted; retaining for explicit discard');
 			return null;
 		}
 
 		log.info(`Loaded session: status=${session.status}, images=${session.images?.length ?? 0}`);
 		return session;
 	} catch (error) {
-		log.error('Error loading session:', error);
-		// Clear corrupted data
-		try {
-			await clear(scope);
-		} catch (clearError) {
-			log.warn('Failed to clear corrupted session during recovery:', clearError);
-		}
+		log.error('Error loading session; retained for explicit recovery/discard:', error);
 		return null;
 	}
 }
@@ -276,7 +289,15 @@ export async function save(
 		// Update the updatedAt timestamp
 		session.updatedAt = Date.now();
 
-		await db.put(STORE_NAME, session, key);
+		const tx = db.transaction(STORE_NAME, 'readwrite');
+		const previous: StoredSession | undefined = await tx.store.get(key);
+		if (previous && previous.id !== session.id && hasUnconfirmedWrites(previous)) {
+			await tx.done;
+			log.warn('Retained upload draft must be resumed or explicitly discarded before a new scan');
+			return false;
+		}
+		await tx.store.put(session, key);
+		await tx.done;
 		log.debug(`Saved session: status=${session.status}, images=${session.images?.length ?? 0}`);
 		return true;
 	} catch (error) {

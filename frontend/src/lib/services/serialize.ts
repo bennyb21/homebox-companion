@@ -10,6 +10,7 @@
  * - Base64 data URLs preserve image bytes across reloads
  */
 import { createUuidV4 } from '$lib/utils/uuid';
+import type { PhotoAttempt } from '$lib/api/items';
 
 import type {
 	CapturedImage,
@@ -113,6 +114,7 @@ export interface StoredSession {
 		itemStatuses: Record<number, ItemSubmissionStatus>;
 		createdItemIds: Record<number, string>;
 		lastErrors: string[];
+		photoAttempts?: Record<number, PhotoAttempt[]>;
 	};
 }
 

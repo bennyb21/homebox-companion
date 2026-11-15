@@ -181,3 +181,30 @@ export async function installApi(context: BrowserContext): Promise<MockApi> {
 	contextApis.set(context, api);
 	return api;
 }
+
+/** Synthetic typed receipt for UI-only tests. Native/ASGI tests exercise real verification. */
+export async function verifiedAttachment(request: Request): Promise<Reply> {
+	const data = await new Response(new Uint8Array(request.postDataBuffer()!), {
+		headers: { 'content-type': request.headers()['content-type'] },
+	}).formData();
+	const file = data.get('file') as File;
+	const attempt = String(data.get('attempt_id'));
+	const slot = String(data.get('slot'));
+	if (!/^[a-f0-9-]{36}$/.test(attempt) || !file?.size || slot === 'null')
+		throw new Error('Missing durable photo attempt');
+	const { createHash, randomUUID } = await import('node:crypto');
+	return json({
+		verified: true,
+		entity_id: new URL(request.url()).pathname.split('/')[3],
+		attachment_id: randomUUID(),
+		attempt_id: attempt,
+		slot,
+		original_filename: data.get('original_filename') ?? file.name,
+		title: `photo__hbc_${attempt}.jpg`,
+		mime_type: file.type || 'image/jpeg',
+		byte_length: file.size,
+		sha256: createHash('sha256')
+			.update(Buffer.from(await file.arrayBuffer()))
+			.digest('hex'),
+	});
+}

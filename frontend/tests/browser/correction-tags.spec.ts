@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures/test';
 import { createdItem, detectedItems, fieldPreferences } from './fixtures/data';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import {
 	analyzePhotos,
 	confirmItems,
@@ -33,7 +33,7 @@ for (const [label, tags] of [
 			json({ items: [{ name: 'Corrected lamp', quantity: 2, tag_ids: tags }] })
 		);
 		api.on('POST', '/api/items', () => json(createdItem('saved', 'Corrected lamp')));
-		api.on('POST', '/api/items/saved/attachments', () => json({}));
+		api.on('POST', '/api/items/saved/attachments', verifiedAttachment);
 		await selectLocation(page);
 		await uploadPhoto(page);
 		await analyzePhotos(page);
@@ -71,7 +71,7 @@ test('correction respects manually removed default and discards late responses a
 	);
 	api.on('POST', '/api/tools/vision/detect', () => json(detectedItems(['Lamp', 'Chair'])));
 	api.on('POST', '/api/tools/vision/correct', () => json(detectedItems(['Corrected lamp'])));
-	api.on('POST', '/api/items/saved/attachments', () => json({}));
+	api.on('POST', '/api/items/saved/attachments', verifiedAttachment);
 	await selectLocation(page);
 	await uploadPhoto(page);
 	await analyzePhotos(page);
@@ -124,7 +124,7 @@ test('metadata failure preserves draft tags without accepting unverified suggest
 		json({ items: [{ name: 'Corrected lamp', quantity: 1, tag_ids: ['unverified'] }] })
 	);
 	api.on('POST', '/api/items', () => json(createdItem('saved')));
-	api.on('POST', '/api/items/saved/attachments', () => json({}));
+	api.on('POST', '/api/items/saved/attachments', verifiedAttachment);
 	await selectLocation(page);
 	await uploadPhoto(page);
 	await analyzePhotos(page);

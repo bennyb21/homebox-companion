@@ -1284,8 +1284,7 @@ class ScanWorkflow {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorName = error instanceof Error ? error.name : 'Unknown';
 			log.error(`Failed to recover session: [${errorName}] ${errorMessage}`);
-			// Clear corrupted session
-			if (generation === this.contextGeneration) await this.persistence.clear(scope);
+			// Keep the on-disk recovery evidence; only explicit discard may remove it.
 			return false;
 		}
 	}
@@ -1317,7 +1316,24 @@ class ScanWorkflow {
 	// =========================================================================
 
 	/** Reset workflow to initial state */
-	reset(clearPersisted = true): void {
+	get submissionCheckpoint() {
+		return this.submissionService.snapshot();
+	}
+
+	reset(clearPersisted = true): boolean {
+		if (
+			clearPersisted &&
+			Object.values(this.submissionService.itemStatuses).some(
+				(s) => s === 'partial_success' || s === 'creating'
+			)
+		) {
+			if (
+				!window.confirm(
+					'Discard retained photos and unconfirmed upload records? Download the originals and check the known Homebox items first. This cannot undo any Homebox writes.'
+				)
+			)
+				return false;
+		}
 		const scope = captureSessionScope();
 		this.contextGeneration++;
 		this.saveRevision++;
@@ -1348,6 +1364,7 @@ class ScanWorkflow {
 		this._error = null;
 		this.persistence.resetMetadata();
 		if (clearPersisted && scope) void this.persistence.clear(scope);
+		return true;
 	}
 
 	/** Drop in-memory work when changing collection while preserving the old scoped draft. */
@@ -1356,14 +1373,14 @@ class ScanWorkflow {
 	}
 
 	/** Start a new scan (keeps location and parent item if set) */
-	startNew(): void {
+	startNew(): boolean {
 		const locationId = this._locationId;
 		const locationName = this._locationName;
 		const locationPath = this._locationPath;
 		const parentItemId = this._parentItemId;
 		const parentItemName = this._parentItemName;
 
-		this.reset();
+		if (!this.reset()) return false;
 
 		if (locationId && locationName && locationPath) {
 			this._locationId = locationId;
@@ -1375,6 +1392,7 @@ class ScanWorkflow {
 		} else {
 			this._status = 'location';
 		}
+		return true;
 	}
 
 	// =========================================================================

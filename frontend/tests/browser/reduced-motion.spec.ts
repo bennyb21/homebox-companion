@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/test';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import { selectLocation, uploadPhoto, confirmItems, submitItems } from './helpers/scan';
 
@@ -17,7 +17,7 @@ test('reduced motion completes analysis without an animation hold and reveals su
 	});
 	api.on('POST', '/api/tools/vision/detect', () => json(detectedItems(['Desk lamp'])));
 	api.on('POST', '/api/items', () => json(createdItem('item-1')));
-	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, () => json({}));
+	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, verifiedAttachment);
 
 	await selectLocation(page);
 	await uploadPhoto(page);

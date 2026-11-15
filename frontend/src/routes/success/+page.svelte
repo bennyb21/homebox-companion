@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AttachmentRecovery from '$lib/components/AttachmentRecovery.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
@@ -54,22 +55,21 @@
 
 	function scanMore() {
 		// Keep location, start new scan
-		workflow.startNew();
+		if (!workflow.startNew()) return;
 		goto(resolve('/capture'));
 	}
 
 	function startOver() {
 		// Reset everything including location selection UI
-		workflow.reset();
+		if (!workflow.reset()) return;
 		resetLocationState();
 		goto(resolve('/location'));
 	}
 
 	function handleParentSelected(id: string, name: string) {
-		// Set the selected item as parent for next scan
+		// Do not change the retained context if the discard prompt is declined.
+		if (!workflow.startNew()) return;
 		workflow.setParentItem(id, name);
-		// Start new scan with parent set
-		workflow.startNew();
 		goto(resolve('/capture'));
 	}
 </script>
@@ -155,6 +155,8 @@
 	{:else}
 		<p class="mb-8 text-body text-neutral-400">Items have been added to your inventory</p>
 	{/if}
+
+	<AttachmentRecovery />
 
 	<!-- Action buttons -->
 	<div class="w-full max-w-sm space-y-3">
