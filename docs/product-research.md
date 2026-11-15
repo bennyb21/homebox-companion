@@ -17,7 +17,9 @@ model list. Catalog eligibility is **not** verification of API key validity,
 model access, billing or live research quality. Unsupported profiles show a reason;
 edit the existing AI profile's model while leaving its key unchanged, then reload
 research settings. Custom API bases and provider-prefixed model names are not
-accepted by this adapter. Profile primary/fallback status does not select research.
+accepted by this adapter; an explicitly configured `https://api.openai.com/v1`
+is accepted unchanged, as well as an unset base. Dispatch still uses only the fixed
+official Responses endpoint. Profile primary/fallback status does not select research.
 Research settings use the same authenticated Homebox-identity policy as existing
 LLM-profile settings; this does not introduce a separate admin role.
 

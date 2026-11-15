@@ -222,7 +222,7 @@ class OpenAIResponsesResearchProvider:
             and p.name == self.policy.profile_name
             and p.api_key
             and p.api_key.get_secret_value()
-            and not p.api_base
+            and p.api_base in (None, "", "https://api.openai.com/v1")
             and re.fullmatch(r"[A-Za-z0-9._-]+", p.model)
         )
 

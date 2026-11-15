@@ -68,6 +68,18 @@ async def test_enable_reuses_sole_eligible_profile_and_persists_without_secret_r
 
 
 @pytest.mark.asyncio
+async def test_explicit_official_openai_base_is_eligible_without_rewriting_profile(disk):
+    persistent_settings.mutate_settings(
+        lambda settings: setattr(settings.llm_profiles[0], "api_base", "https://api.openai.com/v1")
+    )
+    async with client_for_settings() as client:
+        response = await client.put("/api/settings/research", json={"enabled": True})
+        assert response.status_code == 200
+        assert response.json()["profiles"][0]["eligible"] is True
+    assert persistent_settings.load_settings().llm_profiles[0].api_base == "https://api.openai.com/v1"
+
+
+@pytest.mark.asyncio
 async def test_multiple_profiles_require_selection_and_unsuitable_is_rejected(disk):
     def add(settings):
         settings.llm_profiles.extend(
