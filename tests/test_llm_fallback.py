@@ -103,7 +103,7 @@ class TestRouterConstruction:
             assert router.model_list[1]["model_name"] == "fallback"
             assert router.model_list[1]["litellm_params"]["model"] == "claude-sonnet-4-20250514"
 
-    def test_router_fallback_inherits_api_key(self) -> None:
+    def test_router_fallback_requires_explicit_credential_source(self) -> None:
         """Fallback should inherit primary's API key if not specified."""
         from homebox_companion.core.llm_utils import LLMCredentials
 
@@ -132,8 +132,8 @@ class TestRouterConstruction:
         ):
             router = _build_router_from_profiles()
 
-            # Fallback should inherit primary's key
-            assert router.model_list[1]["litellm_params"]["api_key"] == "primary-key"
+            # Fallback must not implicitly inherit a credential.
+            assert router.model_list[1]["litellm_params"]["api_key"] == "hbc-no-configured-key"
 
 
 class TestRouterSingleton:

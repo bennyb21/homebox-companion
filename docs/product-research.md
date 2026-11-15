@@ -15,8 +15,13 @@ model-name and official-endpoint constraints and the installed LiteLLM catalog's
 OpenAI web-search flag. The UI uses these server results rather than its own
 model list. Catalog eligibility is **not** verification of API key validity,
 model access, billing or live research quality. Unsupported profiles show a reason;
-edit the existing AI profile's model while leaving its key unchanged, then reload
-research settings. Custom API bases and provider-prefixed model names are not
+create/edit an AI profile, then reload research settings. A dedicated **Research** role
+can use a different model with an explicit reference to an existing OpenAI credential.
+Selecting an existing Primary/Fallback here preserves its capture role. See
+[model configuration](model-configuration.md) for credential boundaries, migration,
+effective Compose/UI precedence and optional model-specific reasoning. Higher
+reasoning effort shares the fixed output budget and can leave incomplete output.
+ Custom API bases and provider-prefixed model names are not
 accepted by this adapter; an explicitly configured `https://api.openai.com/v1`
 is accepted unchanged, as well as an unset base. Dispatch still uses only the fixed
 official Responses endpoint. Profile primary/fallback status does not select research.

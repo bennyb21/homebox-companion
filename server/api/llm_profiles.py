@@ -5,13 +5,17 @@ API keys are never sent to the frontend - only `has_api_key: bool` is exposed.
 """
 
 from collections.abc import Callable
+from typing import Literal
 
 import litellm
 from fastapi import APIRouter, Depends, HTTPException
 from litellm.exceptions import APIConnectionError, AuthenticationError, NotFoundError
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
+from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError, field_validator
 
+from homebox_companion.core import config
+from homebox_companion.core.credential_policy import RESEARCH_REASONING, official_openai
+from homebox_companion.core.llm_utils import resolve_profile_key
 from homebox_companion.core.persistent_settings import (
     ModelProfile,
     PersistentSettings,
@@ -40,15 +44,31 @@ class ProfileResponse(BaseModel):
     has_api_key: bool
     api_base: str | None
     status: str
+    credential_source: str
+    credential_profile_name: str | None
+    research_reasoning_effort: str | None
+    research_assigned: bool
+    can_share_credential: bool
 
 
 class ProfileListResponse(BaseModel):
     """List of profiles for frontend."""
 
     profiles: list[ProfileResponse]
+    reasoning_options: dict[str, tuple[str, ...]]
+    environment_credential_available: bool
 
 
-class ProfileCreateRequest(BaseModel):
+class CredentialRequest(BaseModel):
+    @field_validator("model", "api_key", "api_base", check_fields=False)
+    @classmethod
+    def reject_sdk_indirection(cls, value: str | None) -> str | None:
+        if value and value.startswith("os.environ/"):
+            raise ValueError("Use the explicit credential source, not SDK environment indirection")
+        return value
+
+
+class ProfileCreateRequest(CredentialRequest):
     """Request to create a new profile."""
 
     name: str
@@ -56,9 +76,12 @@ class ProfileCreateRequest(BaseModel):
     api_key: str | None = None
     api_base: str | None = None
     status: ProfileStatus = ProfileStatus.OFF
+    credential_source: Literal["own", "env", "profile"] = "own"
+    credential_profile_name: str | None = None
+    research_reasoning_effort: str | None = None
 
 
-class ProfileUpdateRequest(BaseModel):
+class ProfileUpdateRequest(CredentialRequest):
     """Request to update an existing profile.
 
     For api_key:
@@ -71,9 +94,12 @@ class ProfileUpdateRequest(BaseModel):
     api_key: str | None = None
     api_base: str | None = None
     status: ProfileStatus | None = None
+    credential_source: Literal["own", "env", "profile"] | None = None
+    credential_profile_name: str | None = None
+    research_reasoning_effort: str | None = None
 
 
-class TestConnectionRequest(BaseModel):
+class TestConnectionRequest(CredentialRequest):
     """Request to test a profile connection."""
 
     # Optional override for testing before saving
@@ -95,15 +121,29 @@ class TestConnectionResponse(BaseModel):
 # ============================================================================
 
 
-def _profile_to_response(profile: ModelProfile) -> ProfileResponse:
+def _profile_to_response(profile: ModelProfile, settings: PersistentSettings) -> ProfileResponse:
     """Convert internal profile to safe frontend response."""
     return ProfileResponse(
         name=profile.name,
         model=profile.model,
-        has_api_key=profile.api_key is not None,
+        has_api_key=bool(resolve_profile_key(profile, settings)),
+        credential_source=profile.credential_source,
+        credential_profile_name=profile.credential_profile_name,
+        research_reasoning_effort=profile.research_reasoning_effort,
+        research_assigned=settings.research_profile_name == profile.name,
+        can_share_credential=profile.credential_source == "own"
+        and bool(profile.api_key)
+        and official_openai(profile.model, profile.api_base),
         api_base=profile.api_base,
         status=profile.status.value,
     )
+
+
+def _select_research(settings: PersistentSettings, name: str | None) -> None:
+    for profile in settings.llm_profiles:
+        if profile.status == ProfileStatus.RESEARCH and profile.name != name:
+            profile.status = ProfileStatus.OFF
+    settings.research_profile_name = name
 
 
 def _find_profile(settings: PersistentSettings, name: str) -> tuple[int, ModelProfile]:
@@ -117,11 +157,35 @@ def _find_profile(settings: PersistentSettings, name: str) -> tuple[int, ModelPr
 def _mutate_profiles(mutate: Callable[[PersistentSettings], None]) -> PersistentSettings:
     """Preserve the public validation error while committing one transaction."""
     try:
-        return mutate_settings(mutate)
-    except ValidationError:
-        raise HTTPException(
-            status_code=400, detail="Profiles must have exactly one primary and at most one fallback"
-        ) from None
+
+        def checked(settings: PersistentSettings) -> None:
+            existing_env = {p.name for p in settings.llm_profiles if p.credential_source == "env"}
+            mutate(settings)
+            if settings.research_enabled:
+                selected = next((p for p in settings.llm_profiles if p.name == settings.research_profile_name), None)
+                if selected is None or research_profile_reason(selected, settings) is not None:
+                    raise HTTPException(
+                        400, "Disable research or choose an eligible profile before changing its model or credential"
+                    )
+            for profile in settings.llm_profiles:
+                if (
+                    profile.credential_source == "env"
+                    and profile.name not in existing_env
+                    and not official_openai(config.settings.effective_llm_model, config.settings.llm_api_base)
+                ):
+                    raise HTTPException(
+                        400,
+                        "Environment credential is incompatible; choose an own key "
+                        "or an official OpenAI source profile",
+                    )
+
+        return mutate_settings(checked)
+    except ValidationError as exc:
+        # Only validator-owned messages, never Pydantic input/context (contains secrets).
+        messages = [
+            e["msg"].removeprefix("Value error, ") for e in exc.errors(include_input=False, include_context=False)
+        ]
+        raise HTTPException(status_code=400, detail="; ".join(messages)) from None
 
 
 # ============================================================================
@@ -135,9 +199,11 @@ class ResearchSettingsRequest(BaseModel):
     profile_name: str | None = None
 
 
-def research_profile_reason(profile: ModelProfile) -> str | None:
+def research_profile_reason(profile: ModelProfile, settings: PersistentSettings | None = None) -> str | None:
     """Offline eligibility only; never verifies billing, access or live quality."""
-    if not OpenAIResponsesResearchProvider(ResearchPolicy(enabled=True, profile_name=profile.name), profile).configured:
+    if not OpenAIResponsesResearchProvider(
+        ResearchPolicy(enabled=True, profile_name=profile.name), profile, settings=settings
+    ).configured:
         return "Use an existing key, an unprefixed OpenAI model name and no custom API base."
     try:
         supported = litellm.supports_web_search(profile.model, custom_llm_provider="openai")
@@ -158,7 +224,7 @@ def _research_settings_response(settings: PersistentSettings) -> dict:
         "profiles": [
             {"name": p.name, "model": p.model, "eligible": reason is None, "reason": reason}
             for p in settings.llm_profiles
-            for reason in [research_profile_reason(p)]
+            for reason in [research_profile_reason(p, settings)]
         ],
     }
 
@@ -173,15 +239,15 @@ async def update_research_settings(request: ResearchSettingsRequest) -> dict:
     def mutate(settings: PersistentSettings) -> None:
         name = request.profile_name
         if request.enabled:
-            eligible = [p for p in settings.llm_profiles if research_profile_reason(p) is None]
+            eligible = [p for p in settings.llm_profiles if research_profile_reason(p, settings) is None]
             if name is None and len(eligible) == 1:
                 name = eligible[0].name
             if name is None or name not in {p.name for p in eligible}:
                 raise HTTPException(400, "Select one eligible existing OpenAI research profile")
         settings.research_enabled = request.enabled
-        settings.research_profile_name = name
+        _select_research(settings, name)
 
-    return _research_settings_response(mutate_settings(mutate))
+    return _research_settings_response(_mutate_profiles(mutate))
 
 
 @router.get("/llm/profiles", response_model=ProfileListResponse)
@@ -190,8 +256,13 @@ async def list_profiles() -> ProfileListResponse:
     clear_settings_cache()
     settings = load_settings()
 
-    profiles = [_profile_to_response(p) for p in settings.llm_profiles]
-    return ProfileListResponse(profiles=profiles)
+    profiles = [_profile_to_response(p, settings) for p in settings.llm_profiles]
+    return ProfileListResponse(
+        profiles=profiles,
+        reasoning_options=RESEARCH_REASONING,
+        environment_credential_available=bool(config.settings.effective_llm_api_key)
+        and official_openai(config.settings.effective_llm_model, config.settings.llm_api_base),
+    )
 
 
 @router.post("/llm/profiles", response_model=ProfileResponse, status_code=201)
@@ -206,7 +277,7 @@ async def create_profile(request: ProfileCreateRequest) -> ProfileResponse:
 
         # If this is the first profile, make it active
         status = request.status
-        if not settings.llm_profiles:
+        if not settings.llm_profiles and status != ProfileStatus.RESEARCH:
             status = ProfileStatus.PRIMARY
             logger.info("First profile created, setting as primary")
 
@@ -216,6 +287,9 @@ async def create_profile(request: ProfileCreateRequest) -> ProfileResponse:
             api_key=SecretStr(request.api_key) if request.api_key else None,
             api_base=request.api_base,
             status=status,
+            credential_source=request.credential_source,
+            credential_profile_name=request.credential_profile_name,
+            research_reasoning_effort=request.research_reasoning_effort,
         )
 
         if status in (ProfileStatus.PRIMARY, ProfileStatus.FALLBACK):
@@ -224,10 +298,12 @@ async def create_profile(request: ProfileCreateRequest) -> ProfileResponse:
                     profile.status = ProfileStatus.OFF
 
         settings.llm_profiles.append(new_profile)
+        if status == ProfileStatus.RESEARCH:
+            _select_research(settings, new_profile.name)
 
     settings = _mutate_profiles(mutate)
     logger.info("LLM profile mutation saved: create_profile")
-    return _profile_to_response(_find_profile(settings, request.name)[1])
+    return _profile_to_response(_find_profile(settings, request.name)[1], settings)
 
 
 @router.put("/llm/profiles/{name}", response_model=ProfileResponse)
@@ -243,6 +319,11 @@ async def update_profile(name: str, request: ProfileUpdateRequest) -> ProfileRes
             for p in settings.llm_profiles:
                 if p.name == request.new_name:
                     raise HTTPException(status_code=409, detail=f"Profile '{request.new_name}' already exists")
+            if settings.research_profile_name == name:
+                settings.research_profile_name = request.new_name
+            for p in settings.llm_profiles:
+                if p.credential_profile_name == name:
+                    p.credential_profile_name = request.new_name
             profile.name = request.new_name
             logger.info(f"Renamed LLM profile: {name} -> {request.new_name}")
 
@@ -250,8 +331,8 @@ async def update_profile(name: str, request: ProfileUpdateRequest) -> ProfileRes
         if request.model is not None:
             profile.model = request.model
 
-        if request.api_base is not None:
-            profile.api_base = request.api_base if request.api_base else None
+        if "api_base" in request.model_fields_set:
+            profile.api_base = request.api_base or None
 
         # Handle api_key specially
         if request.api_key is not None:
@@ -260,8 +341,29 @@ async def update_profile(name: str, request: ProfileUpdateRequest) -> ProfileRes
             else:
                 profile.api_key = SecretStr(request.api_key)
 
+        if request.credential_source is not None:
+            profile.credential_source = request.credential_source
+        if "credential_profile_name" in request.model_fields_set:
+            profile.credential_profile_name = request.credential_profile_name
+        if "research_reasoning_effort" in request.model_fields_set:
+            profile.research_reasoning_effort = request.research_reasoning_effort
+
         if request.status is not None:
             new_status = request.status
+            if profile.status == ProfileStatus.PRIMARY and new_status == ProfileStatus.OFF:
+                raise HTTPException(400, "Choose another Primary before switching this profile Off")
+            if new_status == ProfileStatus.RESEARCH:
+                if profile.status in (ProfileStatus.PRIMARY, ProfileStatus.FALLBACK):
+                    raise HTTPException(
+                        400,
+                        "Keep capture configured: use the research selector to also assign "
+                        "this Primary/Fallback profile, "
+                        "or create a dedicated Research profile",
+                    )
+                _select_research(settings, profile.name)
+            elif profile.status == ProfileStatus.RESEARCH:
+                _select_research(settings, None)
+                settings.research_enabled = False
 
             # If setting to active, deactivate others
             if new_status == ProfileStatus.PRIMARY:
@@ -279,7 +381,9 @@ async def update_profile(name: str, request: ProfileUpdateRequest) -> ProfileRes
 
     settings = _mutate_profiles(mutate)
     logger.info("LLM profile mutation saved: update_profile")
-    return _profile_to_response(_find_profile(settings, request.new_name if request.new_name is not None else name)[1])
+    return _profile_to_response(
+        _find_profile(settings, request.new_name if request.new_name is not None else name)[1], settings
+    )
 
 
 @router.delete("/llm/profiles/{name}", status_code=204)
@@ -289,14 +393,25 @@ async def delete_profile(name: str) -> None:
     def mutate(settings: PersistentSettings) -> None:
         idx, profile = _find_profile(settings, name)
         was_active = profile.status == ProfileStatus.PRIMARY
+        if any(p.credential_profile_name == name for p in settings.llm_profiles):
+            raise HTTPException(
+                400, "Another profile references this credential; change that reference before deleting"
+            )
+        if settings.research_profile_name == name:
+            settings.research_profile_name = None
+            settings.research_enabled = False
 
         # Remove the profile by index
         del settings.llm_profiles[idx]
 
         # If deleted the active profile, activate the first remaining one
         if was_active and settings.llm_profiles:
-            settings.llm_profiles[0].status = ProfileStatus.PRIMARY
-            logger.info(f"Activated '{settings.llm_profiles[0].name}' after deleting primary profile")
+            replacement = next((p for p in settings.llm_profiles if p.status != ProfileStatus.RESEARCH), None)
+            if replacement is None:
+                raise HTTPException(
+                    400, "Assign a new Primary before deleting; Research is never promoted automatically"
+                )
+            replacement.status = ProfileStatus.PRIMARY
 
     _mutate_profiles(mutate)
     logger.info("LLM profile mutation saved: delete_profile")
@@ -319,7 +434,7 @@ async def activate_profile(name: str) -> ProfileResponse:
 
     settings = _mutate_profiles(mutate)
     logger.info("LLM profile mutation saved: activate_profile")
-    return _profile_to_response(_find_profile(settings, name)[1])
+    return _profile_to_response(_find_profile(settings, name)[1], settings)
 
 
 @router.post("/llm/profiles/{name}/test", response_model=TestConnectionResponse)
@@ -334,14 +449,18 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
 
     _, profile = _find_profile(settings, name)
 
-    # Use overrides if provided, otherwise use saved values
+    # Overrides cannot re-route a stored credential to a different destination/provider.
     model = request.model if request and request.model else profile.model
-    api_key = (
-        request.api_key
-        if request and request.api_key
-        else (profile.api_key.get_secret_value() if profile.api_key else None)
-    )
     api_base = request.api_base if request and request.api_base else profile.api_base
+    if request and not request.api_key and (model != profile.model or api_base != profile.api_base):
+        same_openai_provider = official_openai(model, None) and official_openai(profile.model, None)
+        same_destination = api_base == profile.api_base
+        if not (same_openai_provider and same_destination) and not (
+            official_openai(model, api_base) and official_openai(profile.model, profile.api_base)
+        ):
+            raise HTTPException(400, "Save and review destination changes before testing with stored credentials")
+    api_key = request.api_key if request and request.api_key else resolve_profile_key(profile, settings)
+    api_key = api_key or "hbc-no-configured-key"
 
     try:
         # Simple completion test

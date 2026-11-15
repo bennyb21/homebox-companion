@@ -56,6 +56,9 @@ def policy_hash(provider):
             "provider": "openai-responses",
             "model": getattr(profile, "model", None),
             "profile": getattr(profile, "name", None),
+            "research_reasoning_effort": getattr(profile, "research_reasoning_effort", None),
+            "credential_source": getattr(profile, "credential_source", None),
+            "credential_profile_name": getattr(profile, "credential_profile_name", None),
             "endpoint": "https://api.openai.com/v1",
         }
     )

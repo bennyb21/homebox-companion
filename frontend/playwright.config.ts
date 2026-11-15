@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCanonicalVisualPlatform = process.platform === 'linux';
 const useSystemChrome = process.env.PLAYWRIGHT_SYSTEM_CHROME === '1';
+const browserOrigin = process.env.HBC_BROWSER_TEST_ORIGIN || 'http://127.0.0.1:4173';
 
 const desktopGrepInvert = isCanonicalVisualPlatform ? /@mobile/ : /@mobile|@visual/;
 
@@ -14,7 +15,7 @@ export default defineConfig({
 	reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
 	outputDir: 'test-results',
 	use: {
-		baseURL: 'http://127.0.0.1:4173',
+		baseURL: browserOrigin,
 		serviceWorkers: 'block',
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure',
@@ -42,9 +43,8 @@ export default defineConfig({
 			: []),
 	],
 	webServer: {
-		command:
-			'node node_modules/vite/bin/vite.js preview --mode browser-test --host 127.0.0.1 --port 4173 --strictPort',
-		url: 'http://127.0.0.1:4173',
+		command: `node node_modules/vite/bin/vite.js preview --mode browser-test --host 127.0.0.1 --port ${new URL(browserOrigin).port} --strictPort`,
+		url: browserOrigin,
 		reuseExistingServer: false,
 	},
 });

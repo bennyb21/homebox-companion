@@ -118,7 +118,13 @@ def test_research_settings_roundtrip_is_explicit_and_default_off():
     )
 
     assert getattr(PersistentSettings(), "research_enabled", None) is False
-    settings = PersistentSettings(research_enabled=True, research_profile_name="dedicated")
+    from homebox_companion.core.persistent_settings import ModelProfile, ProfileStatus
+
+    settings = PersistentSettings(
+        research_enabled=True,
+        research_profile_name="dedicated",
+        llm_profiles=[ModelProfile(name="dedicated", model="gpt-4.1", status=ProfileStatus.RESEARCH)],
+    )
     restored = _yaml_dict_to_settings(_settings_to_yaml_dict(settings))
     assert restored.research_enabled is True
     assert restored.research_profile_name == "dedicated"

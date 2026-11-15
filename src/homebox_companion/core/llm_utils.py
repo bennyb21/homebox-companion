@@ -15,7 +15,8 @@ from dataclasses import dataclass
 from loguru import logger
 
 from . import config
-from .persistent_settings import get_primary_profile
+from .credential_policy import official_openai
+from .persistent_settings import ModelProfile, PersistentSettings, get_primary_profile, get_settings
 
 
 @dataclass
@@ -33,6 +34,29 @@ class LLMCredentials:
     api_key: str | None
     api_base: str | None
     profile_name: str | None = None
+
+
+def resolve_profile_key(profile: ModelProfile, settings: PersistentSettings | None = None) -> str | None:
+    """Resolve explicit sources only; never send a shared key to custom endpoints."""
+    if profile.credential_source == "own":
+        return profile.api_key.get_secret_value() if profile.api_key else None
+    if not official_openai(profile.model, profile.api_base):
+        return None
+    if profile.credential_source == "env":
+        env = config.settings
+        if official_openai(env.effective_llm_model, env.llm_api_base):
+            return env.effective_llm_api_key or None
+        return None
+    snapshot = settings if settings is not None else get_settings()
+    peer = next((p for p in snapshot.llm_profiles if p.name == profile.credential_profile_name), None)
+    if (
+        peer
+        and peer.name != profile.name
+        and peer.credential_source == "own"
+        and official_openai(peer.model, peer.api_base)
+    ):
+        return peer.api_key.get_secret_value() if peer.api_key else None
+    return None
 
 
 def resolve_llm_credentials() -> LLMCredentials:
@@ -55,19 +79,20 @@ def resolve_llm_credentials() -> LLMCredentials:
     if primary:
         profile_name = primary.name
         model = primary.model
-        api_key = primary.api_key.get_secret_value() if primary.api_key else None
+        api_key = resolve_profile_key(primary)
         api_base = primary.api_base
         logger.debug(f"Using PRIMARY profile '{primary.name}' with model: {model}")
     else:
         logger.debug("No PRIMARY profile, using env defaults")
 
-    # Fall back to env vars for any missing values
-    model = model or config.settings.effective_llm_model
-    api_key = api_key or config.settings.effective_llm_api_key
-    api_base = api_base if api_base is not None else config.settings.llm_api_base
+    # Environment is a complete alternative, never mixed into a profile.
+    if primary is None:
+        model = config.settings.effective_llm_model
+        api_key = config.settings.effective_llm_api_key
+        api_base = config.settings.llm_api_base
 
     return LLMCredentials(
-        model=model,
+        model=model or "",
         api_key=api_key,
         api_base=api_base,
         profile_name=profile_name,

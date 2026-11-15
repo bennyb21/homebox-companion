@@ -56,7 +56,9 @@ def provider(request: Request):
     config = get_settings()
     profile = next((p for p in config.llm_profiles if p.name == config.research_profile_name), None)
     return OpenAIResponsesResearchProvider(
-        ResearchPolicy(enabled=config.research_enabled, profile_name=config.research_profile_name), profile
+        ResearchPolicy(enabled=config.research_enabled, profile_name=config.research_profile_name),
+        profile,
+        settings=config,
     )
 
 

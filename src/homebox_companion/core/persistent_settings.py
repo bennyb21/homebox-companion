@@ -20,7 +20,7 @@ from contextlib import suppress
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 import yaml
 from loguru import logger
@@ -33,7 +33,7 @@ DATA_DIR = Path("data")
 SETTINGS_FILE = DATA_DIR / "settings.yaml"
 
 # Current schema version for migrations
-CURRENT_VERSION = 3
+CURRENT_VERSION = 4
 
 # Serialize reads and writes within the process. An RLock is required because a
 # first load or migration persists settings while the load lock is held.
@@ -94,6 +94,7 @@ class ProfileStatus(StrEnum):
     PRIMARY = "primary"
     FALLBACK = "fallback"
     OFF = "off"
+    RESEARCH = "research"
 
 
 class ModelProfile(BaseModel):
@@ -112,6 +113,9 @@ class ModelProfile(BaseModel):
     api_key: SecretStr | None = None
     api_base: str | None = None
     status: ProfileStatus = ProfileStatus.OFF
+    credential_source: Literal["own", "env", "profile"] = "own"
+    credential_profile_name: str | None = None
+    research_reasoning_effort: str | None = None
 
 
 class CustomFieldDefinition(BaseModel):
@@ -185,14 +189,43 @@ class PersistentSettings(BaseModel):
 
     @model_validator(mode="after")
     def validate_profile_constraints(self) -> Self:
-        """Ensure exactly one ACTIVE and at most one FALLBACK profile."""
+        """Validate role assignments, references and environment-only routing."""
+        from .credential_policy import RESEARCH_REASONING, official_openai
+
+        by_name = {p.name: p for p in self.llm_profiles}
+        if len(by_name) != len(self.llm_profiles):
+            raise ValueError("Profile names must be unique")
+        if self.research_profile_name is not None and self.research_profile_name not in by_name:
+            raise ValueError("Research profile must exist")
+        for p in self.llm_profiles:
+            values = [p.model, p.api_base, p.api_key.get_secret_value() if p.api_key else None]
+            if any(value and value.startswith("os.environ/") for value in values):
+                raise ValueError("Use explicit credential sources, not SDK environment indirection")
+            if p.status == ProfileStatus.RESEARCH and p.name != self.research_profile_name:
+                raise ValueError("Research role must match selected research profile")
+            if p.research_reasoning_effort is not None and p.research_reasoning_effort not in RESEARCH_REASONING.get(
+                p.model, ()
+            ):
+                raise ValueError("Unsupported research reasoning effort for this exact model; use provider default")
+            if p.credential_source != "profile" and p.credential_profile_name is not None:
+                raise ValueError("Only profile credentials may name a source profile")
+            if p.credential_source != "own" and not official_openai(p.model, p.api_base):
+                raise ValueError("Shared credentials require an OpenAI model and the exact official OpenAI endpoint")
+            if p.credential_source == "profile":
+                peer = by_name.get(p.credential_profile_name) if p.credential_profile_name else None
+                if not peer or peer is p or peer.credential_source != "own":
+                    raise ValueError("Credential reference must point directly to another profile with its own key")
+                if not official_openai(peer.model, peer.api_base):
+                    raise ValueError("Credential source must use the official OpenAI endpoint and provider")
         if not self.llm_profiles:
             return self
 
         actives = [p for p in self.llm_profiles if p.status == ProfileStatus.PRIMARY]
         fallbacks = [p for p in self.llm_profiles if p.status == ProfileStatus.FALLBACK]
 
-        if len(actives) != 1:
+        # Off/Research-only configurations intentionally route capture via env.
+        # A saved Fallback still requires an explicit saved Primary.
+        if len(actives) != 1 and not (not actives and not fallbacks):
             raise ValueError(f"Exactly one profile must be PRIMARY, found {len(actives)}")
         if len(fallbacks) > 1:
             raise ValueError(f"At most one profile can be FALLBACK, found {len(fallbacks)}")
@@ -208,6 +241,9 @@ def _settings_to_yaml_dict(settings: PersistentSettings) -> dict:
             "name": p.name,
             "model": p.model,
             "status": p.status.value,
+            "credential_source": p.credential_source,
+            "credential_profile_name": p.credential_profile_name,
+            "research_reasoning_effort": p.research_reasoning_effort,
         }
         if p.api_key:
             profile_dict["api_key"] = p.api_key.get_secret_value()
@@ -236,6 +272,9 @@ def _yaml_dict_to_settings(data: dict) -> PersistentSettings:
                 api_key=SecretStr(p["api_key"]) if p.get("api_key") else None,
                 api_base=p.get("api_base"),
                 status=ProfileStatus(p.get("status", "off")),
+                credential_source=p.get("credential_source", "own"),
+                credential_profile_name=p.get("credential_profile_name"),
+                research_reasoning_effort=p.get("research_reasoning_effort"),
             )
         )
 
@@ -267,6 +306,7 @@ def bootstrap_from_env() -> PersistentSettings:
     Reads HBC_LLM_MODEL and HBC_LLM_API_KEY to create a default profile.
     """
     from .config import settings as env_settings
+    from .credential_policy import official_openai
 
     profiles = []
 
@@ -280,7 +320,8 @@ def bootstrap_from_env() -> PersistentSettings:
             ModelProfile(
                 name="default",
                 model=model,
-                api_key=SecretStr(api_key) if api_key else None,
+                api_key=SecretStr(api_key) if api_key and not official_openai(model, api_base) else None,
+                credential_source="env" if official_openai(model, api_base) else "own",
                 api_base=api_base,
                 status=ProfileStatus.PRIMARY,
             )
@@ -311,6 +352,32 @@ def migrate_settings(data: dict) -> dict:
     if version < 2:
         data.setdefault("custom_fields", [])
         version = 2
+
+    if version < 4:
+        from .config import settings as env
+        from .credential_policy import official_openai
+
+        profiles = data.get("llm_profiles", [])
+        primary = next((p for p in profiles if p.get("status") == "primary"), None)
+        for p in profiles:
+            if "credential_source" in p:
+                continue
+            p["credential_source"] = "own"
+            if not p.get("api_key") and official_openai(p["model"], p.get("api_base")):
+                if (
+                    p.get("status") == "fallback"
+                    and primary
+                    and primary.get("api_key")
+                    and official_openai(primary["model"], primary.get("api_base"))
+                ):
+                    p["credential_source"] = "profile"
+                    p["credential_profile_name"] = primary["name"]
+                elif official_openai(env.effective_llm_model, env.llm_api_base):
+                    p["credential_source"] = "env"
+        # Legacy dangling selection was inert; never leave a dangling new reference.
+        if data.get("research_profile_name") not in {p["name"] for p in profiles}:
+            data["research_profile_name"] = None
+            data["research_enabled"] = False
 
     data["version"] = CURRENT_VERSION
     return data

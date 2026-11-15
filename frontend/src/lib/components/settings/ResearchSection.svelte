@@ -18,6 +18,11 @@
 
 	onMount(() => {
 		void load();
+		const changed = () => {
+			void load();
+		};
+		window.addEventListener('model-profiles-changed', changed);
+		return () => window.removeEventListener('model-profiles-changed', changed);
 	});
 	onDestroy(() => controller.abort());
 
@@ -71,6 +76,7 @@
 			}
 			if (!controller.signal.aborted)
 				message = 'Research settings saved. No provider request was made.';
+			window.dispatchEvent(new Event('research-assignment-changed'));
 		} catch {
 			if (!controller.signal.aborted) {
 				settings = null;
@@ -86,7 +92,9 @@
 	<h2 id="research-settings-heading" class="text-h3 text-neutral-100">Product research</h2>
 	<p class="text-body-sm text-neutral-400">
 		Optional paid product searches, started explicitly for each item. Enabling makes no provider
-		call. Reuses an existing profile and its stored key; no key is copied or requested here.
+		call. Select an existing Primary/Fallback without changing its capture role, or add a dedicated
+		Research profile in AI Models with a different model and a shared credential. No key is copied
+		or requested here.
 	</p>
 	{#if settings}
 		<label class="flex min-h-touch items-center gap-3">

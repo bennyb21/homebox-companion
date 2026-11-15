@@ -141,10 +141,30 @@
 
 				<!-- AI Model -->
 				<div class="flex items-center justify-between border-t border-neutral-800 py-2">
-					<span class="text-neutral-400">AI Model</span>
+					<span class="text-neutral-400">Capture / chat model</span>
 					<span class="font-mono text-body-sm text-neutral-100">{service.config.llm_model}</span>
 				</div>
 
+				<p class="text-body-sm text-neutral-400">
+					Source: {service.config.llm_model_source === 'profile'
+						? `saved Primary profile (${service.config.llm_profile_name})`
+						: 'environment defaults (no Primary profile)'}. Saved Primary overrides the Compose
+					model; changing Compose does not replace saved profiles.
+				</p>
+				<p class="text-body-sm text-neutral-400">
+					Credential: {service.config.llm_credential_source ?? 'unknown'} — {service.config
+						.llm_has_api_key
+						? 'available'
+						: 'not configured'}.
+				</p>
+				<p class="text-body-sm text-neutral-400">
+					Fallback: {service.config.fallback_model ?? 'none'}
+				</p>
+				<p class="text-body-sm text-neutral-400">
+					Research: {service.config.research_model ?? 'none'} ({service.config.research_enabled
+						? 'enabled'
+						: 'off'})
+				</p>
 				<!-- Image Quality -->
 				<div class="flex items-center justify-between border-t border-neutral-800 py-2">
 					<span class="text-neutral-400">Image Quality</span>
