@@ -21,7 +21,7 @@ def test_fork_identity_and_safe_update_defaults(monkeypatch):
     assert settings.disable_update_check is True
     assert settings.github_repo == "bennyb21/homebox-companion"
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert project["version"] == "0.2.0"
+    assert project["version"] == "0.3.0"
     frontend = json.loads((ROOT / "frontend/package.json").read_text())
     frontend_lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
     assert frontend["version"] == project["version"]
@@ -54,6 +54,17 @@ def test_actual_release_gate_fails_closed(bad, required_job):
         capture_output=True,
     )
     assert (result.returncode == 0) == (bad is None)
+
+
+def test_browser_asgi_gate_has_locked_python_runtime():
+    job = workflow("validate.yml")["jobs"]["frontend"]
+    steps = job["steps"]
+    assert any(s.get("with", {}).get("python-version") == "3.14.10" for s in steps)
+    assert any(s.get("with", {}).get("version") == "0.12.5" for s in steps)
+    sync = next(s for s in steps if s.get("name") == "Install locked ASGI bridge dependencies")
+    assert sync["working-directory"] == "."
+    assert sync["run"] == "uv sync --locked --all-groups"
+    assert steps.index(sync) < next(i for i, s in enumerate(steps) if s.get("run") == "npm run test:browser:run")
 
 
 def test_publication_requires_same_run_and_manual_protected_promotion():

@@ -86,7 +86,7 @@ for (const width of [1280, 390]) {
 		await page
 			.getByRole('dialog')
 			.getByLabel('Exact part/model number', { exact: true })
-			.fill('X270');
+			.fill('MODEL-A');
 		await page
 			.getByRole('dialog')
 			.getByLabel('Identifier kind', { exact: true })
@@ -100,7 +100,7 @@ for (const width of [1280, 390]) {
 			{ test_kind: 'connection' },
 			{
 				test_kind: 'research',
-				identity: { identifier_kind: 'model_number', identifier_exact: 'X270' },
+				identity: { identifier_kind: 'model_number', identifier_exact: 'MODEL-A' },
 			},
 		]);
 		await expect(

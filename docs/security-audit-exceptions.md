@@ -240,3 +240,41 @@ Tests cover acceptance, honest zero findings, new findings on the same packages,
 identity/severity changes, schema/count errors, graph cycles/dangling links,
 source/lock/config changes, raw error/truncation/duplicate keys, actual process
 status preservation and required candidate-workflow integration.
+
+## Integrated 0.3.0 research and usability reassessment
+
+The combined source from integration input
+`a1cba77ce6f6ed369247101e2fa7da806de017d1` was reviewed against the same three
+accepted contexts before rebinding. This is implementer review for a PRIVATE,
+unpublished candidate, not independent acceptance or verified live search quality.
+
+- Profile editor and explicit test forms prevent ordinary submission and use
+  authenticated JSON API calls. No enhanced form action or `use:enhance` was added.
+  Return links are limited to fixed review/research routes; profile names are URL
+  encoded and cannot supply an arbitrary navigation destination.
+- Model names, diagnostics, source titles and eligibility messages use escaped
+  Svelte text. The copyable diagnostic textarea selects only contract fields;
+  arbitrary provider bodies are not rendered. Existing sanitized chat/log HTML
+  paths are unchanged. No `setHeaders` or new prerender input path was found.
+- The shared Switch, capture mode text, profile selection and direct edit controls
+  do not feed build configuration. Plugin 7.3.1 still merges local Svelte/default/
+  inline options with deepmerge. No runtime deepmerge import was introduced.
+  This source review is not a formal reachability or exploit-absence proof.
+- Profile tests are explicit operations: official OpenAI access uses read-only
+  model metadata; the separately confirmed research test uses the named profile
+  without assigning it. Save/enable/navigation must initiate no provider request.
+
+Thirteen bindings change: frontend manifest and lock root version metadata;
+new research API types, DiagnosticDetails, ResearchProfileSummary and Switch;
+settings API, ProductResearch, AI Models and Research settings; capture, research
+and settings routes. The complete source inventory includes the four new source
+files. All third-party npm package objects and Python lock package objects remain
+structurally identical to released 0.2.0. Only the local project becomes 0.3.0.
+
+All three advisory objects, affected package versions, dependency counts, phase,
+configuration/.npmrc bindings, historical raw fixtures and no-retry audit runner
+remain unchanged. Raw npm exit **1** for these exact low findings remains accepted
+risk, not zero findings. New findings remain blocking. No new waiver or expiry is
+introduced; successful private-pilot acceptance still triggers framework migration
+and fresh review. Released 0.1.0/0.2.0 artifacts remain immutable. Independent
+review and hosted source/image gates precede any separately authorized publication.

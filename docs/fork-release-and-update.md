@@ -2,12 +2,12 @@
 
 ## Identity and supported delivery target
 
-This fork uses plain SemVer. The next private source candidate is **0.2.0**:
+This fork uses plain SemVer. The next private source candidate is **0.3.0**:
 Python and frontend project metadata and the Docker version default agree. It is
 not a published image or release; independent review and public CI/image gates
-remain required. Released **0.1.0** and its image are immutable: never rebuild,
-replace or republish that version. Any later authorized delivery uses `0.2.0`
-and a corresponding Git release tag `v0.2.0`. The upstream base is separately recorded as
+remain required. Released **0.1.0** and **0.2.0** and their images are immutable:
+never rebuild, replace or republish those versions. Any later authorized delivery
+of this candidate uses `0.3.0` and a corresponding Git release tag `v0.3.0`. The upstream base is separately recorded as
 Duelion/homebox-companion v3.2.2 (`e6fbb4dc9de30c5de7187e25d7be30cfead47034`).
 This is not an upstream 3.x release. Preserve GPL notices and publish the exact
 corresponding source before distributing an image. `/app/LICENSE` and OCI source,

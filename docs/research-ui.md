@@ -34,4 +34,17 @@ Failures remain visible rather than disappearing after five seconds. The UI disp
 
 The frontend requires the revised backend identity/test contract: optional safe `diagnostic` on research and test responses, optional `research_result` on profile-test responses, and `test_kind: connection|research` with structured identity for research. Incomplete/refused backend results may retain status `failed`; the UI recognizes `response_incomplete` / `response_refused` diagnostics. Older results without diagnostics remain readable. An old backend that requires `identity_confirmed` is not compatible with new lookup requests.
 
-Browser tests use explicitly synthetic local API fixtures and blocked external requests. They verify UI behavior and request payloads, not a paid provider's behavior or a real backend integration. The isolated-Homebox fullstack research scenario is updated for the identity notice but must be run by the integration owner with the matching backend. No live research acceptance is implied.
+Browser UI regressions retain synthetic API fixtures. The additional
+`research-asgi.spec.ts` harness forwards actual browser research/settings/profile-test
+requests and responses through a fresh Python ASGI process, with Homebox/auth fixtures
+and socket/DNS guards. Only final provider HTTP is replaced by MockTransport; the
+production profile resolver, DTO validation, settings persistence, job service,
+LiteLLM Responses handler and parser execute unchanged. It covers URL-location/trailing
+citation markers, incomplete/refused/malformed/unsupported responses, no results,
+ambiguous named-Off tests, canonical selection, explicit adoption, and retained drafts.
+This is offline integration, not provider entitlement or live search quality evidence.
+
+The separate isolated-Homebox fullstack suite uses real loopback HTTP and native item
+readback/restart, with synthetic provider boundaries. Build before either browser run.
+The private 0.3.0 candidate is unpublished; independent review, hosted source/image gates
+and a separately authorized real-provider pilot remain required.
