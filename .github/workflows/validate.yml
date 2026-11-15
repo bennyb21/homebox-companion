@@ -160,11 +160,22 @@ jobs:
       - name: Image application acceptance (synthetic providers only)
         env:
           TEST_HOMEBOX_VERSION: "0.27.1"
+          HBC_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/image-acceptance-${{ github.run_attempt }}
         run: |
           npm --prefix frontend ci
           npm --prefix frontend run build
           cd frontend && npx playwright install --with-deps chromium && cd ..
-          uv run --no-sync pytest -m live tests/test_capture_groups_fullstack.py tests/test_fullstack_smoke.py tests/test_research_fullstack.py
+          uv run --no-sync pytest -m live tests/test_capture_groups_fullstack.py tests/test_fullstack_smoke.py tests/test_research_fullstack.py tests/test_attachment_submission.py tests/test_attachment_image_fullstack.py
+      - name: Retain image acceptance evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-acceptance-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/image-acceptance-${{ github.run_attempt }}
+            frontend/test-results
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve the tested image, never rebuild for publication
         run: bash scripts/seal-tested-image.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

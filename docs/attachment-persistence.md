@@ -82,8 +82,38 @@ after restart. Existing compression/quality behavior is unchanged.
   `frontend/tests/attachment-submission-probe.js`: production submission through
   actual ASGI and real Homebox transport; native grouped same-name/same-byte
   uploads and explicitly labelled false-201 fault injection.
+- `tests/test_attachment_image_fullstack.py` and
+  `frontend/tests/fullstack/attachment-guard.spec.ts`: real browser → served
+  Companion HTTP → loopback proxy → isolated native Homebox. Normal same-name,
+  same-byte photos require typed receipts and independent original-byte/hash
+  readback. Primary/additional false-201 cases inject unchanged native entity
+  detail only at the Homebox HTTP boundary. A separate case loses a real verified
+  Companion receipt after native persistence. Each proves one item POST, no
+  DELETE, bounded per-slot dispatch, retained originals/known ID and no replay
+  after reload and explicit Location → Resume Session recovery.
 - Frontend unit/browser tests: no replay/delete, durable attempts and receipts,
   recovery, original download, explicit discard and seven-day retention.
+
+`test_attachment_submission.py` is always **source ASGI**, even when
+`TEST_COMPANION_IMAGE` is set. It is not image acceptance. The new served-HTTP
+suite honors that variable by running the selected image's **default production
+CMD**, built-in backend and built-in static frontend. It mounts only disposable
+`/app/data`, never application source, pytest or a test entrypoint. The vision
+provider is synthetic loopback HTTP, but SDK and application construction remain
+real. Image ID is recorded on successful acceptance. Without the variable this
+same suite exercises source, which must not be reported as an image pass.
+
+CI requires both suites before sealing the already-built image and uploads
+attempt-qualified evidence even on failure. The local integration exercised all
+four served-source cases and the seven existing native tests. The unchanged
+released 0.2.0 image was used only as a negative control: the actual production
+CMD launched successfully and the new test rejected its missing `verified`
+receipt. This is not acceptance of a new 0.3.0 image; that exact image build/run
+remains required in hosted CI. No image was rebuilt or retagged for this control.
+
+After reloading the display-only success URL, use **Scan/Location → Resume
+Session** to restore the retained record; the success route itself does not
+rehydrate recovery. The retained-state tests explicitly use that entry point.
 
 Run live tests only against disposable fixtures with
 `TEST_HOMEBOX_VERSION=0.27.1`, and select `-m live`. Fresh artifact directories are

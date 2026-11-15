@@ -278,3 +278,43 @@ risk, not zero findings. New findings remain blocking. No new waiver or expiry i
 introduced; successful private-pilot acceptance still triggers framework migration
 and fresh review. Released 0.1.0/0.2.0 artifacts remain immutable. Independent
 review and hosted source/image gates precede any separately authorized publication.
+
+## Integrated 0.3.0 attachment recovery reassessment
+
+The attachment source integrated at
+`96ff05a71289550130c3ea12a5937109f3cd3527` was explicitly reviewed against the
+same three accepted contexts. Thirteen changed/new bindings are renewed: the API
+client and items contract; new AttachmentRecovery component; SessionExpiredModal,
+AccountSection and bootstrap logout boundaries; serialization and scoped session
+persistence; submission and scan workflows; location, summary and success screens.
+
+- Multipart upload remains an authenticated backend API operation, not an enhanced
+  SvelteKit form action. Receipt validation and removal of auth/upload replay add
+  no `use:enhance` path. Reset/navigation uses existing fixed local routes. The
+  recovery link uses the configured Homebox base and an encoded known entity ID,
+  with `noopener noreferrer`; original-photo download is a local File data URL,
+  not an arbitrary server-supplied attachment URL.
+- Names, slot state, filenames and known IDs render as escaped Svelte text, not
+  dynamic HTML. Scoped IndexedDB records retain original photos and receipt
+  metadata, not raw credentials. No `setHeaders`, prerender data input or runtime
+  deepmerge import is introduced. Logout retention does not relax API identity
+  or collection admission. Existing sanitized HTML paths are unchanged.
+- These runtime recovery inputs do not feed plugin build configuration. The
+  unchanged plugin/deepmerge local-configuration context remains accepted risk,
+  not a proof that exploitation is impossible. Source searches and inspection
+  are not formal reachability evidence.
+- Newly uploaded Homebox attachment filenames visibly include the technical
+  unique suffix; originals keep their names in local recovery. No existing names,
+  image-quality controls or thumbnail behavior are changed by this integration.
+
+Only these thirteen source hashes/inventory entries change (one new component).
+All advisory identities/objects, package versions, dependency graph/counts,
+manifest/lock/configuration bindings and historical raw audit fixtures remain
+unchanged. Exactly GHSA-pfhg-q3qv-9q6r, GHSA-27mw-82g8-phjj and
+GHSA-gcqx-w48m-w2h4 remain accepted at low severity for this same private pilot,
+with no new waiver or expiry. A fresh full-coverage raw npm audit exits **1**;
+the existing policy accepts those findings, not zero findings. Successful pilot
+acceptance still triggers framework migration and fresh review. This is scoped
+integration review, not a substitute for the parallel independent guard review
+or the subsequent hosted image gates. Production source is unchanged from the
+pinned review candidate.

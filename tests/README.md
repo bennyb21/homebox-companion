@@ -258,6 +258,35 @@ upstream version through the existing isolated-server fixture. CI builds the ima
 once in the production-container job and runs these tests against Homebox 0.27.0.
 
 
+### Attachment guard: served source versus exact image
+
+Build the frontend before a source run; set a fresh absolute artifact directory
+for every attempt. The bounded native set is:
+
+```bash
+TEST_HOMEBOX_VERSION=0.27.1 HBC_SMOKE_ARTIFACT_DIR=/absolute/new/evidence \
+  uv run pytest -m live tests/test_fullstack_smoke.py \
+  tests/test_capture_groups_fullstack.py tests/test_research_fullstack.py \
+  tests/test_attachment_submission.py tests/test_attachment_image_fullstack.py
+```
+
+This currently selects eleven pytest cases. `test_attachment_submission.py`
+remains a source-ASGI/service probe regardless of the image environment variable.
+For the new four-case served attachment suite, `TEST_COMPANION_IMAGE=<exact image>`
+runs the image's unchanged default CMD and bundled frontend/backend, mounting
+only disposable settings data. No source overlay, test entrypoint, pytest
+installation, paid inference or upload retry is used. All native fault injection
+is in a loopback HTTP proxy outside the image. Lost-receipt injection drops an
+actual Companion response in the browser after the image has verified native
+persistence. Independent native reads verify original bytes and receipts.
+
+The required production-container CI job runs both suites before sealing the
+same image, retaining attempt-qualified evidence on failure. Source success is
+not image success. The local released 0.2.0 negative control correctly fails the
+new receipt assertion; it must never be reported as 0.3.0 image acceptance.
+Recovery after success-page reload is explicitly via Location → Resume Session.
+See [attachment evidence boundaries](../docs/attachment-persistence.md).
+
 Settings unit coverage is in `test_unified_settings.py` and
 `test_field_preferences.py`. It checks separate JSON preferences and YAML settings,
 safe corruption failures, sparse defaults, reset, atomic-write failure retention,
