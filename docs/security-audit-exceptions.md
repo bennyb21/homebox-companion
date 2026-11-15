@@ -183,6 +183,59 @@ maintained `bennyb21/homebox-companion` fork. Both are constant HTTPS URLs with
 the existing `noopener noreferrer` policy; upstream attribution and LICENSE
 remain unchanged. That exact AboutSection source hash is also deliberately rebound.
 
+## Integrated 0.2.0 capture and model-configuration reassessment
+
+The combined capture and model UI source at integration input
+`a8bb2b126c9f85767299dd3c6fd0d6e127aa2058` was reviewed before updating the
+bindings for the private **0.2.0** candidate. This supersedes the pending
+capture reassessment above; it is implementer integration review, not the
+required independent acceptance.
+
+- Capture grouping, retained drafts, undo, step navigation and stale-analysis
+  confirmation use local state/IndexedDB and existing JSON/upload APIs. The new
+  navigation targets are fixed local routes, not enhanced form redirects.
+  Submission checkpoints and written/uncertain-row restrictions remain in scope.
+- Model settings use ordinary prevented-submit handlers and authenticated JSON
+  APIs. Model/profile names, credential provenance and reasoning options render
+  as escaped Svelte text, not new dynamic HTML. Shared credentials are represented
+  by references and availability metadata, not returned secrets. No new provider
+  request is initiated by saving, enabling research or opening a research editor.
+- Explicit source search and review found no `use:enhance`, `setHeaders` or
+  deepmerge imports under `frontend/src`. This is reviewed evidence, **not a
+  formal absence or reachability proof**. Existing sanitized chat/log HTML paths
+  were not changed. Static-adapter `index.html` fallback, `ssr = false`,
+  `prerender = false` and Svelte/Vite configuration are unchanged.
+- Plugin 7.3.1 `src/utils/options.js` still invokes deepmerge for local defaults,
+  loaded Svelte configuration and inline/build options. The reviewed new capture
+  and settings inputs do not feed that build-time configuration. No new untrusted
+  runtime merge path was demonstrated; compromised build inputs remain a risk.
+
+The deliberately renewed bindings cover sixteen changed source files: settings
+API types; StepIndicator; About/LLMProfiles/Research sections; scan persistence and
+serialization; route guards; capture/review/scan workflows; and layout, capture,
+location, review and summary routes. Two more bindings cover frontend manifest
+and lock **project-version metadata only** (0.2.0). Structural comparisons retain
+all dependency package objects unchanged, including exact reviewed package
+versions. Python's local project lock entry and Docker version default also move
+to 0.2.0; this does not modify or republish released 0.1.0.
+
+The integration rerun also exposed a queued-autosave edge case: a page-hide flush
+could overwrite the recoverable confirming checkpoint with a terminal draft after
+an uncertain submission. A deterministic failing regression and the unchanged
+browser recovery scenario now cover a narrow terminal-state guard in `_doPersist`.
+That final scan-workflow hash was reviewed and rebound again; the guard introduces
+no form, header, rendering, merge or provider-request path.
+
+The three advisory objects, phase, dependency counts, source inventory,
+configuration hashes, `.npmrc`, checker/runner guards and all historical audit
+fixtures are unchanged. A new actual full-coverage npm runner report is retained
+with private integration evidence; it is not substituted into historical
+fixtures. Raw exit **1** with the same three low advisories is accepted risk,
+**not zero findings**. No new exception or expiry is introduced. Successful
+private-pilot acceptance still triggers framework migration and fresh review.
+Independent combined review and hosted candidate/image gates remain required
+before separately authorized publication.
+
 Tests cover acceptance, honest zero findings, new findings on the same packages,
 identity/severity changes, schema/count errors, graph cycles/dangling links,
 source/lock/config changes, raw error/truncation/duplicate keys, actual process

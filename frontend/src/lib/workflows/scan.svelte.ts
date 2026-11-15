@@ -1171,6 +1171,9 @@ class ScanWorkflow {
 	 */
 	private async _doPersist(): Promise<void> {
 		if (this.isEditingFailedItem) return;
+		// A queued autosave/pagehide flush may run after submission completes.
+		// Keep the last recoverable checkpoint instead of storing a terminal draft.
+		if (this._status === 'idle' || this._status === 'complete') return;
 		const attempt = ++this.persistAttempt;
 		const generation = this.contextGeneration;
 		const revision = this.saveRevision;

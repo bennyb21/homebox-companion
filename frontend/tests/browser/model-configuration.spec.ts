@@ -209,5 +209,9 @@ for (const viewport of [
 		expect(box).not.toBeNull();
 		expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
 		expect((await heading.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+		await page.screenshot({
+			path: test.info().outputPath(`profile-save-${viewport.width}.png`),
+			animations: 'disabled',
+		});
 	});
 }

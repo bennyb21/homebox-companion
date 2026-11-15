@@ -154,7 +154,7 @@ jobs:
           npm --prefix frontend ci
           npm --prefix frontend run build
           cd frontend && npx playwright install --with-deps chromium && cd ..
-          uv run --no-sync pytest -m live tests/test_fullstack_smoke.py tests/test_research_fullstack.py
+          uv run --no-sync pytest -m live tests/test_capture_groups_fullstack.py tests/test_fullstack_smoke.py tests/test_research_fullstack.py
       - name: Preserve the tested image, never rebuild for publication
         run: bash scripts/seal-tested-image.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

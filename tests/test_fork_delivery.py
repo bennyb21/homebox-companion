@@ -21,7 +21,13 @@ def test_fork_identity_and_safe_update_defaults(monkeypatch):
     assert settings.disable_update_check is True
     assert settings.github_repo == "bennyb21/homebox-companion"
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert project["version"] == "0.1.0"
+    assert project["version"] == "0.2.0"
+    frontend = json.loads((ROOT / "frontend/package.json").read_text())
+    frontend_lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
+    assert frontend["version"] == project["version"]
+    assert frontend_lock["version"] == project["version"]
+    assert frontend_lock["packages"][""]["version"] == project["version"]
+    assert f"ARG VERSION={project['version']}\n" in (ROOT / "Dockerfile").read_text()
     lock = tomllib.loads((ROOT / "uv.lock").read_text())
     assert next(p["version"] for p in lock["package"] if p["name"] == project["name"]) == project["version"]
     assert "LICENSE" not in (ROOT / ".dockerignore").read_text().splitlines()
@@ -81,6 +87,17 @@ def test_publication_requires_same_run_and_manual_protected_promotion():
     assert "packages" not in workflow("validate.yml")["permissions"]
 
 
+@pytest.mark.parametrize(
+    "suite",
+    ["tests/test_capture_groups_fullstack.py", "tests/test_fullstack_smoke.py", "tests/test_research_fullstack.py"],
+)
+def test_candidate_image_acceptance_includes_combined_fullstack_suites(suite):
+    steps = workflow("validate.yml")["jobs"]["production-container"]["steps"]
+    acceptance = next(step for step in steps if step.get("name", "").startswith("Image application acceptance"))
+    assert suite in acceptance["run"]
+    assert acceptance["env"]["TEST_HOMEBOX_VERSION"] == "0.27.1"
+
+
 def test_audit_evidence_is_attempt_qualified_but_tested_image_is_immutable():
     audit_steps = workflow("audit.yml")["jobs"]["audit"]["steps"]
     upload = next(s for s in audit_steps if "upload-artifact@" in s.get("uses", ""))
@@ -104,14 +121,15 @@ def test_runtime_image_identity_and_license():
     metadata = json.loads(subprocess.check_output(docker + ["image", "inspect", image], env=env))[0]
     labels = metadata["Config"]["Labels"]
     assert labels["org.opencontainers.image.source"] == "https://github.com/bennyb21/homebox-companion"
-    assert labels["org.opencontainers.image.version"] == "0.1.0"
+    expected_version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    assert labels["org.opencontainers.image.version"] == expected_version
     revision = labels["org.opencontainers.image.revision"]
     assert len(revision) == 40 and all(c in "0123456789abcdef" for c in revision)
     script = """
 import os, pathlib, importlib.metadata
 from homebox_companion.core.config import Settings
 assert os.getuid() == os.getgid() == 1000
-assert importlib.metadata.version("homebox-companion") == "0.1.0"
+assert importlib.metadata.version("homebox-companion") == os.environ["EXPECTED_VERSION"]
 assert "GNU GENERAL PUBLIC LICENSE" in pathlib.Path("/app/LICENSE").read_text()
 assert Settings(_env_file=None).disable_update_check
 assert not pathlib.Path("/app/tests").exists()
@@ -119,5 +137,19 @@ assert not pathlib.Path("/image-entrypoint.py").exists()
 print("runtime identity, license, no test overlay: verified")
 """
     subprocess.run(
-        docker + ["run", "--rm", "--network", "none", image, "/app/.venv/bin/python", "-c", script], env=env, check=True
+        docker
+        + [
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "-e",
+            f"EXPECTED_VERSION={expected_version}",
+            image,
+            "/app/.venv/bin/python",
+            "-c",
+            script,
+        ],
+        env=env,
+        check=True,
     )

@@ -59,8 +59,38 @@ test('native grouped capture persists every synthetic view exactly once', async 
 	await page.getByRole('button', { name: 'Undo removal', exact: true }).click();
 	await page.getByRole('button', { name: 'Back to Capture', exact: true }).click();
 	await page.getByRole('button', { name: 'Return to Summary', exact: true }).click();
-	await page.screenshot({ path: join(artifacts, 'summary.png'), fullPage: true });
+	await expect(page).toHaveURL(/\/summary$/);
+	await expect(page.getByRole('heading', { name: 'Review & Submit', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Remove item', exact: true })).toHaveCount(
+		perPhoto ? 2 : 1
+	);
+	await renderReady();
+	await page.screenshot({
+		path: join(artifacts, 'summary.png'),
+		fullPage: true,
+		animations: 'disabled',
+	});
 	await submitItems(page);
 	await expect(page).toHaveURL(/\/success$/);
-	await page.screenshot({ path: join(artifacts, 'success.png'), fullPage: true });
+	await expect(page.getByRole('heading', { name: 'Success!', exact: true })).toBeVisible();
+	await renderReady();
+	await page.screenshot({
+		path: join(artifacts, 'success.png'),
+		fullPage: true,
+		animations: 'disabled',
+	});
+
+	async function renderReady() {
+		// A committed route can still be covered by the outgoing view-transition snapshot.
+		await page.evaluate(async () => {
+			await document.fonts.ready;
+			await Promise.all(Array.from(document.images, (image) => image.decode().catch(() => {})));
+			await Promise.allSettled(
+				document
+					.getAnimations()
+					.filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+					.map((animation) => animation.finished)
+			);
+		});
+	}
 });
