@@ -41,13 +41,26 @@ for (const label of ['desktop', 'phone @mobile']) {
 		const pending = new Map<string, { request: Request; originalUrl: string }>();
 		const evidence: unknown[] = [];
 		const failures: string[] = [];
+		const origin = new URL(testInfo.project.use.baseURL! as string).origin;
 		const expected = await readFile(
 			new URL('../../../tests/assets/multi_item_single_image.jpg', import.meta.url)
 		);
 		const server = createServer(async (incoming, outgoing) => {
 			try {
 				const entry = pending.get(incoming.url!);
-				if (!entry || incoming.method !== 'POST') throw new Error('Unknown receiver request');
+				if (!entry) throw new Error('Unknown receiver request');
+				outgoing.setHeader('Access-Control-Allow-Origin', origin);
+				outgoing.setHeader('Access-Control-Allow-Methods', 'POST');
+				outgoing.setHeader(
+					'Access-Control-Allow-Headers',
+					'Content-Type, X-Companion-Request, X-Group-Id, Authorization'
+				);
+				if (incoming.method === 'OPTIONS') {
+					outgoing.writeHead(204);
+					outgoing.end();
+					return;
+				}
+				if (incoming.method !== 'POST') throw new Error('Unexpected receiver method');
 				const { request, originalUrl } = entry;
 				pending.delete(incoming.url!);
 				const chunks: Buffer[] = [];
@@ -89,7 +102,6 @@ for (const label of ['desktop', 'phone @mobile']) {
 		await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 		const address = server.address();
 		if (!address || typeof address === 'string') throw new Error('No receiver port');
-		const origin = new URL(testInfo.project.use.baseURL! as string).origin;
 		await context.route(`${origin}/api/items/*/attachments`, async (route) => {
 			const token = `/${randomUUID()}`;
 			pending.set(token, { request: route.request(), originalUrl: route.request().url() });
