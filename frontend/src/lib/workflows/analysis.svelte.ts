@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * AnalysisService - Handles AI detection and analysis operations
  *
@@ -83,7 +84,7 @@ interface AnalysisOperation {
 const cancelledResult = (): AnalysisResult => ({
 	success: false,
 	items: [],
-	error: 'Analysis cancelled',
+	error: t('Analysis cancelled'),
 	cancelled: true,
 	failedCount: 0,
 });
@@ -116,7 +117,7 @@ export class AnalysisService {
 	}
 
 	private assertCurrent(operation: AnalysisOperation): void {
-		if (!this.isCurrent(operation)) throw new DOMException('Analysis cancelled', 'AbortError');
+		if (!this.isCurrent(operation)) throw new DOMException(t('Analysis cancelled'), 'AbortError');
 	}
 
 	private async loadDefaultTag(operation: AnalysisOperation): Promise<void> {
@@ -193,7 +194,7 @@ export class AnalysisService {
 					this.progress = {
 						current: completedCount,
 						total: images.length,
-						message: images.length === 1 ? 'Analyzing item...' : 'Analyzing items...',
+						message: images.length === 1 ? t('Analyzing item...') : t('Analyzing items...'),
 					};
 
 					// Mark this image as success
@@ -218,7 +219,7 @@ export class AnalysisService {
 					this.progress = {
 						current: completedCount,
 						total: images.length,
-						message: images.length === 1 ? 'Analyzing item...' : 'Analyzing items...',
+						message: images.length === 1 ? t('Analyzing item...') : t('Analyzing items...'),
 					};
 
 					// Mark this image as failed
@@ -229,7 +230,7 @@ export class AnalysisService {
 						success: false as const,
 						imageIndex: originalIndex,
 						image,
-						error: error instanceof Error ? error.message : 'Unknown error',
+						error: error instanceof Error ? error.message : t('Unknown error'),
 					};
 				}
 			},
@@ -312,7 +313,7 @@ export class AnalysisService {
 					results
 						.filter((result) => !result.success)
 						.map((result) => result.error)
-						.join('; ') || 'All images failed to analyze. Please try again.',
+						.join('; ') || t('All images failed to analyze. Please try again.'),
 				failedCount,
 			};
 		}
@@ -321,7 +322,7 @@ export class AnalysisService {
 			return {
 				success: false,
 				items: [],
-				error: 'No items detected in the images',
+				error: t('No items detected in the images'),
 				failedCount,
 			};
 		}
@@ -342,14 +343,14 @@ export class AnalysisService {
 	 */
 	async analyze(images: CapturedImage[]): Promise<AnalysisResult> {
 		if (images.length === 0) {
-			return { success: false, items: [], error: 'No images to analyze', failedCount: 0 };
+			return { success: false, items: [], error: t('No images to analyze'), failedCount: 0 };
 		}
 
 		if (images.some((image) => assetIdError(image.assetId))) {
 			return {
 				success: false,
 				items: [],
-				error: 'Fix the invalid asset ID before analyzing.',
+				error: t('Fix the invalid asset ID before analyzing.'),
 				failedCount: 0,
 			};
 		}
@@ -368,7 +369,7 @@ export class AnalysisService {
 		this.progress = {
 			current: 0,
 			total: images.length,
-			message: 'Loading preferences...',
+			message: t('Loading preferences...'),
 		};
 
 		// Initialize all images as pending
@@ -387,7 +388,7 @@ export class AnalysisService {
 			this.progress = {
 				current: 0,
 				total: images.length,
-				message: images.length === 1 ? 'Analyzing item...' : 'Analyzing items...',
+				message: images.length === 1 ? t('Analyzing item...') : t('Analyzing items...'),
 			};
 
 			// Process all images (identity mapping: index -> index)
@@ -403,7 +404,7 @@ export class AnalysisService {
 			return {
 				success: false,
 				items: [],
-				error: error instanceof Error ? error.message : 'Analysis failed',
+				error: error instanceof Error ? error.message : t('Analysis failed'),
 				failedCount: 0,
 			};
 		} finally {
@@ -480,14 +481,14 @@ export class AnalysisService {
 		originalIndices: number[]
 	): Promise<AnalysisResult> {
 		if (images.length === 0) {
-			return { success: false, items: [], error: 'No images to analyze', failedCount: 0 };
+			return { success: false, items: [], error: t('No images to analyze'), failedCount: 0 };
 		}
 
 		if (images.some((image) => assetIdError(image.assetId))) {
 			return {
 				success: false,
 				items: [],
-				error: 'Fix the invalid asset ID before analyzing.',
+				error: t('Fix the invalid asset ID before analyzing.'),
 				failedCount: images.length,
 			};
 		}
@@ -506,7 +507,7 @@ export class AnalysisService {
 		this.progress = {
 			current: 0,
 			total: images.length,
-			message: 'Loading preferences...',
+			message: t('Loading preferences...'),
 		};
 
 		// Reset statuses for images being retried
@@ -525,7 +526,7 @@ export class AnalysisService {
 			this.progress = {
 				current: 0,
 				total: images.length,
-				message: images.length === 1 ? 'Analyzing item...' : 'Analyzing items...',
+				message: images.length === 1 ? t('Analyzing item...') : t('Analyzing items...'),
 			};
 
 			// Process subset with index mapping (subsetIndex -> originalIndex)
@@ -545,7 +546,7 @@ export class AnalysisService {
 			return {
 				success: false,
 				items: [],
-				error: error instanceof Error ? error.message : 'Analysis failed',
+				error: error instanceof Error ? error.message : t('Analysis failed'),
 				failedCount: 0,
 			};
 		} finally {

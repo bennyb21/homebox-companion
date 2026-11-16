@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * Chat page - Main conversational assistant interface
 	 *
@@ -176,24 +178,25 @@
 				<div class="mb-5 flex items-center justify-center rounded-2xl bg-warning-500/10 size-16">
 					<CircleAlert class="text-warning-500" size={32} strokeWidth={1.5} />
 				</div>
-				<h2 class="mb-2 text-h3 text-neutral-100">Chat Unavailable</h2>
+				<h2 class="mb-2 text-h3 text-neutral-100">{t('Chat Unavailable')}</h2>
 				<p class="mb-3 max-w-xs text-center text-body-sm text-neutral-400">
-					Sorry, the chat feature is disabled in demo mode to prevent misuse.
+					{t('Sorry, the chat feature is disabled in demo mode to prevent misuse.')}
 				</p>
 				<p class="max-w-xs text-center text-body-sm text-neutral-500">
-					To use chat, please set up your own instance with your own API key.
+					{t('To use chat, please set up your own instance with your own API key.')}
 				</p>
 			{:else}
 				<!-- Server disabled state -->
 				<div class="mb-5 flex items-center justify-center rounded-2xl bg-error-500/10 size-16">
 					<Ban class="text-error-500" size={32} strokeWidth={1.5} />
 				</div>
-				<h2 class="mb-2 text-h3 text-neutral-100">Chat Disabled</h2>
+				<h2 class="mb-2 text-h3 text-neutral-100">{t('Chat Disabled')}</h2>
 				<p class="mb-1 text-body-sm text-neutral-400">
-					The chat feature is currently disabled on the server.
+					{t('The chat feature is currently disabled on the server.')}
 				</p>
 				<p class="mb-1 text-body-sm text-neutral-400">
-					Enable it by setting <code
+					{t('Enable it by setting')}
+					<code
 						class="mt-3 inline-block rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 font-mono text-sm-tight text-primary-300"
 						>HBC_CHAT_ENABLED=true</code
 					>
@@ -210,32 +213,34 @@
 					>
 						<MessageSquare class="text-primary-400" size={56} strokeWidth={1.5} />
 					</div>
-					<h2 class="mb-2 px-4 text-center text-h1 text-neutral-100">Start a conversation</h2>
+					<h2 class="mb-2 px-4 text-center text-h1 text-neutral-100">
+						{t('Start a conversation')}
+					</h2>
 					<p class="mb-6 max-w-xs px-4 text-center text-body text-neutral-400">
-						Ask me about your inventory, locations, or items.
+						{t('Ask me about your inventory, locations, or items.')}
 					</p>
 
 					<div class="flex w-full max-w-sm flex-col gap-2 px-4">
 						<button
 							class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-left text-body-sm text-neutral-200 transition-all duration-fast hover:-translate-y-px hover:border-primary-500 hover:bg-neutral-800 active:scale-98"
-							onclick={() => chatStore.sendMessage('What locations do I have?')}
+							onclick={() => chatStore.sendMessage(t('What locations do I have?'))}
 						>
 							<MapPin class="shrink-0 text-primary-500" size={18} strokeWidth={1.5} />
-							<span class="flex-1">What locations do I have?</span>
+							<span class="flex-1">{t('What locations do I have?')}</span>
 						</button>
 						<button
 							class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-left text-body-sm text-neutral-200 transition-all duration-fast hover:-translate-y-px hover:border-primary-500 hover:bg-neutral-800 active:scale-98"
-							onclick={() => chatStore.sendMessage('List my tags')}
+							onclick={() => chatStore.sendMessage(t('List my tags'))}
 						>
 							<Tag class="shrink-0 text-primary-500" size={18} strokeWidth={1.5} />
-							<span class="flex-1">List my tags</span>
+							<span class="flex-1">{t('List my tags')}</span>
 						</button>
 						<button
 							class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-left text-body-sm text-neutral-200 transition-all duration-fast hover:-translate-y-px hover:border-primary-500 hover:bg-neutral-800 active:scale-98"
-							onclick={() => chatStore.sendMessage('How many items are in my inventory?')}
+							onclick={() => chatStore.sendMessage(t('How many items are in my inventory?'))}
 						>
 							<Archive class="shrink-0 text-primary-500" size={18} strokeWidth={1.5} />
-							<span class="flex-1">How many items are in my inventory?</span>
+							<span class="flex-1">{t('How many items are in my inventory?')}</span>
 						</button>
 					</div>
 				</div>

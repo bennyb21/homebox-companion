@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 let moduleId = 0;
 async function service(overrides = {}) {
@@ -12,6 +13,7 @@ async function service(overrides = {}) {
 	const state = (value) => value;
 	state.snapshot = structuredClone;
 	const bindings = {
+		t,
 		$state: state,
 		getEmptyPreferences: () => ({ name: null }),
 		log: { error() {} },

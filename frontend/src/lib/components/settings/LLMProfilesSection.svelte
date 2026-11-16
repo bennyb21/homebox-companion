@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * LLMProfilesSection - Manage AI model profiles.
 	 *
@@ -107,7 +109,9 @@
 				];
 				if (!actual || fields.some((field) => actual[field] !== expected[field])) {
 					throw new Error(
-						'Profile readback differs from the save response. Reload settings before further changes.'
+						t(
+							'Profile readback differs from the save response. Reload settings before further changes.'
+						)
 					);
 				}
 			}
@@ -120,7 +124,7 @@
 			if (isCurrent()) settingsService.config = config;
 		} catch (e) {
 			if (isCurrent()) {
-				const message = e instanceof Error ? e.message : 'Failed to load profiles';
+				const message = e instanceof Error ? e.message : t('Failed to load profiles');
 				sectionError = errorPrefix + message;
 			}
 		} finally {
@@ -221,11 +225,11 @@
 			// The mutation is complete. Close before refreshing so a failed list
 			// request cannot invite a duplicate create.
 			closeModal();
-			await loadProfiles('Profile saved, but the list could not be refreshed: ', savedProfile);
+			await loadProfiles(t('Profile saved, but the list could not be refreshed: '), savedProfile);
 			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
 			if (isCurrent()) {
-				formError = e instanceof Error ? e.message : 'Failed to save profile';
+				formError = e instanceof Error ? e.message : t('Failed to save profile');
 				await tick();
 				if (isCurrent()) formErrorElement?.focus();
 			}
@@ -235,14 +239,14 @@
 	}
 
 	async function handleDelete(name: string) {
-		if (!confirm(`Delete profile "${name}"?`)) return;
+		if (!confirm(t('Delete profile "{p0}"?', { p0: name }))) return;
 		sectionError = null;
 		try {
 			await llmProfiles.delete(name);
 			await loadProfiles();
 			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
-			sectionError = e instanceof Error ? e.message : 'Failed to delete profile';
+			sectionError = e instanceof Error ? e.message : t('Failed to delete profile');
 		}
 	}
 
@@ -253,7 +257,7 @@
 			await loadProfiles();
 			window.dispatchEvent(new Event('model-profiles-changed'));
 		} catch (e) {
-			sectionError = e instanceof Error ? e.message : 'Failed to activate profile';
+			sectionError = e instanceof Error ? e.message : t('Failed to activate profile');
 		}
 	}
 
@@ -270,7 +274,7 @@
 	) {
 		if (disposed || testingProfile !== null) return;
 		testingProfile = name;
-		testedLabel = `${options.test_kind === 'research' ? 'Research test' : 'API access check'}: ${name} — ${profiles.find((p) => p.name === name)?.model || ''}`;
+		testedLabel = `${options.test_kind === 'research' ? t('Research test') : t('API access check')}: ${name} — ${profiles.find((p) => p.name === name)?.model || ''}`;
 		testResult = null;
 		try {
 			const result = await llmProfiles.test(name, options);
@@ -279,8 +283,9 @@
 			if (!disposed)
 				testResult = {
 					success: false,
-					message:
-						'Test outcome unknown. A dispatched request may incur API costs. No automatic retry; check provider activity before another attempt.',
+					message: t(
+						'Test outcome unknown. A dispatched request may incur API costs. No automatic retry; check provider activity before another attempt.'
+					),
 				};
 		} finally {
 			if (!disposed) testingProfile = null;
@@ -310,21 +315,22 @@
 	<div class="flex items-center justify-between">
 		<h2 class="flex items-center gap-2 text-body-lg font-semibold text-neutral-100">
 			<FlaskConical class="text-primary-400" size={20} strokeWidth={1.5} />
-			AI Models
+			{t('AI Models')}
 		</h2>
 		<Button variant="ghost" size="sm" onclick={openCreateModal}>
 			<Plus size={16} strokeWidth={2} />
-			Add
+			{t('Add')}
 		</Button>
 	</div>
 
 	<p class="text-caption text-neutral-400">
-		Check API access checks model access, not web research. Official OpenAI profiles use a metadata
-		request; other providers may use a billable completion. Run research test is a potentially paid
-		search on the named profile, even when Off. Neither selects or activates a profile.
+		{t(
+			'Check API access checks model access, not web research. Official OpenAI profiles use a metadata request; other providers may use a billable completion. Run research test is a potentially paid search on the named profile, even when Off. Neither selects or activates a profile.'
+		)}
 	</p>
 	{#if testingProfile}<p role="status">
-			Testing {testingProfile}… One request only; no automatic retry.
+			{t('Testing')}
+			{testingProfile}{t('… One request only; no automatic retry.')}
 		</p>{/if}
 	{#if sectionError}
 		<div
@@ -355,7 +361,7 @@
 				/>
 			{/if}
 			<Button variant="ghost" size="sm" onclick={() => (testResult = null)}
-				>Dismiss test result</Button
+				>{t('Dismiss test result')}</Button
 			>
 		</div>
 	{/if}
@@ -368,15 +374,15 @@
 		</div>
 	{:else if profiles.length === 0}
 		<div class="rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-6 text-center">
-			<p class="text-neutral-400">No AI models configured</p>
-			<p class="mt-1 text-body-sm text-neutral-500">Add a model to enable AI features</p>
+			<p class="text-neutral-400">{t('No AI models configured')}</p>
+			<p class="mt-1 text-body-sm text-neutral-500">{t('Add a model to enable AI features')}</p>
 		</div>
 	{:else}
 		<div class="space-y-2">
 			{#each profiles as profile (profile.name)}
 				<div
 					role="group"
-					aria-label={`Profile ${profile.name}`}
+					aria-label={t('Profile {p0}', { p0: profile.name })}
 					class="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-3"
 				>
 					<div class="min-w-0 flex-1">
@@ -387,17 +393,24 @@
 									profile.status
 								)}"
 							>
-								{profile.status}
+								{profile.status === 'primary'
+									? t('Primary')
+									: profile.status === 'fallback'
+										? t('Fallback')
+										: profile.status === 'research'
+											? t('Research')
+											: t('Off')}
 							</span>
 							{#if profile.research_assigned && profile.status !== 'research'}
-								<span class="text-caption text-neutral-400">+ Research</span>
+								<span class="text-caption text-neutral-400">{t('+ Research')}</span>
 							{/if}
 						</div>
 						<p class="mt-0.5 truncate text-body-sm text-neutral-400">{profile.model}</p>
 						<p class="text-caption text-neutral-500">
-							Credential: {profile.credential_source ?? 'own'}{profile.credential_profile_name
+							{t('Credential:')}
+							{profile.credential_source ?? 'own'}{profile.credential_profile_name
 								? ` (${profile.credential_profile_name})`
-								: ''} — {profile.has_api_key ? 'available' : 'not configured'}
+								: ''} — {profile.has_api_key ? t('available') : t('not configured')}
 						</p>
 						{#if profile.api_base}
 							<p class="truncate text-caption text-neutral-500">{profile.api_base}</p>
@@ -408,8 +421,8 @@
 							<button
 								type="button"
 								class="btn-icon-touch hover:text-success-400"
-								title="Set as active profile"
-								aria-label="Set as active profile"
+								title={t('Set as active profile')}
+								aria-label={t('Set as active profile')}
 								onclick={() => handleActivate(profile.name)}
 							>
 								<Check size={16} strokeWidth={2} />
@@ -419,19 +432,19 @@
 							variant="secondary"
 							size="sm"
 							disabled={testingProfile !== null}
-							onclick={() => handleTest(profile.name)}>Check API access</Button
+							onclick={() => handleTest(profile.name)}>{t('Check API access')}</Button
 						>
 						<Button
 							variant="secondary"
 							size="sm"
 							disabled={testingProfile !== null}
-							onclick={() => openResearchTest(profile)}>Run research test</Button
+							onclick={() => openResearchTest(profile)}>{t('Run research test')}</Button
 						>
 						<button
 							type="button"
 							class="btn-icon-touch hover:text-neutral-100"
-							title="Edit"
-							aria-label="Edit profile"
+							title={t('Edit')}
+							aria-label={t('Edit profile')}
 							onclick={() => openEditModal(profile)}
 						>
 							<Pencil size={16} strokeWidth={2} />
@@ -439,8 +452,8 @@
 						<button
 							type="button"
 							class="btn-icon-touch hover:text-error-400"
-							title="Delete"
-							aria-label="Delete profile"
+							title={t('Delete')}
+							aria-label={t('Delete profile')}
 							onclick={() => handleDelete(profile.name)}
 						>
 							<Trash2 size={16} strokeWidth={2} />
@@ -452,7 +465,7 @@
 	{/if}
 </section>
 
-<Modal bind:open={showResearchTest} title="Run research test">
+<Modal bind:open={showResearchTest} title={t('Run research test')}>
 	<form
 		class="max-h-[calc(100dvh-12rem)] space-y-4 overflow-y-auto p-1"
 		onsubmit={(event) => {
@@ -464,23 +477,26 @@
 			{researchTestProfile?.name} — {researchTestProfile?.model}
 		</p>
 		<p class="text-body-sm text-neutral-300">
-			Product context is sent to OpenAI and may incur API costs. This tests this saved profile only,
-			without activating it or changing inventory.
+			{t(
+				'Product context is sent to OpenAI and may incur API costs. This tests this saved profile only, without activating it or changing inventory.'
+			)}
 		</p>
 		<label class="block"
-			>Product context<textarea
+			>{t('Product context')}<textarea
 				class="input mt-2"
 				bind:value={testContext}
 				maxlength="4000"
-				placeholder="Describe the product and include any known brand, model, markings or technical details."
+				placeholder={t(
+					'Describe the product and include any known brand, model, markings or technical details.'
+				)}
 				required></textarea></label
 		>
 		<div class="flex flex-wrap gap-2">
 			<Button variant="ghost" type="button" onclick={() => (showResearchTest = false)}
-				>Cancel</Button
+				>{t('Cancel')}</Button
 			>
 			<Button type="submit" disabled={testingProfile !== null || !testContext.trim()}
-				>Run paid research test</Button
+				>{t('Run paid research test')}</Button
 			>
 		</div>
 	</form>
@@ -489,7 +505,7 @@
 <!-- Modal -->
 <Modal
 	bind:open={showModal}
-	title={editingProfile ? 'Edit Profile' : 'New Profile'}
+	title={editingProfile ? t('Edit Profile') : t('New Profile')}
 	onclose={closeModal}
 >
 	<form
@@ -513,97 +529,107 @@
 		{/if}
 		<div>
 			<label for="profile-name" class="mb-1 block text-body-sm font-medium text-neutral-300">
-				Name
+				{t('Name')}
 			</label>
 			<input
 				id="profile-name"
 				type="text"
 				bind:value={formName}
 				required
-				placeholder="e.g., openai-prod"
+				placeholder={t('e.g., openai-prod')}
 				class="input-sm"
 			/>
 		</div>
 
 		<div>
 			<label for="profile-model" class="mb-1 block text-body-sm font-medium text-neutral-300">
-				Model
+				{t('Model')}
 			</label>
 			<input
 				id="profile-model"
 				type="text"
 				bind:value={formModel}
 				required
-				placeholder="Exact model ID"
+				placeholder={t('Exact model ID')}
 				class="input-sm"
 			/>
 			<p class="mt-1 text-caption text-neutral-500">
-				Enter the exact provider model ID. It is saved as typed, never automatically corrected.
+				{t(
+					'Enter the exact provider model ID. It is saved as typed, never automatically corrected.'
+				)}
 				<a
 					class="text-primary-400 underline"
 					href="https://developers.openai.com/api/docs/models"
 					target="_blank"
-					rel="noopener noreferrer">OpenAI model documentation</a
+					rel="noopener noreferrer">{t('OpenAI model documentation')}</a
 				>
 			</p>
 		</div>
 
 		<div>
 			<label for="credential-source" class="mb-1 block text-body-sm font-medium text-neutral-300"
-				>Credential source</label
+				>{t('Credential source')}</label
 			>
 			<select id="credential-source" class="input-sm" bind:value={credentialSource}>
-				<option value="own">Own stored key</option>
-				<option value="profile">Reuse another OpenAI profile's key</option>
+				<option value="own">{t('Own stored key')}</option>
+				<option value="profile">{t("Reuse another OpenAI profile's key")}</option>
 				<option value="env"
-					>Environment key{environmentAvailable ? '' : ' (unavailable or incompatible)'}</option
+					>{t('Environment key')}{environmentAvailable
+						? ''
+						: t(' (unavailable or incompatible)')}</option
 				>
 			</select>
 			<p class="mt-1 text-caption text-neutral-500">
-				Reuse is limited to the official OpenAI endpoint. No key is copied. Saving never calls the
-				provider.
+				{t(
+					'Reuse is limited to the official OpenAI endpoint. No key is copied. Saving never calls the provider.'
+				)}
 			</p>
 		</div>
 		{#if credentialSource === 'profile'}
 			<div>
 				<label for="credential-profile" class="mb-1 block text-body-sm font-medium text-neutral-300"
-					>Credential profile</label
+					>{t('Credential profile')}</label
 				>
 				<select id="credential-profile" class="input-sm" bind:value={credentialProfile} required>
-					<option value="">Choose a stored OpenAI credential</option>
+					<option value="">{t('Choose a stored OpenAI credential')}</option>
 					{#each peers as peer (peer.name)}<option value={peer.name}>{peer.name}</option>{/each}
 				</select>
 			</div>
 		{/if}
 		<div>
 			<label for="research-reasoning" class="mb-1 block text-body-sm font-medium text-neutral-300"
-				>Research reasoning effort</label
+				>{t('Research reasoning effort')}</label
 			>
 			<select id="research-reasoning" class="input-sm" bind:value={reasoningEffort}>
-				<option value="">Provider default (unset)</option>
+				<option value="">{t('Provider default (unset)')}</option>
 				{#each reasoningOptions[formModel] ?? [] as effort (effort)}<option value={effort}
 						>{effort}</option
 					>{/each}
 			</select>
 			<p class="mt-1 text-caption text-neutral-400">
-				Optional. Provider default is a good starting point; only supported options are listed.
+				{t(
+					'Optional. Provider default is a good starting point; only supported options are listed.'
+				)}
 			</p>
 			<details class="text-caption text-neutral-400">
-				<summary class="min-h-touch cursor-pointer py-3">Reasoning and request limits</summary>
+				<summary class="min-h-touch cursor-pointer py-3"
+					>{t('Reasoning and request limits')}</summary
+				>
 				<p>
-					Research uses Responses with web search. Reasoning tokens share the 2400 output-token
-					budget; higher effort may leave incomplete output. No automatic retry or budget increase.
+					{t(
+						'Research uses Responses with web search. Reasoning tokens share the 2400 output-token budget; higher effort may leave incomplete output. No automatic retry or budget increase.'
+					)}
 				</p>
-				<p>This research setting does not change capture/chat.</p>
+				<p>{t('This research setting does not change capture/chat.')}</p>
 			</details>
 			{#if !(formModel in reasoningOptions)}<p class="text-caption text-neutral-500">
-					No verified reasoning options for this exact model. Leave unset.
+					{t('No verified reasoning options for this exact model. Leave unset.')}
 				</p>{/if}
 		</div>
 		{#if credentialSource === 'own'}
 			<div>
 				<label for="profile-api-key" class="mb-1 block text-body-sm font-medium text-neutral-300">
-					API Key
+					{t('API Key')}
 				</label>
 				<input
 					id="profile-api-key"
@@ -613,52 +639,54 @@
 					class="input-sm"
 				/>
 				{#if editingProfile}
-					<p class="mt-1 text-caption text-neutral-500">Leave blank to keep existing key</p>
+					<p class="mt-1 text-caption text-neutral-500">{t('Leave blank to keep existing key')}</p>
 				{/if}
 			</div>
 		{/if}
 		<div>
 			<label for="profile-api-base" class="mb-1 block text-body-sm font-medium text-neutral-300">
-				API Base URL <span class="text-neutral-500">(optional)</span>
+				{t('API Base URL')} <span class="text-neutral-500">{t('(optional)')}</span>
 			</label>
 			<input
 				id="profile-api-base"
 				type="text"
 				bind:value={formApiBase}
-				placeholder="e.g., http://localhost:11434"
+				placeholder={t('e.g., http://localhost:11434')}
 				class="input-sm"
 			/>
 		</div>
 
 		<div>
 			<label for="profile-status" class="mb-1 block text-body-sm font-medium text-neutral-300">
-				Status
+				{t('Status')}
 			</label>
 			<select id="profile-status" bind:value={formStatus} class="input-sm">
-				<option value="primary">Primary</option>
-				<option value="fallback">Fallback</option>
-				<option value="research">Research</option>
-				<option value="off">Off</option>
+				<option value="primary">{t('Primary')}</option>
+				<option value="fallback">{t('Fallback')}</option>
+				<option value="research">{t('Research')}</option>
+				<option value="off">{t('Off')}</option>
 			</select>
 			<p class="mt-1 text-caption text-neutral-500">
 				{#if formStatus === 'primary'}
-					Primary model for capture and chat. To also use it for research, select it in Product
-					research without changing this role.
+					{t(
+						'Primary model for capture and chat. To also use it for research, select it in Product research without changing this role.'
+					)}
 				{:else if formStatus === 'fallback'}
-					Used automatically if the primary model fails
+					{t('Used automatically if the primary model fails')}
 				{:else if formStatus === 'research'}
-					Dedicated research only; never used as capture/chat fallback. Research remains off until
-					explicitly enabled.
+					{t(
+						'Dedicated research only; never used as capture/chat fallback. Research remains off until explicitly enabled.'
+					)}
 				{:else}
-					Saved but not assigned. Editing or testing does not activate this profile.
+					{t('Saved but not assigned. Editing or testing does not activate this profile.')}
 				{/if}
 			</p>
 		</div>
 
 		<div class="flex gap-3 pt-2">
-			<Button variant="ghost" full onclick={closeModal} type="button">Cancel</Button>
+			<Button variant="ghost" full onclick={closeModal} type="button">{t('Cancel')}</Button>
 			<Button variant="primary" full type="submit" disabled={saving}>
-				{saving ? 'Saving...' : 'Save'}
+				{saving ? t('Saving...') : t('Save')}
 			</Button>
 		</div>
 	</form>

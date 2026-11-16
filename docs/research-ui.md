@@ -1,5 +1,15 @@
 # Research and capture UI
 
+## Browser UI language
+
+Settings → **UI language** selects Deutsch or English. The first supported browser
+language is the default (English fallback); an explicit choice is stored only in
+this browser. Switching does not reload the draft, call a provider, change AI output
+language, or translate inventory values, native template/custom-field names,
+identifiers or model names. App-owned core proposal labels are localized by target.
+Backend/provider prose, logs and historical results remain literal; existing
+event-created errors/toasts retain their original language until a new event.
+
 ## Photo grouping
 
 The **One item per photo** sliding switch starts off for a new session. Off means **Multiple photos of one item**: all selected views are grouped and analyzed together. On means one item per photo, not object splitting inside each image. The visible item/photo count reflects the groups. Resuming a draft retains its mode. Existing analysis must be explicitly discarded before changing inputs; navigation alone never reanalyzes.
@@ -8,7 +18,7 @@ The **One item per photo** sliding switch starts off for a new session. Off mean
 
 ## Which research model is used?
 
-**Research uses: profile — model** comes from the canonical saved research assignment, not from a profile's name. It is shown in Settings and beside item lookup. **Choose research profile** opens Settings; **Edit active research profile** opens the central AI Models editor for that exact profile. **Return to item draft** returns to the retained review draft without starting research or confirming the item.
+The compact **profile · model** line beside item lookup comes from the canonical saved research assignment, not from a profile's name. **Research settings** opens Settings, where **Edit selected profile** opens the central AI Models editor for that profile. Settings also displays the effective assignment. **Return to item draft** returns to the retained review draft without starting research or confirming the item.
 
 Settings always exposes the Research profile selector and **Edit selected profile** / **Create research profile**, even with only one eligible profile. An ineligible profile can be edited but cannot be enabled or saved as an active research selection. Actions wait for the central profile list to load. Profile changes received during a settings read trigger another read rather than leaving an old model displayed.
 
@@ -20,9 +30,9 @@ Model IDs are free text, preserved exactly. There is no automatic correction of 
 
 **Research this item** sends product context and associated photos only after the explicit click. There is no targeted number-search form or exact-number admission gate. The notice identifies possible API costs and absence of automatic inventory changes. Serial markings may be clues; review text/photos for private information before dispatch.
 
-Research remains explicit. Current values and editable suggestions are shown with a clear unverified-AI label. Provider citation links are displayed independently of field acceptance; missing citations do not discard usable suggestions. Edit/select/adopt or discard deliberately. Draft adoption is separate from saving. Existing stale-draft/photo and saved-item write-readback guards remain.
+Research remains explicit. One expandable **OpenAI research · API costs may apply** notice identifies the provider and data boundary. Changed proposals appear first; unchanged fields are folded but remain editable/selectable. Short values use inputs and descriptions auto-size. Original proposal indices are retained for adoption. Sources and genuine ambiguity stay visible; missing citations do not discard usable suggestions. Edit/select/adopt or discard deliberately. Draft adoption is separate from saving. Existing stale-draft/photo and saved-item write-readback guards remain.
 
-Failures remain visible rather than disappearing after five seconds. The UI displays the server-curated explanation and stable code, plus expandable read-only, selectable/copyable diagnostic fields. It does not display arbitrary provider bodies or optional metadata. Legacy failures without a diagnostic have an unknown-cause explanation rather than guessing that a key is wrong. Incomplete, refused, no-result, and unknown outcomes are distinct. Unknown outcomes may have incurred costs and never trigger automatic retry.
+Failures remain visible rather than disappearing after five seconds. One outcome line is shown; the server-curated explanation, stable code and read-only, selectable/copyable diagnostic fields are expandable. It does not display arbitrary provider bodies or optional metadata. Legacy failures without a diagnostic have an unknown-cause explanation rather than guessing that a key is wrong. Incomplete, refused, no-result, and unknown outcomes are distinct. Unknown outcomes may have incurred costs and never trigger automatic retry.
 
 ## Tests are different tasks
 

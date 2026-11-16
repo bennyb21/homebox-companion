@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 let moduleId = 0;
 async function loadEditor(bindings = {}) {
@@ -11,6 +12,7 @@ async function loadEditor(bindings = {}) {
 	);
 	const id = `nativeReview${moduleId++}`;
 	globalThis[id] = {
+		t,
 		$state: (value) => value,
 		authStore: { connection: 'synthetic', verifiedScope: { contextId: 'c', groupId: 'g' } },
 		showToast() {},

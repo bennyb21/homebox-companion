@@ -61,9 +61,7 @@ for (const status of ['failed', 'incomplete', 'refused', 'no_results', 'unknown_
 		await expect(
 			page.getByRole('button', { name: 'Research this item', exact: true })
 		).toBeVisible();
-		await expect(
-			page.getByText('Research uses: default — gpt-6-luna', { exact: true })
-		).toBeVisible();
+		await expect(page.getByText('default · gpt-6-luna', { exact: true })).toBeVisible();
 		await page
 			.locator('#product-research')
 			.evaluate((el) =>
@@ -71,12 +69,13 @@ for (const status of ['failed', 'incomplete', 'refused', 'no_results', 'unknown_
 			);
 		await page.screenshot({ path: test.info().outputPath(`lookup-form-${status}-${width}.png`) });
 		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
+		await expect(page.getByText('Synthetic safe explanation.', { exact: true })).not.toBeVisible();
+		await page.getByText('Diagnostic details', { exact: true }).click();
 		await expect(page.getByText('Synthetic safe explanation.', { exact: true })).toBeVisible();
 		await expect(page.getByText(code, { exact: true })).toBeVisible();
 		await expect(
 			page.getByRole('button', { name: 'Adopt selected fields', exact: true })
 		).toHaveCount(0);
-		await page.getByText('Diagnostic details', { exact: true }).click();
 		await expect(page.getByRole('textbox', { name: 'Safe diagnostic details' })).toHaveValue(
 			/req_synthetic/
 		);

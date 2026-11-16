@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { uiStore, dismissToast, TOAST_DURATION_MS } from '$lib/stores/ui.svelte';
 	import Info from '@lucide/svelte/icons/info';
 	import CheckCircle from '@lucide/svelte/icons/check-circle';
@@ -83,7 +85,7 @@
 					<button
 						type="button"
 						class="flex min-h-touch min-w-touch items-center justify-center rounded-lg p-1.5 transition-colors hover:bg-neutral-100/10 focus:outline-hidden focus:ring-2 focus:ring-neutral-100/30"
-						aria-label="Dismiss notification"
+						aria-label={t('Dismiss notification')}
 						onclick={() => dismissToast(toast.id)}
 					>
 						<X size={16} />

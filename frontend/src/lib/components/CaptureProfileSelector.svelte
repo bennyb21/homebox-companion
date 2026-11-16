@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onMount } from 'svelte';
 	import { request } from '$lib/api/client';
 
@@ -29,7 +31,7 @@
 </script>
 
 <label class="block text-body-sm text-neutral-200">
-	Item type
+	{t('Item type')}
 	<select
 		class="input mt-2"
 		{disabled}
@@ -44,20 +46,25 @@
 			onChange(selected?.id ?? null, selected?.defaultTemplateId ?? null);
 		}}
 	>
-		<option value="" disabled={reviewOnly}>Default (no capture profile)</option>
-		{#if !reviewOnly}<option value="__auto__">Automatic suggestion</option>{/if}
+		<option value="" disabled={reviewOnly}>{t('Default (no capture profile)')}</option>
+		{#if !reviewOnly}<option value="__auto__">{t('Automatic suggestion')}</option>{/if}
 		{#if value && value !== '__auto__' && !profiles.some((row) => row.id === value)}
-			<option {value}>Unavailable selected type — select again</option>
+			<option {value}>{t('Unavailable selected type — select again')}</option>
 		{/if}
 		{#each profiles as profile (profile.id)}
 			<option value={profile.id}>{profile.name}</option>
 		{/each}
 	</select>
 </label>
-<p class="text-caption text-neutral-400">
-	Native text templates only. Automatic suggestions add one extraction call per object with fields;
-	uncertain choices require an explicit type and retry. Manual selection takes precedence.
-</p>
+<details class="text-caption text-neutral-400">
+	<summary class="min-h-touch cursor-pointer py-3">{t('About item types')}</summary>
+	<p class="text-caption text-neutral-400">
+		{t(
+			'Native text templates only. Automatic suggestions add one extraction call per object with fields; uncertain choices require an explicit type and retry. Manual selection takes precedence.'
+		)}
+	</p>
+</details>
 {#if error}<p role="alert" class="text-body-sm text-neutral-200">
-		Could not load item types: {error}
+		{t('Could not load item types:')}
+		{error}
 	</p>{/if}

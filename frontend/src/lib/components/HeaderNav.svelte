@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { page } from '$app/stores';
 	import { scanWorkflow } from '$lib/workflows/scan.svelte';
 	import { getIsDemoModeExplicit } from '$lib/api/settings';
@@ -25,7 +27,7 @@
 </script>
 
 <!-- Desktop/Tablet header navigation - icons with labels -->
-<nav class="flex items-center gap-1" aria-label="Main navigation">
+<nav class="flex items-center gap-1" aria-label={t('Main navigation')}>
 	{#each navItems as item (item.id)}
 		{@const active = isNavItemActive(item, currentPath)}
 		{@const disabled = item.disabled ?? false}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ApprovalModal - Modal for batch approval of pending actions
 	 *
@@ -186,7 +188,7 @@
 	// Handle approval expiration - show toast, clear approvals, and close modal when countdown reaches 0
 	$effect(() => {
 		if (open && countdownSeconds === 0 && approvals.length > 0) {
-			showToast('Pending actions have expired', 'warning');
+			showToast(t('Pending actions have expired'), 'warning');
 			chatStore.clearExpiredApprovals();
 			handleClose();
 		}
@@ -196,7 +198,7 @@
 {#if open && approvals.length > 0}
 	<dialog
 		use:modalDialog
-		aria-label="Actions Require Approval"
+		aria-label={t('Actions Require Approval')}
 		class="fixed inset-0 z-50 m-0 flex max-h-none max-w-none animate-fade-in items-center justify-center bg-neutral-950/70 p-4 backdrop-blur-sm backdrop:bg-transparent size-full"
 		onclick={handleBackdropClick}
 		oncancel={handleCancel}
@@ -214,15 +216,17 @@
 				<div class="flex-1">
 					<h3 class="text-h4 text-neutral-100">
 						{approvals.length}
-						{approvals.length === 1 ? 'Action' : 'Actions'} Require Approval
+						{approvals.length === 1 ? t('Action') : t('Actions')}
+						{t('Require Approval')}
 					</h3>
 					{#if countdownSeconds !== null}
 						<p class="text-body-sm text-warning-500/80">
-							Expires in {countdownSeconds}s
+							{t('Expires in')}
+							{countdownSeconds}s
 						</p>
 					{/if}
 				</div>
-				<button type="button" class="btn-icon-touch" onclick={handleClose} aria-label="Close">
+				<button type="button" class="btn-icon-touch" onclick={handleClose} aria-label={t('Close')}>
 					<X size={20} />
 				</button>
 			</div>
@@ -252,7 +256,7 @@
 					loading={isProcessingAny}
 					onclick={handleRejectAll}
 				>
-					Reject All
+					{t('Reject All')}
 				</Button>
 				<Button
 					variant="warning"
@@ -262,7 +266,7 @@
 					loading={isProcessingAny}
 					onclick={handleApproveAll}
 				>
-					Approve All
+					{t('Approve All')}
 				</Button>
 			</div>
 		</div>

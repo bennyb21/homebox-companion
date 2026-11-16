@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import ts from 'typescript';
+import { t } from './i18n.js';
 const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
 async function readMessage() {
 	const line = (await lines.next()).value;
@@ -20,6 +21,7 @@ async function exchange(/** @type {unknown} */ payload) {
 	return result.body;
 }
 globalThis.attachmentProbe = {
+	t,
 	itemsApi: {
 		create: async (/** @type {unknown} */ payload) => {
 			creates++;

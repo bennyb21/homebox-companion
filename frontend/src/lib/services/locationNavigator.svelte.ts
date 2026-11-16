@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * LocationNavigator - Handles location tree navigation and data fetching
  *
@@ -79,7 +80,7 @@ class LocationNavigator {
 		data: { name: string; description: string; parentId: string | null }
 	): Promise<void> {
 		const selected = locationStore.selected;
-		if (mode === 'edit' && !selected) throw new Error('Please select a location');
+		if (mode === 'edit' && !selected) throw new Error(t('Please select a location'));
 		const generation = this.generation;
 		const session = authStore.sessionGeneration;
 		const connection = authStore.connection;
@@ -142,7 +143,12 @@ class LocationNavigator {
 			if (valid()) log.warn('Failed to refresh locations after save', error);
 		}
 		if (valid())
-			showToast(`Location "${saved.name}" ${mode === 'create' ? 'created' : 'updated'}`, 'success');
+			showToast(
+				t(mode === 'create' ? 'Location "{name}" created' : 'Location "{name}" updated', {
+					name: saved.name,
+				}),
+				'success'
+			);
 	}
 
 	// =========================================================================
@@ -218,7 +224,7 @@ class LocationNavigator {
 		} catch (error) {
 			if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 			log.error('Failed to refresh current level', error);
-			showToast('Failed to refresh locations', 'error');
+			showToast(t('Failed to refresh locations'), 'error');
 		} finally {
 			if (valid()) this._isLoading = false;
 		}
@@ -286,7 +292,7 @@ class LocationNavigator {
 		} catch (error) {
 			if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 			log.error('Failed to load location details', error);
-			showToast('Failed to load location details', 'error');
+			showToast(t('Failed to load location details'), 'error');
 			// Fallback to using existing children data
 			locationStore.pushPath({ id: location.id, name: location.name });
 			locationStore.setCurrentLevel(location.children || []);
@@ -315,7 +321,7 @@ class LocationNavigator {
 			} catch (error) {
 				if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 				log.error('Failed to refresh root locations', error);
-				showToast('Failed to load locations', 'error');
+				showToast(t('Failed to load locations'), 'error');
 				// Fallback to cached tree
 				locationStore.setPath([]);
 				locationStore.setCurrentLevel(locationStore.tree);
@@ -350,7 +356,7 @@ class LocationNavigator {
 			} catch (error) {
 				if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 				log.error('Failed to load location details', error);
-				showToast('Failed to navigate back', 'error');
+				showToast(t('Failed to navigate back'), 'error');
 				// Restore previous state on error to avoid inconsistent UI
 				locationStore.setPath(previousPath);
 				locationStore.setCurrentLevel(previousCurrentLevel);
@@ -408,7 +414,7 @@ class LocationNavigator {
 			} catch (error) {
 				if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 				log.error('Failed to load location details', error);
-				showToast('Failed to restore navigation', 'error');
+				showToast(t('Failed to restore navigation'), 'error');
 			} finally {
 				if (valid()) this._isLoading = false;
 			}
@@ -461,7 +467,7 @@ class LocationNavigator {
 		} catch (error) {
 			if (!valid() || (error instanceof Error && error.name === 'AbortError')) return;
 			log.error('Failed to refresh selected location', error);
-			showToast('Failed to refresh location', 'error');
+			showToast(t('Failed to refresh location'), 'error');
 		} finally {
 			if (valid()) this._isLoading = false;
 		}

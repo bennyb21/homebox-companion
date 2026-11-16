@@ -78,7 +78,13 @@ for (const width of [1280, 390]) {
 			page.getByText('Exact model could not be resolved. Check its identifier.', { exact: true })
 		).toBeVisible();
 		await page.waitForTimeout(5500); // Regression: the old result vanished after five seconds.
+		await expect(
+			page.getByText('Exact model could not be resolved. Check its identifier.', { exact: true })
+		).toBeVisible();
+		await expect(page.getByText('provider_resolution_failed', { exact: true })).toBeHidden();
+		await page.getByText('Diagnostic details', { exact: true }).click();
 		await expect(page.getByText('provider_resolution_failed', { exact: true })).toBeVisible();
+		await page.getByText('Diagnostic details', { exact: true }).click();
 		expect(tests).toEqual([{ test_kind: 'connection' }]);
 		await row.getByRole('button', { name: 'Run research test', exact: true }).click();
 		await expect(page.getByRole('dialog')).toContainText('may incur API costs');

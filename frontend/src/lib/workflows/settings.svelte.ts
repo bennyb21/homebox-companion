@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * SettingsService - Centralized state management for the Settings page
  *
@@ -63,7 +64,7 @@ const DEFAULT_LOG_LINES = 300;
 
 export interface FieldMeta {
 	key: keyof FieldPreferences;
-	label: string;
+	label: import('$lib/i18n/messages').MessageKey;
 }
 
 /** Field metadata for display in the preferences form */
@@ -217,7 +218,7 @@ class SettingsService {
 		} catch (error) {
 			// If it's a 401, the session expired modal will already be shown
 			log.error('Failed to load settings data:', error);
-			this.errors.init = getErrorMessage(error, 'Failed to load settings');
+			this.errors.init = getErrorMessage(error, t('Failed to load settings'));
 		} finally {
 			this.isLoading.config = false;
 		}
@@ -245,7 +246,7 @@ class SettingsService {
 		} catch (error) {
 			if (request !== this._serverLogsRequest) return;
 			log.error('Failed to refresh logs:', error);
-			this.errors.serverLogs = getErrorMessage(error, 'Failed to load logs');
+			this.errors.serverLogs = getErrorMessage(error, t('Failed to load logs'));
 		} finally {
 			if (request === this._serverLogsRequest) this.isLoading.serverLogs = false;
 		}
@@ -260,7 +261,7 @@ class SettingsService {
 		} catch (error) {
 			if (request !== this._serverLogsRequest) return;
 			log.error('Failed to download logs:', error);
-			this.errors.serverLogs = getErrorMessage(error, 'Failed to download logs');
+			this.errors.serverLogs = getErrorMessage(error, t('Failed to download logs'));
 		}
 	}
 
@@ -317,7 +318,7 @@ class SettingsService {
 		} catch (error) {
 			if (request !== this._llmDebugLogRequest) return;
 			log.error('Failed to refresh LLM debug log:', error);
-			this.errors.llmDebugLog = getErrorMessage(error, 'Failed to load LLM debug log');
+			this.errors.llmDebugLog = getErrorMessage(error, t('Failed to load LLM debug log'));
 		} finally {
 			if (request === this._llmDebugLogRequest) this.isLoading.llmDebugLog = false;
 		}
@@ -332,7 +333,7 @@ class SettingsService {
 		} catch (error) {
 			if (request !== this._llmDebugLogRequest) return;
 			log.error('Failed to download LLM debug logs:', error);
-			this.errors.llmDebugLog = getErrorMessage(error, 'Failed to download LLM debug logs');
+			this.errors.llmDebugLog = getErrorMessage(error, t('Failed to download LLM debug logs'));
 		}
 	}
 
@@ -408,7 +409,7 @@ class SettingsService {
 			this.customFieldDefs = customResult;
 		} catch (error) {
 			log.error('Failed to load field preferences:', error);
-			this.errors.fieldPrefs = getErrorMessage(error, 'Failed to load preferences');
+			this.errors.fieldPrefs = getErrorMessage(error, t('Failed to load preferences'));
 		} finally {
 			this.isLoading.fieldPrefs = false;
 		}
@@ -445,7 +446,7 @@ class SettingsService {
 			}, 2000);
 		} catch (error) {
 			log.error('Failed to save settings:', error);
-			this.errors.fieldPrefs = getErrorMessage(error, 'Failed to save settings');
+			this.errors.fieldPrefs = getErrorMessage(error, t('Failed to save settings'));
 			this.saveState = 'error';
 
 			this._scheduleTimeout(() => {
@@ -543,7 +544,7 @@ class SettingsService {
 		} catch (error) {
 			if (request !== this._promptPreviewRequest) return;
 			log.error('Failed to load prompt preview:', error);
-			this.errors.fieldPrefs = getErrorMessage(error, 'Failed to load preview');
+			this.errors.fieldPrefs = getErrorMessage(error, t('Failed to load preview'));
 		} finally {
 			if (request === this._promptPreviewRequest) this.isLoading.promptPreview = false;
 		}
@@ -562,7 +563,7 @@ class SettingsService {
 			const versionResult = await getVersion(true);
 
 			if (!versionResult.latest_version) {
-				this.errors.updateCheck = 'Unable to check for updates. Please try again.';
+				this.errors.updateCheck = t('Unable to check for updates. Please try again.');
 			} else if (versionResult.update_available) {
 				this.updateAvailable = true;
 				this.latestVersion = versionResult.latest_version;
@@ -577,7 +578,7 @@ class SettingsService {
 			}
 		} catch (error) {
 			log.error('Failed to check for updates:', error);
-			this.errors.updateCheck = getErrorMessage(error, 'Failed to check for updates');
+			this.errors.updateCheck = getErrorMessage(error, t('Failed to check for updates'));
 		} finally {
 			this.isLoading.updateCheck = false;
 		}

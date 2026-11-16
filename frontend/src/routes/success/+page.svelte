@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import AttachmentRecovery from '$lib/components/AttachmentRecovery.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -43,7 +45,7 @@
 		recovering = false;
 		if (scope !== JSON.stringify(captureSessionScope())) return;
 		if (recovered) await goto(resolve('/summary'));
-		else recoveryError = 'Could not restore this session. Keep the saved draft and try again.';
+		else recoveryError = t('Could not restore this session. Keep the saved draft and try again.');
 	}
 
 	// Get submission result
@@ -106,38 +108,42 @@
 </script>
 
 <svelte:head>
-	<title>Submission - Homebox Companion</title>
+	<title>{t('Submission - Homebox Companion')}</title>
 </svelte:head>
 
 {#if !result}
-	<section aria-label="Submission recovery" class="mx-auto max-w-lg space-y-4 px-4 py-8">
-		<h2 class="text-h1 text-neutral-100">Submission status unavailable</h2>
+	<section aria-label={t('Submission recovery')} class="mx-auto max-w-lg space-y-4 px-4 py-8">
+		<h2 class="text-h1 text-neutral-100">{t('Submission status unavailable')}</h2>
 		<p class="text-body text-neutral-300">
-			This page cannot confirm that items or photos were saved. Check Homebox before creating them
-			again.
+			{t(
+				'This page cannot confirm that items or photos were saved. Check Homebox before creating them again.'
+			)}
 		</p>
 		{#if initialized && captureSessionScope()}
 			{#if hasRecovery}
 				<p class="text-body text-warning-300">
-					A retained session is available in this collection. Resume it to review warnings, known
-					items and original photos. Resuming does not upload or recreate anything.
+					{t(
+						'A retained session is available in this collection. Resume it to review warnings, known items and original photos. Resuming does not upload or recreate anything.'
+					)}
 				</p>
 				<Button variant="primary" full disabled={recovering} onclick={resumeSession}
-					>Resume Session</Button
+					>{t('Resume Session')}</Button
 				>
 			{:else}
 				<p class="text-body-sm text-neutral-400">
-					No retained session is currently available here.
+					{t('No retained session is currently available here.')}
 				</p>
 				<Button variant="secondary" full onclick={() => goto(resolve('/location'))}
-					>Choose Location</Button
+					>{t('Choose Location')}</Button
 				>
 			{/if}
 			{#if workflow.state.locationId}
-				<Button variant="secondary" full onclick={scanMore}>Scan More Items</Button>
+				<Button variant="secondary" full onclick={scanMore}>{t('Scan More Items')}</Button>
 			{/if}
 		{:else}
-			<p class="text-body-sm text-neutral-400">Waiting for the verified Homebox connection…</p>
+			<p class="text-body-sm text-neutral-400">
+				{t('Waiting for the verified Homebox connection…')}
+			</p>
 		{/if}
 		{#if recoveryError}<p role="alert" class="text-body-sm text-warning-300">
 				{recoveryError}
@@ -167,7 +173,7 @@
 
 		<!-- Heading -->
 		<h2 class="mb-3 text-h1 text-neutral-100">
-			{hasIncompleteItems ? 'Items need attention' : 'Success!'}
+			{hasIncompleteItems ? t('Items need attention') : t('Success!')}
 		</h2>
 
 		{#if hasIncompleteItems}
@@ -176,8 +182,9 @@
 				role="status"
 			>
 				<p>
-					Some items were created with incomplete details or attachments. Review and finish them in
-					Homebox; they will not be created again by Retry Failed Items.
+					{t(
+						'Some items were created with incomplete details or attachments. Review and finish them in Homebox; they will not be created again by Retry Failed Items.'
+					)}
 				</p>
 				{#if submissionErrors.length > 0}
 					<ul class="mt-2 list-inside list-disc space-y-2">
@@ -192,7 +199,9 @@
 		<!-- Specific feedback with count and location -->
 		{#if result}
 			<p class="mb-6 text-body text-neutral-300">
-				{result.itemCount} item{result.itemCount !== 1 ? 's' : ''} added to {result.locationName}
+				{t(result.itemCount === 1 ? '{count} item' : '{count} items', { count: result.itemCount })}
+				{t('added to')}
+				{result.locationName}
 			</p>
 
 			<!-- Statistics card -->
@@ -203,7 +212,7 @@
 							{result.itemCount}
 						</div>
 						<div class="text-caption text-neutral-500">
-							Item{result.itemCount !== 1 ? 's' : ''}
+							{t(result.itemCount === 1 ? 'Item' : 'items')}
 						</div>
 					</div>
 					{#if !hasIncompleteItems}
@@ -212,14 +221,14 @@
 								{result.photoCount}
 							</div>
 							<div class="text-caption text-neutral-500">
-								Photo{result.photoCount !== 1 ? 's' : ''}
+								{t(result.photoCount === 1 ? 'Photo' : 'photos')}
 							</div>
 						</div>
 					{/if}
 				</div>
 			</div>
 		{:else}
-			<p class="mb-8 text-body text-neutral-400">Items have been added to your inventory</p>
+			<p class="mb-8 text-body text-neutral-400">{t('Items have been added to your inventory')}</p>
 		{/if}
 
 		<AttachmentRecovery />
@@ -231,11 +240,11 @@
 				<Camera size={20} strokeWidth={1.5} />
 				<span>
 					{#if workflow.state.parentItemName}
-						Scan More in {workflow.state.parentItemName}
+						{t('Scan More in')} {workflow.state.parentItemName}
 					{:else if result?.locationName}
-						Scan More in {result.locationName}
+						{t('Scan More in')} {result.locationName}
 					{:else}
-						Scan More Items
+						{t('Scan More Items')}
 					{/if}
 				</span>
 			</Button>
@@ -243,14 +252,14 @@
 			<!-- Change location -->
 			<Button variant="secondary" full onclick={startOver}>
 				<MapPin size={20} strokeWidth={1.5} />
-				<span>Choose New Location</span>
+				<span>{t('Choose New Location')}</span>
 			</Button>
 
 			<!-- See Items (view created items with details) -->
 			{#if result?.createdItems && result.createdItems.length > 0}
 				<Button variant="secondary" full onclick={() => (showItemsModal = true)}>
 					<Eye size={20} strokeWidth={1.5} />
-					<span>See Items</span>
+					<span>{t('See Items')}</span>
 				</Button>
 			{/if}
 		</div>

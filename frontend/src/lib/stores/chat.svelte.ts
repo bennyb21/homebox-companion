@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Chat Store - Svelte 5 Class-based State
  *
@@ -599,7 +600,7 @@ class ChatStore {
 		// Update the tool result to show failure
 		this.updateToolResult(toolName, executionId, {
 			success: false,
-			error: 'Tool execution timed out',
+			error: t('Tool execution timed out'),
 		});
 	}
 
@@ -711,7 +712,7 @@ class ChatStore {
 			this.abortController = null;
 		}
 
-		this.cleanupPendingTools('Cancelled');
+		this.cleanupPendingTools(t('Cancelled'));
 		this.handleComplete();
 	}
 
@@ -774,7 +775,7 @@ class ChatStore {
 			// Reset validation flag so next page mount can re-fetch session status
 			this.hasValidatedSession = false;
 		} catch (error) {
-			this._error = error instanceof Error ? error.message : 'Failed to clear history';
+			this._error = error instanceof Error ? error.message : t('Failed to clear history');
 		}
 	}
 
@@ -931,7 +932,7 @@ class ChatStore {
 				await this.refreshCachesForTool(toolName);
 			}
 		} catch (error) {
-			this._error = error instanceof Error ? error.message : 'Failed to approve action';
+			this._error = error instanceof Error ? error.message : t('Failed to approve action');
 			throw error; // Re-throw to allow caller to handle (e.g., bulk operations)
 		}
 	}
@@ -1023,7 +1024,7 @@ class ChatStore {
 			// Persist updated messages to localStorage
 			this.saveToStorage();
 		} catch (error) {
-			this._error = error instanceof Error ? error.message : 'Failed to reject action';
+			this._error = error instanceof Error ? error.message : t('Failed to reject action');
 			throw error; // Re-throw to allow caller to handle (e.g., bulk operations)
 		}
 	}
@@ -1133,7 +1134,7 @@ class ChatStore {
 		this._error = error.message;
 
 		// Clean up any in-flight tools
-		this.cleanupPendingTools('Connection error');
+		this.cleanupPendingTools(t('Connection error'));
 
 		// Remove empty assistant message on early failure
 		if (this.streamingMessageId) {
@@ -1156,7 +1157,7 @@ class ChatStore {
 			log.warn(
 				`Stream completed with ${this.pendingTools.size} pending tool(s) - marking as incomplete`
 			);
-			this.cleanupPendingTools('Stream ended without result');
+			this.cleanupPendingTools(t('Stream ended without result'));
 		}
 
 		// Mark streaming message as complete and log the final message

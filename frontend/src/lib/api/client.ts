@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Base API client with error handling and authentication
  */
@@ -39,7 +40,7 @@ export function requestScope(): string {
 }
 
 export function assertCurrentScope(scope: string): void {
-	if (scope !== requestScope()) throw new DOMException('Request context changed', 'AbortError');
+	if (scope !== requestScope()) throw new DOMException(t('Request context changed'), 'AbortError');
 }
 
 // =============================================================================
@@ -249,7 +250,9 @@ function wrapFetchError(error: unknown, endpoint: string, signal?: AbortSignal):
 			const timeoutSignal = signal ? timeoutSignals.get(signal) : undefined;
 			const isTimeout = timeoutSignal?.aborted && signal?.reason === timeoutSignal.reason;
 			if (isTimeout) {
-				return new NetworkError(`Request to ${endpoint} timed out`, error, { isTimeout: true });
+				return new NetworkError(t('Request to {p0} timed out', { p0: endpoint }), error, {
+					isTimeout: true,
+				});
 			}
 			// User-initiated abort - re-throw directly to preserve existing
 			// cancellation detection pattern (error.name === 'AbortError')
@@ -258,16 +261,21 @@ function wrapFetchError(error: unknown, endpoint: string, signal?: AbortSignal):
 
 		// Check for timeout explicitly (some implementations use TimeoutError)
 		if (error.name === 'TimeoutError') {
-			return new NetworkError(`Request to ${endpoint} timed out`, error, { isTimeout: true });
+			return new NetworkError(t('Request to {p0} timed out', { p0: endpoint }), error, {
+				isTimeout: true,
+			});
 		}
 
 		// Generic network error (connection refused, DNS failure, etc.)
-		return new NetworkError(`Network error while fetching ${endpoint}: ${error.message}`, error);
+		return new NetworkError(
+			t('Network error while fetching {p0}: {p1}', { p0: endpoint, p1: error.message }),
+			error
+		);
 	}
 
 	// Unknown error type, wrap in a generic Error first
 	const wrappedError = new Error(String(error));
-	return new NetworkError(`Network error while fetching ${endpoint}`, wrappedError);
+	return new NetworkError(t('Network error while fetching {p0}', { p0: endpoint }), wrappedError);
 }
 
 /**
@@ -443,13 +451,13 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
 		promoteConfiguredKeyFailure(
 			response.status,
 			errorData,
-			`Request failed with status ${response.status}`
+			t('Request failed with status {p0}', { p0: response.status })
 		);
 		throw new ApiError(
 			response.status,
 			typeof errorData === 'object' && errorData !== null && 'detail' in errorData
 				? String((errorData as { detail: unknown }).detail)
-				: `Request failed with status ${response.status}`,
+				: t('Request failed with status {p0}', { p0: response.status }),
 			errorData
 		);
 	}
@@ -601,9 +609,12 @@ export async function requestBlobUrl(
 		promoteConfiguredKeyFailure(
 			response.status,
 			undefined,
-			`Blob request failed with status ${response.status}`
+			t('Blob request failed with status {p0}', { p0: response.status })
 		);
-		throw new ApiError(response.status, `Blob request failed with status ${response.status}`);
+		throw new ApiError(
+			response.status,
+			t('Blob request failed with status {p0}', { p0: response.status })
+		);
 	}
 	assertCurrentScope(scope);
 
@@ -634,7 +645,7 @@ export async function requestFormData<T>(
 	options: FormDataRequestOptions = {}
 ): Promise<T> {
 	const scope = requestScope();
-	const errorMessage = options.errorMessage ?? 'Request failed';
+	const errorMessage = options.errorMessage ?? t('Request failed');
 	const timeoutMs = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
 	// Build headers using shared builder with any additional caller headers

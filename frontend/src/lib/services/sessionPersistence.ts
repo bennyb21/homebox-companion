@@ -12,6 +12,7 @@
  */
 
 import { browser } from '$app/environment';
+import { t } from '$lib/i18n/index.svelte';
 import { openDB, type IDBPDatabase } from 'idb';
 import type { StoredSession } from './serialize';
 import { createLogger } from '$lib/utils/logger';
@@ -146,10 +147,12 @@ function formatAge(timestamp: number): string {
 	const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-	if (diffMins < 1) return 'just now';
-	if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-	if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-	return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+	if (diffMins < 1) return t('just now');
+	if (diffMins < 60)
+		return t(diffMins === 1 ? '{count} minute ago' : '{count} minutes ago', { count: diffMins });
+	if (diffHours < 24)
+		return t(diffHours === 1 ? '{count} hour ago' : '{count} hours ago', { count: diffHours });
+	return t(diffDays === 1 ? '{count} day ago' : '{count} days ago', { count: diffDays });
 }
 
 // =============================================================================

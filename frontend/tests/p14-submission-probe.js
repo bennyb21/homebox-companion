@@ -2,9 +2,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+import { t } from './i18n.js';
 const response = JSON.parse(readFileSync(0, 'utf8'));
 let calls = 0;
 globalThis.p14 = {
+	t,
 	itemsApi: {
 		create: async () => {
 			calls++;

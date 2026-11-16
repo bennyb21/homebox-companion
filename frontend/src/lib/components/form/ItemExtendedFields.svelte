@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ItemExtendedFields - Collapsible panel for extended item fields
 	 *
@@ -62,10 +64,10 @@
 		aria-expanded={expanded}
 	>
 		<ChevronDown class="transition-transform {expanded ? 'rotate-180' : ''}" size={16} />
-		<span>Extended Fields</span>
+		<span>{t('Extended Fields')}</span>
 		{#if hasData}
 			<span class="rounded bg-primary-500/20 px-1.5 py-0.5 text-caption text-primary-300"
-				>Has data</span
+				>{t('Has data')}</span
 			>
 		{/if}
 	</button>
@@ -77,23 +79,23 @@
 		>
 			<div class="grid grid-cols-2 {gridGap}">
 				<div>
-					<label for="{idPrefix}-manufacturer" class={labelClass}>Manufacturer</label>
+					<label for="{idPrefix}-manufacturer" class={labelClass}>{t('Manufacturer')}</label>
 					<input
 						type="text"
 						id="{idPrefix}-manufacturer"
 						bind:value={manufacturer}
-						placeholder="e.g. DeWalt"
+						placeholder={t('e.g. DeWalt')}
 						class={inputClass}
 						{disabled}
 					/>
 				</div>
 				<div>
-					<label for="{idPrefix}-model" class={labelClass}>Model Number</label>
+					<label for="{idPrefix}-model" class={labelClass}>{t('Model Number')}</label>
 					<input
 						type="text"
 						id="{idPrefix}-model"
 						bind:value={modelNumber}
-						placeholder="e.g. DCD771C2"
+						placeholder={t('e.g. DCD771C2')}
 						class={inputClass}
 						{disabled}
 					/>
@@ -101,12 +103,12 @@
 			</div>
 
 			<div>
-				<label for="{idPrefix}-serial" class={labelClass}>Serial Number</label>
+				<label for="{idPrefix}-serial" class={labelClass}>{t('Serial Number')}</label>
 				<input
 					type="text"
 					id="{idPrefix}-serial"
 					bind:value={serialNumber}
-					placeholder="e.g. SN123456789"
+					placeholder={t('e.g. SN123456789')}
 					class={inputClass}
 					{disabled}
 				/>
@@ -114,7 +116,7 @@
 
 			<div class="grid grid-cols-2 {gridGap}">
 				<div>
-					<label for="{idPrefix}-price" class={labelClass}>Purchase Price</label>
+					<label for="{idPrefix}-price" class={labelClass}>{t('Purchase Price')}</label>
 					<input
 						type="number"
 						id="{idPrefix}-price"
@@ -136,12 +138,12 @@
 						</p>{/if}
 				</div>
 				<div>
-					<label for="{idPrefix}-vendor" class={labelClass}>Purchased From</label>
+					<label for="{idPrefix}-vendor" class={labelClass}>{t('Purchased From')}</label>
 					<input
 						type="text"
 						id="{idPrefix}-vendor"
 						bind:value={purchaseFrom}
-						placeholder="e.g. Amazon"
+						placeholder={t('e.g. Amazon')}
 						class={inputClass}
 						{disabled}
 					/>
@@ -149,12 +151,12 @@
 			</div>
 
 			<div>
-				<label for="{idPrefix}-notes" class={labelClass}>Notes</label>
+				<label for="{idPrefix}-notes" class={labelClass}>{t('Notes')}</label>
 				<textarea
 					id="{idPrefix}-notes"
 					bind:value={notes}
 					rows="2"
-					placeholder="e.g., Good condition, minor scratches on left side"
+					placeholder={t('e.g., Good condition, minor scratches on left side')}
 					class="{inputClass} resize-none"
 					{disabled}></textarea>
 			</div>

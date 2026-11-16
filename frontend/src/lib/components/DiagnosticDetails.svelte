@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import type { ResearchDiagnostic } from '$lib/api/research';
 	let { diagnostic }: { diagnostic: ResearchDiagnostic } = $props();
 	// Deliberately select only contract fields, never arbitrary metadata/provider bodies.
@@ -18,16 +20,18 @@
 </script>
 
 <div class="space-y-2 wrap-break-word text-body-sm text-neutral-300">
-	{#if diagnostic.message}<p>{diagnostic.message}</p>{/if}
-	<p>Code: <code class="break-all text-neutral-200">{diagnostic.code}</code></p>
 	<details>
-		<summary class="min-h-touch cursor-pointer py-3 text-primary-400">Diagnostic details</summary>
+		<summary class="min-h-touch cursor-pointer py-3 text-primary-400"
+			>{t('Diagnostic details')}</summary
+		>
+		{#if diagnostic.message}<p>{diagnostic.message}</p>{/if}
+		<p>{t('Code:')} <code class="break-all text-neutral-200">{diagnostic.code}</code></p>
 		<p class="mb-2 text-caption text-neutral-400">
-			Safe support details only. Select and copy if needed.
+			{t('Safe support details only. Select and copy if needed.')}
 		</p>
 		<textarea
 			class="input font-mono text-caption"
-			aria-label="Safe diagnostic details"
+			aria-label={t('Safe diagnostic details')}
 			readonly
 			rows="7"
 			value={safeDetails}></textarea>

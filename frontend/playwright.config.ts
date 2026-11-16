@@ -16,6 +16,7 @@ export default defineConfig({
 	outputDir: 'test-results',
 	use: {
 		baseURL: browserOrigin,
+		locale: 'en-US',
 		serviceWorkers: 'block',
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure',

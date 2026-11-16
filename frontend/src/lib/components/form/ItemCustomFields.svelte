@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ItemCustomFields - Collapsible panel for user-defined custom fields
 	 *
@@ -54,10 +56,10 @@
 	>
 		<ChevronDown class="transition-transform {expanded ? 'rotate-180' : ''}" size={16} />
 		<Layers size={14} strokeWidth={1.5} class="text-primary-400" />
-		<span>Custom Fields</span>
+		<span>{t('Custom Fields')}</span>
 		{#if hasData}
 			<span class="rounded bg-primary-500/20 px-1.5 py-0.5 text-caption text-primary-300"
-				>Has data</span
+				>{t('Has data')}</span
 			>
 		{/if}
 	</button>
@@ -75,7 +77,7 @@
 						id="{idPrefix}-cf-{key}"
 						{value}
 						oninput={(e) => handleInput(key, e.currentTarget.value)}
-						placeholder="AI-populated value"
+						placeholder={t('AI-populated value')}
 						class={inputClass}
 						{disabled}
 					/>

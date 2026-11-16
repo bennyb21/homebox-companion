@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * TagSelector - Tag chip selector for items
 	 *
@@ -32,13 +34,13 @@
 
 {#if tagStore.loading}
 	<div>
-		<span class={labelClass}>Tags</span>
-		<p class="text-body-sm text-neutral-500">Loading tags...</p>
+		<span class={labelClass}>{t('Tags')}</span>
+		<p class="text-body-sm text-neutral-500">{t('Loading tags...')}</p>
 	</div>
 {:else if tagStore.tags.length > 0}
 	<div>
-		<span class={labelClass}>Tags</span>
-		<div class="flex flex-wrap gap-2" role="group" aria-label="Select tags">
+		<span class={labelClass}>{t('Tags')}</span>
+		<div class="flex flex-wrap gap-2" role="group" aria-label={t('Select tags')}>
 			{#each tagStore.tags as tag (tag.id)}
 				{@const isSelected = selectedIds.includes(tag.id)}
 				<button

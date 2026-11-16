@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
@@ -153,11 +155,11 @@
 
 	function continueToCapture() {
 		if (hasRecovery && recoverySummary?.hasUnconfirmedWrites) {
-			showToast('Resume or explicitly discard the retained upload draft first.', 'warning');
+			showToast(t('Resume or explicitly discard the retained upload draft first.'), 'warning');
 			return;
 		}
 		if (!locationStore.selected) {
-			showToast('Please select a location', 'warning');
+			showToast(t('Please select a location'), 'warning');
 			return;
 		}
 		goto(resolve('/capture'));
@@ -204,7 +206,7 @@
 			const locationIdMatch = resolvedUrl.match(/\/location\/([a-f0-9-]+)(?:\/|$)/i);
 
 			if (!locationIdMatch) {
-				showToast('Invalid QR code. Not a Homebox location.', 'error');
+				showToast(t('Invalid QR code. Not a Homebox location.'), 'error');
 				isProcessingQr = false;
 				return;
 			}
@@ -215,7 +217,7 @@
 			const location = await locationsApi.get(locationId);
 
 			if (!location) {
-				showToast('Location not found in your Homebox.', 'error');
+				showToast(t('Location not found in your Homebox.'), 'error');
 				isProcessingQr = false;
 				return;
 			}
@@ -238,14 +240,14 @@
 			log.error('QR scan error', error);
 			if (error instanceof ApiError) {
 				if (error.status === 401) {
-					showToast('Session expired. Please log in again.', 'error');
+					showToast(t('Session expired. Please log in again.'), 'error');
 				} else if (error.status === 404) {
-					showToast('Location not found in your Homebox.', 'error');
+					showToast(t('Location not found in your Homebox.'), 'error');
 				} else {
-					showToast('Failed to load location. Please try again.', 'error');
+					showToast(t('Failed to load location. Please try again.'), 'error');
 				}
 			} else {
-				showToast('Failed to load location. Please try again.', 'error');
+				showToast(t('Failed to load location. Please try again.'), 'error');
 			}
 		} finally {
 			isProcessingQr = false;
@@ -277,7 +279,7 @@
 			if (success) {
 				hasRecovery = false;
 				recoverySummary = null;
-				showToast('Session recovered!', 'success');
+				showToast(t('Session recovered!'), 'success');
 				// Navigate based on recovered status
 				const status = scanWorkflow.state.status;
 				if (status === 'reviewing' || status === 'confirming') {
@@ -286,7 +288,7 @@
 					goto(resolve('/capture'));
 				}
 			} else {
-				showToast('Failed to recover session', 'error');
+				showToast(t('Failed to recover session'), 'error');
 				hasRecovery = false;
 			}
 		} catch (err) {
@@ -302,19 +304,21 @@
 		if (
 			recoverySummary?.hasUnconfirmedWrites &&
 			!window.confirm(
-				'Discard retained photos and unconfirmed upload records? Resume to download originals and check the known Homebox items first. This cannot undo Homebox writes.'
+				t(
+					'Discard retained photos and unconfirmed upload records? Resume to download originals and check the known Homebox items first. This cannot undo Homebox writes.'
+				)
 			)
 		)
 			return;
 		await scanWorkflow.clearPersistedSession();
 		hasRecovery = false;
 		recoverySummary = null;
-		showToast('Previous session cleared', 'info');
+		showToast(t('Previous session cleared'), 'info');
 	}
 </script>
 
 <svelte:head>
-	<title>Select Location - Homebox Companion</title>
+	<title>{t('Select Location - Homebox Companion')}</title>
 </svelte:head>
 
 <PullToRefresh
@@ -324,8 +328,8 @@
 	<div class="animate-in">
 		<StepIndicator currentStep={1} />
 
-		<h2 class="mb-1 text-h2 text-neutral-100">Select Location</h2>
-		<p class="mb-6 text-body-sm text-neutral-400">Choose where your items will be stored</p>
+		<h2 class="mb-1 text-h2 text-neutral-100">{t('Select Location')}</h2>
+		<p class="mb-6 text-body-sm text-neutral-400">{t('Choose where your items will be stored')}</p>
 
 		{#if hasRecovery && recoverySummary && (!locationStore.selected || recoverySummary.hasUnconfirmedWrites)}
 			<RecoveryBanner
@@ -337,7 +341,11 @@
 		{/if}
 
 		{#if locationStore.selected}
-			<BackLink href="/location" label="Choose a different location" onclick={changeSelection} />
+			<BackLink
+				href="/location"
+				label={t('Choose a different location')}
+				onclick={changeSelection}
+			/>
 		{/if}
 
 		{#if locationNavigator.isLoading}
@@ -379,7 +387,7 @@
 							<MapPin class="text-primary-400" size={24} strokeWidth={1.5} />
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-body-sm text-neutral-400">Selected location:</p>
+							<p class="text-body-sm text-neutral-400">{t('Selected location:')}</p>
 							<p class="text-body font-semibold text-neutral-100">
 								{locationStore.selected.name}
 							</p>
@@ -398,7 +406,7 @@
 							type="button"
 							class="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-primary-500/10 hover:text-primary-400"
 							onclick={openEditModal}
-							title="Edit location"
+							title={t('Edit location')}
 						>
 							<SquarePen size={20} strokeWidth={1.5} />
 						</button>
@@ -407,7 +415,7 @@
 
 				<!-- Continue to Capture -->
 				<Button variant="primary" full onclick={continueToCapture}>
-					<span>Continue to Capture</span>
+					<span>{t('Continue to Capture')}</span>
 					<ArrowRight size={20} strokeWidth={1.5} />
 				</Button>
 
@@ -416,9 +424,9 @@
 					<Package size={20} strokeWidth={1.5} />
 					<span>
 						{#if scanWorkflow.state.parentItemName}
-							Inside: {scanWorkflow.state.parentItemName}
+							{t('Inside:')} {scanWorkflow.state.parentItemName}
 						{:else}
-							Place Inside an Item
+							{t('Place Inside an Item')}
 						{/if}
 					</span>
 				</Button>
@@ -434,7 +442,7 @@
 					</div>
 					<input
 						type="text"
-						placeholder="Search all locations..."
+						placeholder={t('Search all locations...')}
 						bind:value={searchQuery}
 						class="h-12 w-full rounded-xl border border-neutral-600 bg-neutral-800 pl-11 pr-10 text-neutral-100 transition-all placeholder:text-neutral-500 focus:border-primary-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/50"
 					/>
@@ -442,7 +450,7 @@
 						<button
 							type="button"
 							class="absolute inset-y-0 right-0 flex items-center pr-4 text-neutral-400 transition-colors hover:text-neutral-200"
-							aria-label="Clear search"
+							aria-label={t('Clear search')}
 							onclick={() => (searchQuery = '')}
 						>
 							<X size={16} strokeWidth={1.5} />
@@ -456,7 +464,7 @@
 					onclick={openQrScanner}
 					disabled={isProcessingQr}
 					class="flex items-center justify-center rounded-xl border border-neutral-600 bg-neutral-800 text-neutral-400 transition-all hover:border-primary-500/50 hover:bg-primary-500/5 hover:text-primary-400 disabled:opacity-50 size-12"
-					title="Scan QR Code"
+					title={t('Scan QR Code')}
 				>
 					{#if isProcessingQr}
 						<div
@@ -474,11 +482,14 @@
 					{#if filteredLocations.length === 0}
 						<div class="py-8 text-center text-neutral-500">
 							<Search class="mx-auto mb-2 opacity-50" size={40} strokeWidth={1.5} />
-							<p>No locations found for "{searchQuery}"</p>
+							<p>{t('No locations found for "')}{searchQuery}"</p>
 						</div>
 					{:else}
 						<p class="mb-2 text-body-sm text-neutral-400">
-							{filteredLocations.length} location{filteredLocations.length !== 1 ? 's' : ''} found
+							{t(filteredLocations.length === 1 ? '{count} location' : '{count} locations', {
+								count: filteredLocations.length,
+							})}
+							{t('found')}
 						</p>
 						{#each filteredLocations as item (item.location.id)}
 							<button
@@ -506,7 +517,9 @@
 									{/if}
 								</div>
 								{#if item.location.itemCount !== undefined}
-									<span class="text-body-sm text-neutral-500">{item.location.itemCount} items</span>
+									<span class="text-body-sm text-neutral-500"
+										>{item.location.itemCount} {t('items')}</span
+									>
 								{/if}
 							</button>
 						{/each}
@@ -523,7 +536,7 @@
 							onclick={() => locationNavigator.navigateToPath(-1)}
 						>
 							<Home size={16} strokeWidth={1.5} />
-							<span>All</span>
+							<span>{t('All')}</span>
 						</button>
 
 						{#each locationStore.path as pathItem (pathItem.id)}
@@ -543,7 +556,7 @@
 					<button
 						type="button"
 						class="group mb-4 flex w-full items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-900 p-4 text-left shadow-sm transition-all hover:border-primary-500 hover:bg-primary-500/5 hover:shadow-md"
-						aria-label="Select current location"
+						aria-label={t('Select current location')}
 						onclick={selectCurrentLocation}
 					>
 						<div
@@ -559,14 +572,14 @@
 							<p
 								class="font-medium text-neutral-100 transition-colors group-hover:text-primary-400"
 							>
-								Use "{locationStore.path[locationStore.path.length - 1].name}"
+								{t('Use "')}{locationStore.path[locationStore.path.length - 1].name}"
 							</p>
-							<p class="text-body-sm text-neutral-500">Select as item location</p>
+							<p class="text-body-sm text-neutral-500">{t('Select as item location')}</p>
 						</div>
 						<div
 							class="flex items-center gap-1 text-neutral-500 transition-colors group-hover:text-primary-400"
 						>
-							<span class="text-body-sm font-medium">Select</span>
+							<span class="text-body-sm font-medium">{t('Select')}</span>
 							<ArrowRight size={16} strokeWidth={1.5} />
 						</div>
 					</button>
@@ -578,7 +591,7 @@
 						<div class="flex items-center gap-1.5 text-neutral-500">
 							<FolderOpen size={16} strokeWidth={1.5} />
 							<span class="text-body-sm font-medium"
-								>Inside {locationStore.path[locationStore.path.length - 1].name}</span
+								>{t('Inside')} {locationStore.path[locationStore.path.length - 1].name}</span
 							>
 						</div>
 						<div class="h-px flex-1 bg-neutral-800"></div>
@@ -621,7 +634,7 @@
 									<ChevronRight size={16} strokeWidth={1.5} />
 								</div>
 							{:else if location.itemCount !== undefined}
-								<span class="text-body-sm text-neutral-500">{location.itemCount} items</span>
+								<span class="text-body-sm text-neutral-500">{location.itemCount} {t('items')}</span>
 							{/if}
 						</button>
 					{/each}
@@ -635,9 +648,9 @@
 						<Plus size={20} strokeWidth={1.5} />
 						<span>
 							{#if locationStore.path.length > 0}
-								Create Location in {locationStore.path[locationStore.path.length - 1].name}
+								{t('Create Location in')} {locationStore.path[locationStore.path.length - 1].name}
 							{:else}
-								Create New Location
+								{t('Create New Location')}
 							{/if}
 						</span>
 					</Button>

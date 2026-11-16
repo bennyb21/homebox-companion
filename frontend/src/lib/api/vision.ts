@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Vision AI API endpoints
  */
@@ -95,7 +96,7 @@ export const vision = {
 		const headers = await buildVisionHeaders();
 		log.info('Sending vision/detect request to backend');
 		return requestFormData<DetectionResponse>('/tools/vision/detect', formData, {
-			errorMessage: 'Detection failed',
+			errorMessage: t('Detection failed'),
 			signal: options.signal,
 			timeout: getAiRequestTimeoutMs(),
 			headers,
@@ -125,7 +126,7 @@ export const vision = {
 		const headers = await buildVisionHeaders();
 		log.info(`Sending vision/analyze request for "${itemName}" to backend`);
 		return requestFormData<AdvancedItemDetails>('/tools/vision/analyze', formData, {
-			errorMessage: 'Analysis failed',
+			errorMessage: t('Analysis failed'),
 			signal: options.signal,
 			timeout: getAiRequestTimeoutMs(),
 			headers,
@@ -178,7 +179,7 @@ export const vision = {
 		const headers = await buildVisionHeaders();
 		log.info(`Sending vision/correct request for "${currentItem.name}" to backend`);
 		return requestFormData<CorrectionResponse>('/tools/vision/correct', formData, {
-			errorMessage: 'Correction failed',
+			errorMessage: t('Correction failed'),
 			signal: options.signal,
 			timeout: getAiRequestTimeoutMs(),
 			headers,

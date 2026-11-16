@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 function harness(convert = async () => new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])])) {
 	const source = readFileSync(
@@ -19,7 +20,8 @@ function harness(convert = async () => new Blob([new Uint8Array([0xff, 0xd8, 0xf
 		exports,
 		File,
 		Uint8Array,
-		require: () => ({ __esModule: true, default: convert }),
+		require: (name) =>
+			name === '$lib/i18n/index.svelte' ? { t } : { __esModule: true, default: convert },
 		createImageBitmap: async (file) => {
 			decoded.push(file);
 			if (file.name.startsWith('corrupt')) throw new Error('decode failed');

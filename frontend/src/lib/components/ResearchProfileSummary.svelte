@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onMount, onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { request } from '$lib/api/client';
@@ -21,29 +23,18 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- Base routes use resolve; query values are encoded and return targets are fixed. -->
-<div class="space-y-2 rounded-lg border border-neutral-700 bg-neutral-800/50 p-3 text-body-sm">
-	<p class="wrap-break-word font-medium text-neutral-100">
-		{active
-			? `Research uses: ${active.name} — ${active.model}`
+<div class="flex flex-wrap items-center gap-x-3 text-caption text-neutral-400">
+	<span class="wrap-break-word"
+		>{active
+			? `${active.name} · ${active.model}`
 			: unavailable
-				? 'Research profile could not be loaded.'
+				? t('Research profile could not be loaded.')
 				: settings
-					? 'No research profile selected.'
-					: 'Loading research profile…'}
-	</p>
-	{#if settings && !settings.enabled}<p class="text-neutral-400">
-			Research is currently disabled.
-		</p>{/if}
-	<div class="flex flex-wrap gap-3">
-		<a
-			class="inline-flex min-h-touch items-center text-primary-400 underline"
-			href={`${resolve('/settings')}?return=${returnTo}#product-research`}
-			>Choose research profile</a
-		>
-		{#if active}<a
-				class="inline-flex min-h-touch items-center text-primary-400 underline"
-				href={`${resolve('/settings')}?editProfile=${encodeURIComponent(active.name)}&return=${returnTo}#product-research`}
-				>Edit active research profile</a
-			>{/if}
-	</div>
+					? t('No research profile selected.')
+					: t('Loading research profile…')}</span
+	>
+	<a
+		class="inline-flex min-h-touch items-center text-primary-400 underline"
+		href={`${resolve('/settings')}?return=${returnTo}#product-research`}>{t('Research settings')}</a
+	>
 </div>

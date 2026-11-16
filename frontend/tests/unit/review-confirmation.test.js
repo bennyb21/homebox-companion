@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 function load(path, imports = {}) {
 	const source = readFileSync(new URL(`../../src/lib/${path}`, import.meta.url), 'utf8');
@@ -12,7 +13,7 @@ function load(path, imports = {}) {
 	const exports = {};
 	runInNewContext(outputText, {
 		exports,
-		require: (name) => imports[name] ?? {},
+		require: (name) => (name === '$lib/i18n/index.svelte' ? { t } : (imports[name] ?? {})),
 		$state: (value) => value,
 	});
 	return exports;

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import type { Snippet } from 'svelte';
 	import X from '@lucide/svelte/icons/x';
 	import { modalDialog } from '$lib/actions/dialog';
@@ -20,7 +22,7 @@
 		open = $bindable(),
 		title = '',
 		compact = false,
-		ariaLabel = 'Information',
+		ariaLabel = t('Information'),
 		dismissible = true,
 		onclose,
 		children,
@@ -68,7 +70,7 @@
 							type="button"
 							class="min-h-touch min-w-touch rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-neutral-200"
 							onclick={handleClose}
-							aria-label="Close"
+							aria-label={t('Close')}
 						>
 							<X size={20} />
 						</button>
@@ -83,7 +85,7 @@
 						type="button"
 						class="absolute right-2 top-2 min-h-touch min-w-touch rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-neutral-300"
 						onclick={handleClose}
-						aria-label="Close"
+						aria-label={t('Close')}
 					>
 						<X size={16} />
 					</button>

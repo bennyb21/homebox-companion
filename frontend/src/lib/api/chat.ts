@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Chat API client for conversational assistant
  *
@@ -191,14 +192,14 @@ export function sendMessage(message: string, options: SendMessageOptions = {}): 
 
 			if (!response.ok) {
 				const data = await response.json().catch(() => null);
-				const message = typeof data?.detail === 'string' ? data.detail : 'Chat request failed';
+				const message = typeof data?.detail === 'string' ? data.detail : t('Chat request failed');
 				if (response.status === 401 && authStore.isLegacy) authStore.markSessionExpired();
 				promoteConfiguredKeyFailure(response.status, data, message);
 				throw new ApiError(response.status, message, data);
 			}
 
 			if (!response.body) {
-				throw new Error('No response body');
+				throw new Error(t('No response body'));
 			}
 
 			if (signal.aborted) return;
@@ -266,7 +267,7 @@ export function sendMessage(message: string, options: SendMessageOptions = {}): 
 								promoteConfiguredKeyFailure(
 									status,
 									{ ...data, detail: data.message },
-									'Homebox connection failed'
+									t('Homebox connection failed')
 								);
 							}
 
@@ -359,7 +360,7 @@ export async function clearHistory(): Promise<void> {
 		method: 'DELETE',
 		headers: chatContextHeader(),
 	});
-	log.success('Chat history cleared');
+	log.success(t('Chat history cleared'));
 }
 
 /**

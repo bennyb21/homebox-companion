@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Items API endpoints
  */
@@ -88,7 +89,7 @@ export const items = {
 		if (options.slot) formData.append('slot', options.slot);
 		if (options.originalFilename) formData.append('original_filename', options.originalFilename);
 		return requestFormData<AttachmentReceipt>(`/items/${itemId}/attachments`, formData, {
-			errorMessage: 'Photo upload not confirmed',
+			errorMessage: t('Photo upload not confirmed'),
 			skipAuthRetry: true,
 			signal: options.signal,
 		});

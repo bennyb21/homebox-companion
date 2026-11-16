@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Tags Store - Svelte 5 Class-based State
  *
@@ -115,7 +116,7 @@ class TagsStore {
 			return data;
 		} catch (error) {
 			if (generation === this._fetchGeneration) {
-				const message = error instanceof Error ? error.message : 'Failed to fetch tags';
+				const message = error instanceof Error ? error.message : t('Failed to fetch tags');
 				this._error = message;
 			}
 			throw error;

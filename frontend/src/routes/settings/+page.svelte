@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * Settings Page - Thin orchestrator for settings sections.
 	 *
@@ -14,6 +16,7 @@
 	import { getInitPromise } from '$lib/services/bootstrap';
 	import { settingsService } from '$lib/workflows/settings.svelte';
 
+	import LanguageSection from '$lib/components/settings/LanguageSection.svelte';
 	import AccountSection from '$lib/components/settings/AccountSection.svelte';
 	import AboutSection from '$lib/components/settings/AboutSection.svelte';
 	import FieldPrefsSection from '$lib/components/settings/FieldPrefsSection.svelte';
@@ -46,13 +49,13 @@
 </script>
 
 <svelte:head>
-	<title>Settings - Homebox Companion</title>
+	<title>{t('Settings - Homebox Companion')}</title>
 </svelte:head>
 
 <div class="animate-in space-y-6">
 	<div>
-		<h1 class="text-h1 font-bold text-neutral-100">Settings</h1>
-		<p class="mt-1 text-body-sm text-neutral-400">App configuration and information</p>
+		<h1 class="text-h1 font-bold text-neutral-100">{t('Settings')}</h1>
+		<p class="mt-1 text-body-sm text-neutral-400">{t('App configuration and information')}</p>
 	</div>
 
 	{#if settingsService.errors.init}
@@ -60,14 +63,14 @@
 			<div class="flex items-start gap-3">
 				<AlertTriangle class="mt-0.5 shrink-0 text-error-500" size={20} strokeWidth={1.5} />
 				<div>
-					<p class="font-medium text-error-500">Failed to load settings</p>
+					<p class="font-medium text-error-500">{t('Failed to load settings')}</p>
 					<p class="mt-1 text-body-sm text-neutral-400">{settingsService.errors.init}</p>
 					<button
 						type="button"
 						class="mt-2 text-body-sm text-primary-400 underline hover:text-primary-300"
 						onclick={() => settingsService.initialize()}
 					>
-						Try again
+						{t('Try again')}
 					</button>
 				</div>
 			</div>
@@ -78,8 +81,9 @@
 	{#if returnTo}<a
 			class="inline-flex min-h-touch items-center text-primary-400 underline"
 			href={returnTo === 'review' ? `${resolve('/review')}#product-research` : resolve('/research')}
-			>{returnTo === 'review' ? 'Return to item draft' : 'Return to research jobs'}</a
+			>{returnTo === 'review' ? t('Return to item draft') : t('Return to research jobs')}</a
 		>{/if}
+	<LanguageSection />
 	<AccountSection />
 	<AboutSection />
 	<LLMProfilesSection bind:this={modelEditor} onavailability={(ready) => (editorReady = ready)} />

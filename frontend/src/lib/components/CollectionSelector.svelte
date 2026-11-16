@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Layers from '@lucide/svelte/icons/layers';
 	import { collectionStore } from '$lib/stores/collection.svelte';
@@ -52,7 +54,7 @@
 			try {
 				await Promise.all([locationNavigator.loadTree(), fetchTags(true)]);
 			} catch {
-				showToast('Failed to load collection data. Please try again.', 'error');
+				showToast(t('Failed to load collection data. Please try again.'), 'error');
 			}
 		}
 	}
@@ -72,7 +74,7 @@
 			id="collection-selector"
 		>
 			<Layers size={14} strokeWidth={1.5} class="text-primary-400" />
-			<span class="max-w-32 truncate">{collectionStore.selectedGroup?.name ?? 'Select'}</span>
+			<span class="max-w-32 truncate">{collectionStore.selectedGroup?.name ?? t('Select')}</span>
 			<ChevronDown
 				size={14}
 				strokeWidth={1.5}

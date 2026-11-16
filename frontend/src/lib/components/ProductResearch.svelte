@@ -1,9 +1,14 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onDestroy, onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { request } from '$lib/api/client';
 	import Button from '$lib/components/Button.svelte';
 	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
+	import ResearchProposals from '$lib/components/ResearchProposals.svelte';
+	import ResearchNotice from '$lib/components/ResearchNotice.svelte';
+	import { prepareProposals, researchSources, type ResearchProposal } from '$lib/api/research';
 	import ResearchProfileSummary from '$lib/components/ResearchProfileSummary.svelte';
 	import { researchOutcome, type ResearchResult, type ResearchItemPatch } from '$lib/api/research';
 	import { fileToDataUrl } from '$lib/services/serialize';
@@ -16,17 +21,11 @@
 		item: DeepReadonly<ReviewItem>;
 		onadopt: (patch: Record<string, string>, itemPatch: ResearchItemPatch) => void;
 	} = $props();
-	type Proposal = {
-		name: string;
-		current: string;
-		value: string;
-		source_urls: string[];
-		evidence: string;
-	};
+	type Proposal = ResearchProposal;
 	type Review = { id: string; result: ResearchResult; proposals: Proposal[] };
 	let enabled = $state(false);
 	let busy = $state(false);
-	let message = $state('');
+	let message = $state<import('$lib/i18n/messages').MessageKey | ''>('');
 	let review = $state<Review | null>(null);
 	let selected = $state<number[]>([]);
 	let controller: AbortController | null = null;
@@ -55,11 +54,14 @@
 		]);
 	}
 	function cancel() {
+		const wasBusy = busy;
 		controller?.abort();
 		controller = null;
 		busy = false;
 		review = null;
-		message = 'Suggestions discarded. An already dispatched request may still cost money.';
+		message = wasBusy
+			? 'Suggestions discarded. An already dispatched request may still cost money.'
+			: 'Suggestions discarded.';
 	}
 	onDestroy(() => controller?.abort());
 	onMount(() => {
@@ -120,8 +122,7 @@
 				message = 'Draft changed; research was not applied.';
 				return;
 			}
-			review = result;
-			message = researchOutcome(result.result.status, result.result.diagnostic);
+			review = { ...result, proposals: prepareProposals(result.proposals) };
 		} catch {
 			if (!active.signal.aborted)
 				message =
@@ -175,61 +176,54 @@
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- Provider links are validated HTTP(S) display metadata -->
 <div id="product-research" class="space-y-3">
-	<p>
-		Product information and associated photos are sent to OpenAI. Research may incur API costs.
-		Suggestions are not independently verified; no automatic inventory changes.
-	</p>
+	<ResearchNotice />
 	<Button
 		variant="secondary"
 		size="sm"
 		type="button"
 		disabled={!enabled || !item.template_id || busy}
-		onclick={lookup}>Research this item</Button
+		onclick={lookup}>{t('Research this item')}</Button
 	>
 	{#if !enabled}<p>
-			Research is disabled or unavailable. Capture and save remain available. <a
-				href={`${resolve('/settings')}#product-research`}>Research settings</a
-			>
+			{t('Research is disabled or unavailable. Capture and save remain available.')}
 		</p>{/if}
 	{#if !item.template_id}<p>
-			Select a supported native text template to adopt research fields.
+			{t('Select a supported native text template to adopt research fields.')}
 		</p>{/if}
 	<ResearchProfileSummary />
-	<a href={resolve('/research')}>Review saved research jobs</a>
+	<a href={resolve('/research')}>{t('Review saved research jobs')}</a>
 	{#if busy}<Button variant="secondary" size="sm" type="button" onclick={cancel}
-			>Cancel research</Button
+			>{t('Cancel research')}</Button
 		>{/if}
-	<p role="status" class="wrap-break-word text-body-sm text-neutral-200">{message}</p>
-	{#if review?.result.diagnostic}<DiagnosticDetails diagnostic={review.result.diagnostic} />{/if}
+	<p role="status" class="wrap-break-word text-body-sm text-neutral-200">
+		{message
+			? t(message)
+			: review
+				? researchOutcome(review.result.status, review.result.diagnostic)
+				: ''}
+	</p>
+	{#if review?.result.diagnostic && review.result.status !== 'matched'}<DiagnosticDetails
+			diagnostic={review.result.diagnostic}
+		/>{/if}
 	{#if review}
 		{#if review.result.ambiguity}<p>{review.result.ambiguity}</p>{/if}
 		<p>
-			{review.result.sources?.length ? 'Sources:' : 'No usable provider citations were returned.'}
-			{#each review.result.sources ?? [] as source (source.url)}
+			{researchSources(review.result, review.proposals).length
+				? t('Sources:')
+				: t('No usable provider citations were returned.')}
+			{#each researchSources(review.result, review.proposals) as source (source.url)}
 				<a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>{/each}
 		</p>
-		{#each review.proposals as proposal, index (index)}
-			<div>
-				<label
-					><input type="checkbox" bind:group={selected} value={index} />Adopt {proposal.name}</label
-				>
-				<p>Current: {proposal.current || '(empty)'}</p>
-				<label
-					>Proposed {proposal.name}<textarea
-						class="input mt-2"
-						maxlength="1200"
-						bind:value={proposal.value}></textarea></label
-				>
-			</div>
-		{/each}
+		<ResearchProposals bind:proposals={review.proposals} bind:selected disabled={busy} />
 		{#if review.proposals.length}<Button
 				variant="secondary"
 				size="sm"
 				type="button"
 				disabled={!selected.length || busy}
-				onclick={adopt}>Adopt selected fields</Button
+				onclick={adopt}>{t('Adopt selected fields')}</Button
 			>{/if}
-		<Button variant="secondary" size="sm" type="button" onclick={cancel}>Discard suggestions</Button
+		<Button variant="secondary" size="sm" type="button" onclick={cancel}
+			>{t('Discard suggestions')}</Button
 		>
 	{/if}
 </div>

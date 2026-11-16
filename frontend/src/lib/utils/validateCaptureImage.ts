@@ -1,8 +1,10 @@
+import { t } from '$lib/i18n/index.svelte';
 /** Validate image contents before capture state or preview URLs are created. */
 export async function validateCaptureImage(file: File, maxSizeMb: number): Promise<File> {
 	const maxBytes = maxSizeMb * 1024 * 1024;
-	if (file.size > maxBytes) throw new Error(`Image is too large (max ${maxSizeMb}MB).`);
-	if (file.size === 0) throw new Error('Image is empty. Choose another photo.');
+	if (file.size > maxBytes)
+		throw new Error(t('Image is too large (max {p0}MB).', { p0: maxSizeMb }));
+	if (file.size === 0) throw new Error(t('Image is empty. Choose another photo.'));
 	const bytes = new Uint8Array(await file.slice(0, 64).arrayBuffer());
 	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.slice(start, end));
 	let mime: string;
@@ -20,18 +22,18 @@ export async function validateCaptureImage(file: File, maxSizeMb: number): Promi
 				maxSizeMb
 			);
 		} catch {
-			throw new Error('Unable to read this HEIC/HEIF photo. Try exporting it as JPEG.');
+			throw new Error(t('Unable to read this HEIC/HEIF photo. Try exporting it as JPEG.'));
 		}
 	} else
 		throw new Error(
-			'Invalid or unsupported image. Choose a JPEG, PNG, WebP, GIF or HEIC/HEIF photo.'
+			t('Invalid or unsupported image. Choose a JPEG, PNG, WebP, GIF or HEIC/HEIF photo.')
 		);
 	const normalized = new File([file], file.name, { type: mime, lastModified: file.lastModified });
 	try {
 		const bitmap = await createImageBitmap(normalized);
 		bitmap.close();
 	} catch {
-		throw new Error('Unable to read this image. Choose a valid photo.');
+		throw new Error(t('Unable to read this image. Choose a valid photo.'));
 	}
 	return normalized;
 }

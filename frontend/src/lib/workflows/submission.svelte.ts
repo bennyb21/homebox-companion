@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * SubmissionService - Handles item submission to Homebox
  *
@@ -270,8 +271,9 @@ export class SubmissionService {
 				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 				return {
 					status: 'partial_success',
-					error:
-						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.',
+					error: t(
+						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.'
+					),
 				};
 			}
 			if (response.errors && response.errors.length > 0) {
@@ -289,7 +291,10 @@ export class SubmissionService {
 				return {
 					status: 'partial_success',
 					createdId: response.created[0]?.id,
-					error: `Item created, but some details were not saved and photos were not uploaded. Review this item in Homebox. ${response.errors.join('; ')}`,
+					error: t(
+						'Item created, but some details were not saved and photos were not uploaded. Review this item in Homebox. {p0}',
+						{ p0: response.errors.join('; ') }
+					),
 				};
 			}
 
@@ -308,8 +313,9 @@ export class SubmissionService {
 						return {
 							status: 'partial_success',
 							createdId: createdItem.id,
-							error:
-								'Item created; photo upload not confirmed. Photos are retained. Check Homebox before manually repairing; automatic retry is blocked.',
+							error: t(
+								'Item created; photo upload not confirmed. Photos are retained. Check Homebox before manually repairing; automatic retry is blocked.'
+							),
 						};
 					}
 
@@ -342,7 +348,10 @@ export class SubmissionService {
 						this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 						return {
 							status: 'partial_success',
-							error: `Asset ID '${confirmedItem.asset_id}' could not be assigned to '${confirmedItem.name}'`,
+							error: t("Asset ID '{p0}' could not be assigned to '{p1}'", {
+								p0: confirmedItem.asset_id ?? '',
+								p1: confirmedItem.name,
+							}),
 							createdId: createdItem.id,
 						};
 					}
@@ -357,7 +366,7 @@ export class SubmissionService {
 				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 				return {
 					status: 'partial_success',
-					error: 'Item created but no ID returned - attachments skipped',
+					error: t('Item created but no ID returned - attachments skipped'),
 				};
 			} else {
 				// No created items and no errors - unexpected state
@@ -365,8 +374,9 @@ export class SubmissionService {
 				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 				return {
 					status: 'partial_success',
-					error:
-						'Creation is unconfirmed - no items returned. Check Homebox before creating again.',
+					error: t(
+						'Creation is unconfirmed - no items returned. Check Homebox before creating again.'
+					),
 				};
 			}
 		} catch (error) {
@@ -377,8 +387,9 @@ export class SubmissionService {
 				return {
 					status: 'partial_success',
 					createdId,
-					error:
-						'Item created but follow-up was interrupted. Review the existing item in Homebox; do not recreate it.',
+					error: t(
+						'Item created but follow-up was interrupted. Review the existing item in Homebox; do not recreate it.'
+					),
 				};
 			}
 			if (
@@ -391,8 +402,9 @@ export class SubmissionService {
 				this.itemStatuses = { ...this.itemStatuses, [index]: 'partial_success' };
 				return {
 					status: 'partial_success',
-					error:
-						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.',
+					error: t(
+						'Creation is unconfirmed. Check Homebox before creating again; automatic retry is blocked.'
+					),
 				};
 			}
 			// Check for 401 authentication error
@@ -475,7 +487,7 @@ export class SubmissionService {
 		this.progress = {
 			current: 0,
 			total: items.length,
-			message: 'Creating items...',
+			message: t('Creating items...'),
 		};
 
 		const signal = this.abortController?.signal;
@@ -509,14 +521,17 @@ export class SubmissionService {
 					if (itemResult.error) {
 						result.errors.push(itemResult.error);
 					} else {
-						result.errors.push(`Failed to create '${items[i].name}'`);
+						result.errors.push(t("Failed to create '{p0}'", { p0: items[i].name }));
 					}
 				}
 
 				this.progress = {
 					current: i + 1,
 					total: items.length,
-					message: `Created ${result.successCount + result.partialSuccessCount} of ${items.length}...`,
+					message: t('Created {p0} of {p1}...', {
+						p0: result.successCount + result.partialSuccessCount,
+						p1: items.length,
+					}),
 				};
 			}
 
@@ -554,8 +569,8 @@ export class SubmissionService {
 				return result;
 			}
 			log.error('Submission failed', error);
-			const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-			result.errors.push(`Submission failed: ${errorMsg}`);
+			const errorMsg = error instanceof Error ? error.message : t('Unknown error');
+			result.errors.push(t('Submission failed: {p0}', { p0: errorMsg }));
 			this.lastErrors = result.errors;
 			return result;
 		} finally {
@@ -626,7 +641,7 @@ export class SubmissionService {
 					if (itemResult.error) {
 						result.errors.push(itemResult.error);
 					} else {
-						result.errors.push(`Failed to create '${items[i].name}'`);
+						result.errors.push(t("Failed to create '{p0}'", { p0: items[i].name }));
 					}
 				}
 			}
@@ -658,8 +673,8 @@ export class SubmissionService {
 				return result;
 			}
 			log.error('Retry failed', error);
-			const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-			result.errors.push(`Retry failed: ${errorMsg}`);
+			const errorMsg = error instanceof Error ? error.message : t('Unknown error');
+			result.errors.push(t('Retry failed: {p0}', { p0: errorMsg }));
 			this.lastErrors = result.errors;
 			return result;
 		} finally {
@@ -824,7 +839,9 @@ export class SubmissionService {
 			) {
 				this.itemStatuses[Number(index)] = 'partial_success';
 				this.lastErrors.push(
-					'Creation or follow-up is unconfirmed after interruption. Check Homebox before creating again.'
+					t(
+						'Creation or follow-up is unconfirmed after interruption. Check Homebox before creating again.'
+					)
 				);
 			} else if (status === 'pending') this.itemStatuses[Number(index)] = 'failed';
 		}

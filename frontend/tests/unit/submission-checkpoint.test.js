@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 const log = { error() {}, info() {}, debug() {}, warn() {} };
 function load(path, imports = {}) {
@@ -15,7 +16,7 @@ function load(path, imports = {}) {
 	).outputText;
 	runInNewContext(code, {
 		exports,
-		require: (n) => imports[n],
+		require: (n) => (n === '$lib/i18n/index.svelte' ? { t } : imports[n]),
 		$state: (v) => v,
 		crypto,
 		structuredClone,

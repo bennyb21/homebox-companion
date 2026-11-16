@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { resolveNavHref } from '$lib/navigation/config';
 
@@ -9,7 +11,7 @@
 		disabled?: boolean;
 	}
 
-	let { href, label = 'Go back', onclick, disabled = false }: Props = $props();
+	let { href, label = t('Go back'), onclick, disabled = false }: Props = $props();
 
 	function handleClick(e: MouseEvent) {
 		if (disabled) {
