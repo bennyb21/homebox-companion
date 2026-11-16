@@ -426,11 +426,9 @@ test.describe('German browser default and explicit English override', () => {
 		await page.getByText('Unveränderte Felder (2)', { exact: true }).click();
 		await page.setViewportSize({ width: 390, height: 900 });
 		await screenshot(page, 'core-research-de-390');
-		const card = page
-			.locator('section')
-			.filter({
-				has: page.getByRole('heading', { name: 'Hydraulikpumpe Beispiel P-100', exact: true }),
-			});
+		const card = page.locator('section').filter({
+			has: page.getByRole('heading', { name: 'Hydraulikpumpe Beispiel P-100', exact: true }),
+		});
 		await card.evaluate((element) =>
 			window.scrollTo(0, window.scrollY + element.getBoundingClientRect().top - 80)
 		);

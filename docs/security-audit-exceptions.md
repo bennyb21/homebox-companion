@@ -395,3 +395,42 @@ accepted risk for the private usability pilot, not zero findings; no new waiver
 or advisory is accepted. New findings still block. Successful usability acceptance
 still triggers framework migration and fresh review before leaving the pilot.
 Published 0.4.0 remains immutable; existing hosted and protected image gates apply.
+
+## 0.5.0 browser-language and compact-research reassessment
+
+The parent independently reviewed runtime through
+`df42f2ec8569eb6d462d31cbdda52da3669ea79f`. The release review inspected the
+changed frontend security contexts before rebinding:
+
+- Translation calls replace app-owned text, labels, placeholders and error prose
+  in routes, components, API wrappers, stores and workflows. The catalog is local
+  typed data; interpolation returns strings rendered through Svelte text/attribute
+  escaping. It does not feed HTML, URLs, request destinations or build options.
+  Existing ChatMessage sanitized-markdown rendering and LogViewer rendering are
+  unchanged; translations are not routed into these HTML sinks.
+- Locale detection accepts only `de`/`en`, falls back to English and tolerates
+  blocked browser storage. The new state writes only `hbc.ui-language` and document
+  `lang`; the fixed Settings selector does not dispatch requests or modify AI
+  output language, identifiers, inventory values or custom-field names.
+- ResearchProposals and autosize use escaped labels, input/textarea values and
+  numeric measured height. Received-value grouping retains original indices;
+  adoption remains explicit with existing scope/staleness checks. ResearchNotice
+  and collapsed diagnostics are presentation changes, not new request paths.
+  Source aggregation deduplicates existing server-validated HTTP(S) citation
+  metadata; links retain `noopener noreferrer`. ResearchProfileSummary retains a
+  fixed Settings route and restricted return targets, removing the extra edit link.
+- No `use:enhance`, enhanced form action, `setHeaders`, new raw-HTML sink or
+  untrusted prerender/build configuration input was introduced. The static SPA,
+  Svelte/Vite/TS configuration, `.npmrc`, plugin and deepmerge contexts are unchanged.
+  This is scoped source review, not a formal proof of exploit unreachability.
+
+Exactly 75 changed existing source hashes and the two frontend manifest/lock
+root-version hashes are renewed. Seven new inventory bindings cover autosize,
+ResearchNotice, ResearchProposals, LanguageSection and the three i18n files.
+Third-party dependency objects, exact advisory objects, severity/graph/counts,
+phase and historical raw fixtures remain unchanged. The same three low advisories
+remain accepted findings for the private usability pilot, not a clean raw audit.
+No new exception, expiry extension or policy bypass is granted. Praise of one
+example is not full pilot acceptance: successful usability acceptance still
+triggers framework migration and fresh review before leaving the pilot. Published
+0.4.1 and older images remain immutable; existing hosted and protected gates apply.
