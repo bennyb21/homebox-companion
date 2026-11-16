@@ -133,6 +133,7 @@ export class MockApi {
 	}
 
 	private installBaseline(): void {
+		this.on('GET', '/api/research/capabilities', () => json({ enabled: false }));
 		this.on('GET', '/api/settings/research', () =>
 			json({ enabled: false, profile_name: null, profiles: [] })
 		);

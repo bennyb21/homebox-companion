@@ -27,13 +27,14 @@ test('saved-item research jobs show durable status and require selected adoption
 	api.on('GET', '/api/items', () => json([{ id: 'item1', name: 'Synthetic part', quantity: 1 }]));
 	api.on('GET', '/api/research/jobs', () => json([job()]));
 	api.on('POST', '/api/research/jobs/job1/apply', (request) => {
-		expect(request.postDataJSON()).toEqual({ selected: [0] });
+		expect(request.postDataJSON()).toEqual({ selected: [0], edits: { '0': 'Reviewed steel' } });
 		state = 'applied';
 		return json({ state });
 	});
 	await page.goto('/research');
 	await expect(page.getByText('matched', { exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Apply selected to Homebox' })).toBeDisabled();
+	await page.getByLabel('Proposed Specifications', { exact: true }).fill('Reviewed steel');
 	await page.getByLabel('Adopt Specifications').check();
 	await page.getByRole('button', { name: 'Apply selected to Homebox' }).click();
 	await expect(page.getByText('applied', { exact: true })).toBeVisible();

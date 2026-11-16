@@ -37,7 +37,8 @@ for (const status of ['failed', 'incomplete', 'refused', 'no_results', 'unknown_
 			})
 		);
 		api.on('POST', '/api/research/lookups', (request) => {
-			expect(request.postDataJSON().identity).not.toHaveProperty('identity_confirmed');
+			expect(request.postDataJSON()).not.toHaveProperty('identity');
+			expect(request.postDataJSON().context.images).toHaveLength(1);
 			return json({
 				id: 'lookup-1',
 				result: {
@@ -57,7 +58,9 @@ for (const status of ['failed', 'incomplete', 'refused', 'no_results', 'unknown_
 		await selectLocation(page);
 		await uploadSyntheticPhoto(page);
 		await analyzePhotos(page);
-		await page.getByRole('button', { name: 'Research product data', exact: true }).click();
+		await expect(
+			page.getByRole('button', { name: 'Research this item', exact: true })
+		).toBeVisible();
 		await expect(
 			page.getByText('Research uses: default — gpt-6-luna', { exact: true })
 		).toBeVisible();
@@ -67,7 +70,7 @@ for (const status of ['failed', 'incomplete', 'refused', 'no_results', 'unknown_
 				window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 80 })
 			);
 		await page.screenshot({ path: test.info().outputPath(`lookup-form-${status}-${width}.png`) });
-		await page.getByRole('button', { name: 'Research this product', exact: true }).click();
+		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 		await expect(page.getByText('Synthetic safe explanation.', { exact: true })).toBeVisible();
 		await expect(page.getByText(code, { exact: true })).toBeVisible();
 		await expect(

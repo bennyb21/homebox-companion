@@ -6,13 +6,19 @@
 	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
 	import ResearchProfileSummary from '$lib/components/ResearchProfileSummary.svelte';
 	import { researchOutcome, type ResearchResult } from '$lib/api/research';
+	import { fileToDataUrl } from '$lib/services/serialize';
 	import { createUuidV4 } from '$lib/utils/uuid';
 	import type { DeepReadonly, ReviewItem } from '$lib/types';
 	let {
 		item,
 		onadopt,
-	}: { item: DeepReadonly<ReviewItem>; onadopt: (patch: Record<string, string>) => void } =
-		$props();
+	}: {
+		item: DeepReadonly<ReviewItem>;
+		onadopt: (
+			patch: Record<string, string>,
+			itemPatch: { name?: string; description?: string }
+		) => void;
+	} = $props();
 	type Proposal = {
 		name: string;
 		current: string;
@@ -20,29 +26,35 @@
 		source_urls: string[];
 		evidence: string;
 	};
-	type Review = {
-		id: string;
-		result: ResearchResult;
-		proposals: Proposal[];
-	};
-	let opened = $state(false);
+	type Review = { id: string; result: ResearchResult; proposals: Proposal[] };
 	let enabled = $state(false);
 	let busy = $state(false);
-	let manufacturer = $state('');
-	let identifier = $state('');
-	let kind = $state('part_number');
 	let message = $state('');
 	let review = $state<Review | null>(null);
 	let selected = $state<number[]>([]);
 	let controller: AbortController | null = null;
 	let base = '';
 	let revision = '';
+	const fileIds = new WeakMap<File, string>();
+	function fileId(file: File) {
+		if (!fileIds.has(file)) fileIds.set(file, createUuidV4());
+		return fileIds.get(file);
+	}
 	function snapshot() {
 		return JSON.stringify([
 			item.reviewId,
 			item.entity_type_id,
 			item.template_id,
+			item.name,
+			item.description,
+			item.manufacturer,
+			item.model_number,
+			item.serial_number,
 			item.custom_fields,
+			item.originalFile && fileId(item.originalFile),
+			item.additionalImages?.map(fileId),
+			item.compressedDataUrl,
+			item.compressedAdditionalDataUrls,
 		]);
 	}
 	function cancel() {
@@ -50,53 +62,42 @@
 		controller = null;
 		busy = false;
 		review = null;
-		message = 'Research cancelled. Any already dispatched search may still cost money.';
+		message = 'Suggestions discarded. An already dispatched request may still cost money.';
 	}
 	onDestroy(() => controller?.abort());
 	onMount(() => {
-		if (window.location.hash === '#product-research') void open();
-	});
-	async function open() {
-		opened = !opened;
-		if (!opened) {
-			cancel();
-			return;
-		}
-		manufacturer = item.manufacturer || item.custom_fields?.Manufacturer || '';
-		identifier =
-			item.custom_fields?.['Part number'] ||
-			item.custom_fields?.Teilenummer ||
-			item.model_number ||
-			'';
-		kind =
-			item.custom_fields?.['Part number'] || item.custom_fields?.Teilenummer
-				? 'part_number'
-				: 'model_number';
 		const active = new AbortController();
-		controller?.abort();
 		controller = active;
-		enabled = false;
-		try {
-			const capabilities = await request<{ enabled: boolean }>('/research/capabilities', {
-				signal: active.signal,
+		void request<{ enabled: boolean }>('/research/capabilities', { signal: active.signal })
+			.then((result) => {
+				if (!active.signal.aborted) enabled = result.enabled;
+			})
+			.catch(() => {
+				if (!active.signal.aborted) message = 'Research unavailable. Save remains available.';
 			});
-			if (!active.signal.aborted) enabled = capabilities.enabled;
-		} catch {
-			if (!active.signal.aborted)
-				message = 'Research unavailable. You can continue saving normally.';
-		}
-	}
+	});
 	async function lookup() {
-		if (busy) return;
+		if (busy || !enabled) return;
 		busy = true;
 		review = null;
 		selected = [];
 		message = '';
 		base = snapshot();
 		revision = createUuidV4();
+		controller?.abort();
 		const active = new AbortController();
 		controller = active;
 		try {
+			const primary = item.originalFile
+				? await fileToDataUrl(item.originalFile)
+				: item.compressedDataUrl;
+			const additional = item.additionalImages?.length
+				? await Promise.all(item.additionalImages.map(fileToDataUrl))
+				: [...(item.compressedAdditionalDataUrls || [])];
+			if (active.signal.aborted || base !== snapshot()) {
+				message = 'Draft changed; research was not sent.';
+				return;
+			}
 			const result = await request<Review>('/research/lookups', {
 				method: 'POST',
 				signal: active.signal,
@@ -106,10 +107,14 @@
 					revision,
 					entity_type_id: item.entity_type_id,
 					template_id: item.template_id,
-					identity: {
-						identifier_exact: identifier,
-						identifier_kind: kind,
-						...(manufacturer ? { manufacturer } : {}),
+					context: {
+						title: item.name || '',
+						description: item.description || '',
+						manufacturer: item.manufacturer || '',
+						model_number: item.model_number || '',
+						serial_number: item.serial_number || '',
+						technical_fields: item.custom_fields || {},
+						images: [...(primary ? [primary] : []), ...additional],
 					},
 					current_values: item.custom_fields || {},
 				}),
@@ -140,24 +145,25 @@
 		const active = new AbortController();
 		controller = active;
 		try {
-			const result = await request<{ patch: Record<string, string> }>(
-				`/research/lookups/${review.id}/apply`,
-				{
-					method: 'POST',
-					signal: active.signal,
-					skipAuthRetry: true,
-					body: JSON.stringify({
-						draft_id: item.reviewId,
-						revision,
-						selected,
-						current_values: item.custom_fields || {},
-					}),
-				}
-			);
+			const result = await request<{
+				patch: Record<string, string>;
+				item_patch: { name?: string; description?: string };
+			}>(`/research/lookups/${review.id}/apply`, {
+				method: 'POST',
+				signal: active.signal,
+				skipAuthRetry: true,
+				body: JSON.stringify({
+					draft_id: item.reviewId,
+					revision,
+					selected,
+					edits: Object.fromEntries(selected.map((i) => [String(i), review!.proposals[i].value])),
+					current_values: item.custom_fields || {},
+				}),
+			});
 			if (!active.signal.aborted && snapshot() === base) {
-				onadopt(result.patch);
+				onadopt(result.patch, result.item_patch);
 				review = null;
-				message = 'Selected fields adopted into this draft. Save still requires confirmation.';
+				message = 'Selected fields adopted into this draft. Saving remains a separate action.';
 			}
 		} catch {
 			message = 'Review expired or changed. No fields adopted.';
@@ -170,84 +176,66 @@
 	}
 </script>
 
-<!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations, not application routes -->
+<!-- eslint-disable svelte/no-navigation-without-resolve -- Provider links are validated HTTP(S) display metadata -->
 <div id="product-research" class="space-y-3">
-	<Button variant="secondary" size="sm" type="button" onclick={open}>Research product data</Button>
-	{#if opened}
-		<a href={resolve('/research')}>Research saved items and review background jobs</a>
+	<p>
+		Product information and associated photos are sent to OpenAI. Research may incur API costs.
+		Suggestions are not independently verified; no automatic inventory changes.
+	</p>
+	<Button
+		variant="secondary"
+		size="sm"
+		type="button"
+		disabled={!enabled || !item.template_id || busy}
+		onclick={lookup}>Research this item</Button
+	>
+	{#if !enabled}<p>
+			Research is disabled or unavailable. Capture and save remain available. <a
+				href={`${resolve('/settings')}#product-research`}>Research settings</a
+			>
+		</p>{/if}
+	{#if !item.template_id}<p>
+			Select a supported native text template to adopt research fields.
+		</p>{/if}
+	<ResearchProfileSummary />
+	<a href={resolve('/research')}>Review saved research jobs</a>
+	{#if busy}<Button variant="secondary" size="sm" type="button" onclick={cancel}
+			>Cancel research</Button
+		>{/if}
+	<p role="status" class="wrap-break-word text-body-sm text-neutral-200">{message}</p>
+	{#if review?.result.diagnostic}<DiagnosticDetails diagnostic={review.result.diagnostic} />{/if}
+	{#if review}
+		{#if review.result.ambiguity}<p>{review.result.ambiguity}</p>{/if}
 		<p>
-			Public model/part search inputs are sent to OpenAI and may incur API costs. No automatic
-			inventory changes.
+			AI suggestions. {review.result.sources?.length
+				? 'Provider citations (not independently verified):'
+				: 'No usable provider citations were returned.'}
+			{#each review.result.sources ?? [] as source (source.url)}
+				<a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>{/each}
 		</p>
-		{#if !enabled}<p>
-				Research is disabled or unavailable. Capture and save remain available.
-				<a href={`${resolve('/settings')}#product-research`}>Research settings</a>
-			</p>{/if}
-		<ResearchProfileSummary />
-		{#if !item.template_id}<p>
-				Select a supported native text template to adopt research fields.
-			</p>{/if}
-		<label class="block text-body-sm text-neutral-200"
-			>Manufacturer (optional)<input
-				class="input mt-2"
-				bind:value={manufacturer}
-				maxlength="80"
-			/></label
-		>
-		<label class="block text-body-sm text-neutral-200"
-			>Identifier kind<select class="input mt-2" bind:value={kind}
-				><option value="part_number">Part number</option><option value="model_number"
-					>Model number</option
-				></select
-			></label
-		>
-		<label class="block text-body-sm text-neutral-200"
-			>Exact part/model number<input
-				class="input mt-2"
-				bind:value={identifier}
-				maxlength="120"
-			/></label
-		>
-
-		<Button
-			variant="secondary"
-			size="sm"
-			type="button"
-			disabled={!enabled || !identifier || !item.template_id || busy}
-			onclick={lookup}>Research this product</Button
-		>
-		{#if busy}<Button variant="secondary" size="sm" type="button" onclick={cancel}
-				>Cancel research</Button
-			>{/if}
-		<p role="status" class="wrap-break-word text-body-sm text-neutral-200">{message}</p>
-		{#if review?.result.diagnostic}<DiagnosticDetails diagnostic={review.result.diagnostic} />{/if}
-		{#if review?.result.status === 'matched'}
-			{#each review.result.sources ?? [] as source (source.url)}<a
-					href={source.url}
-					target="_blank"
-					rel="noopener noreferrer">{source.title}</a
-				>{/each}
-			{#each review.proposals as proposal, index (index)}
-				<div>
-					<label
-						><input type="checkbox" bind:group={selected} value={index} />Adopt {proposal.name}</label
-					>
-					<p>Current: {proposal.current || '(empty)'} → Proposal: {proposal.value}</p>
-					<p>{proposal.evidence}</p>
-					{#each proposal.source_urls as url (url)}<a
-							href={url}
-							target="_blank"
-							rel="noopener noreferrer">{url}</a
-						>{/each}
-				</div>
-			{/each}
-			<Button
+		{#each review.proposals as proposal, index (index)}
+			<div>
+				<label
+					><input type="checkbox" bind:group={selected} value={index} />Adopt {proposal.name}</label
+				>
+				<p>Current: {proposal.current || '(empty)'}</p>
+				<label
+					>Proposed {proposal.name}<textarea
+						class="input mt-2"
+						maxlength="1200"
+						bind:value={proposal.value}></textarea></label
+				>
+				<p>{proposal.evidence}</p>
+			</div>
+		{/each}
+		{#if review.proposals.length}<Button
 				variant="secondary"
 				size="sm"
 				type="button"
 				disabled={!selected.length || busy}
 				onclick={adopt}>Adopt selected fields</Button
-			>
-		{/if}
+			>{/if}
+		<Button variant="secondary" size="sm" type="button" onclick={cancel}>Discard suggestions</Button
+		>
 	{/if}
 </div>

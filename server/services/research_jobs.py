@@ -4,7 +4,7 @@ import asyncio
 import fcntl
 from contextlib import suppress
 
-from homebox_companion.research import ProductIdentity
+from homebox_companion.research import ProductContext, ProductIdentity
 from homebox_companion.research_jobs import JobStore
 
 
@@ -55,8 +55,8 @@ class ResearchJobs:
             await asyncio.sleep(0.05)
 
     async def execute(self, row, gateway, provider):
-        from server.api.research import fingerprint, proposals, scope
-        from server.api.research_jobs import item_profile, policy_hash, values
+        from server.api.research import core_proposals, fingerprint, proposals, scope
+        from server.api.research_jobs import item_context, item_profile, policy_hash, values
 
         try:
             user = await gateway.get_current_user()
@@ -76,14 +76,20 @@ class ResearchJobs:
             if payload.get("policy_hash") != policy_hash(provider):
                 self.db.finish(row["id"], "stale")
                 return
+            if "context_hash" in payload:
+                context, context_hash = await item_context(gateway, item)
+                if context_hash != payload["context_hash"]:
+                    self.db.finish(row["id"], "stale")
+                    return
+            else:
+                context = ProductIdentity.model_validate(payload["identity"])
             if not self.db.dispatch(row["id"]):
                 return
-            result = await provider.research(ProductIdentity.model_validate(payload["identity"]))
-            self.db.finish(
-                row["id"],
-                result.status,
-                {"research": result.model_dump(), "proposals": proposals(result, profile, values(item))},
-            )
+            result = await provider.research(context)
+            mapped = proposals(result, profile, values(item))
+            if isinstance(context, ProductContext):
+                mapped.extend(core_proposals(result, context))
+            self.db.finish(row["id"], result.status, {"research": result.model_dump(), "proposals": mapped})
         except asyncio.CancelledError:
             # A dispatched call may have been accepted; never silently requeue it.
             self.db.finish(row["id"], "unknown_outcome")

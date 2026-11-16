@@ -8,6 +8,7 @@ export interface ResearchDiagnostic {
 }
 
 export interface ResearchResult {
+	ambiguity?: string;
 	status: string;
 	sources?: { url: string; title: string }[];
 	diagnostic?: ResearchDiagnostic | null;

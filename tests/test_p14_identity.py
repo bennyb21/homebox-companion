@@ -12,7 +12,7 @@ from homebox_companion.research import OpenAIResponsesResearchProvider, ProductI
 
 
 @pytest.mark.asyncio
-async def test_grouped_identifier_is_sent_and_matched_literally():
+async def test_grouped_identifier_is_sent_literally_without_echo_admission():
     exact = "A 000 123 45 67"
     identity = ProductIdentity(identifier_kind="part_number", identifier_exact=exact, identity_confirmed=True)
     data = response() | {"object": "response", "created_at": 1, "model": "gpt-4.1-mini"}
@@ -32,11 +32,10 @@ async def test_grouped_identifier_is_sent_and_matched_literally():
     )
     result = await provider.research(identity)
     assert result.status == "matched"
-    assert json.loads(calls[0]["input"])["identifier_exact"] == exact
+    assert json.loads(calls[0]["input"][0]["content"][0]["text"])["part_number"] == exact
     from homebox_companion.research import parse_response
 
     compact = identity.model_copy(update={"identifier_exact": exact.replace(" ", "")})
     rejected = parse_response(data, compact)
-    assert rejected.status == "failed"
-    assert rejected.diagnostic is not None
-    assert rejected.diagnostic.code == "identity_mismatch"
+    assert rejected.status == "matched"
+    assert rejected.claims  # an editable proposal, never an exact-match attestation

@@ -28,9 +28,6 @@
 	let jobs = $state<Job[]>([]);
 	let selected = $state<Record<string, number[]>>({});
 	let itemId = $state('');
-	let identifier = $state('');
-	let manufacturer = $state('');
-	let kind = $state('part_number');
 	let busy = $state(false);
 	let message = $state('');
 	let idempotency = createUuidV4();
@@ -56,11 +53,6 @@
 		busy = true;
 		const payload = {
 			item_id: itemId,
-			identity: {
-				identifier_exact: identifier,
-				identifier_kind: kind,
-				...(manufacturer ? { manufacturer } : {}),
-			},
 		};
 		const digest = JSON.stringify(payload);
 		if (lastPayload && lastPayload !== digest) idempotency = createUuidV4();
@@ -90,7 +82,14 @@
 				signal: controller.signal,
 				skipAuthRetry: true,
 				...(action === 'apply'
-					? { body: JSON.stringify({ selected: selected[job.id] || [] }) }
+					? {
+							body: JSON.stringify({
+								selected: selected[job.id] || [],
+								edits: Object.fromEntries(
+									(selected[job.id] || []).map((i) => [String(i), job.result!.proposals[i].value])
+								),
+							}),
+						}
 					: {}),
 			});
 			await refresh();
@@ -104,7 +103,7 @@
 	function newDecision() {
 		idempotency = createUuidV4();
 		message =
-			'New paid attempt selected. Confirm the identifier and possible additional costs before enqueueing.';
+			'New paid attempt selected. Review the item and possible additional costs before enqueueing.';
 	}
 </script>
 
@@ -113,9 +112,9 @@
 		<h1 class="text-h1 text-neutral-100">Product research jobs</h1>
 		<ResearchProfileSummary returnTo="research" />
 		<p>
-			Public model/part search inputs are sent to OpenAI and may incur API costs. No automatic
-			changes to Homebox. Unknown outcomes may already have incurred costs. Cancelling cannot refund
-			an already dispatched search.
+			Product information and associated photos are sent to OpenAI and may incur API costs. No
+			automatic changes to Homebox. Unknown outcomes may already have incurred costs. Cancelling
+			cannot refund an already dispatched search.
 		</p>
 		<label
 			>Saved item<select aria-label="Saved item" class="input mt-2" bind:value={itemId}
@@ -124,34 +123,9 @@
 					>{/each}</select
 			></label
 		>
-		<label class="block text-body-sm text-neutral-200"
-			>Manufacturer (optional)<input
-				class="input mt-2"
-				bind:value={manufacturer}
-				maxlength="80"
-			/></label
-		>
-		<label class="block text-body-sm text-neutral-200"
-			>Identifier kind<select class="input mt-2" bind:value={kind}
-				><option value="part_number">Part number</option><option value="model_number"
-					>Model number</option
-				></select
-			></label
-		>
-		<label class="block text-body-sm text-neutral-200"
-			>Exact part/model number<input
-				class="input mt-2"
-				bind:value={identifier}
-				maxlength="120"
-			/></label
-		>
 
-		<Button
-			variant="secondary"
-			size="sm"
-			type="button"
-			onclick={create}
-			disabled={busy || !itemId || !identifier}>Queue research</Button
+		<Button variant="secondary" size="sm" type="button" onclick={create} disabled={busy || !itemId}
+			>Research this item</Button
 		>
 		<Button variant="secondary" size="sm" type="button" onclick={newDecision} disabled={busy}
 			>Start a new paid attempt</Button
@@ -195,6 +169,8 @@
 						attempt. No automatic retry.
 					</p>{/if}
 				{#if job.result}
+					<p>AI suggestions; not independently verified. {job.result.research.ambiguity || ''}</p>
+					<p>Provider citations:</p>
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations -->
 					{#each job.result.research.sources ?? [] as source (source.url)}<a
 							href={source.url}
@@ -214,7 +190,13 @@
 									}}
 								/>Adopt {proposal.name}</label
 							>
-							<p>Current: {proposal.current || '(empty)'} → Proposal: {proposal.value}</p>
+							<p>Current: {proposal.current || '(empty)'}</p>
+							<label
+								>Proposed {proposal.name}<textarea
+									class="input mt-2"
+									maxlength="1200"
+									bind:value={proposal.value}></textarea></label
+							>
 							<p>{proposal.evidence}</p>
 							{#each proposal.source_urls as url (url)}<a
 									href={url}
@@ -228,6 +210,13 @@
 							type="button"
 							disabled={busy || !selected[job.id]?.length}
 							onclick={() => action(job, 'apply')}>Apply selected to Homebox</Button
+						>
+						<Button
+							variant="secondary"
+							size="sm"
+							type="button"
+							disabled={busy}
+							onclick={() => action(job, 'cancel')}>Discard suggestions</Button
 						>
 					{/if}
 				{/if}

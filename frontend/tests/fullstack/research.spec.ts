@@ -6,9 +6,11 @@ test('synthetic research adoption reaches isolated Homebox', async ({ page }) =>
 	await page
 		.getByRole('combobox', { name: 'Saved item', exact: true })
 		.selectOption(process.env.HBC_RESEARCH_ITEM!);
-	await page.getByLabel('Exact part/model number').fill('AB-123-x');
-	await expect(page.getByText(/inputs are sent to OpenAI/)).toBeVisible();
-	await page.getByRole('button', { name: 'Queue research', exact: true }).click();
+	await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
+	await expect(
+		page.getByText(/Product information and associated photos are sent to OpenAI/)
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 	await expect(async () => {
 		await page.getByRole('button', { name: 'Refresh jobs' }).click();
 		await expect(page.getByRole('paragraph').filter({ hasText: /^matched$/ })).toBeVisible();

@@ -39,7 +39,7 @@ MESSAGES = {
     "schema_invalid": "The response contained unsupported fields or an invalid result structure.",
     "identity_mismatch": "The response did not match the exact requested product identity.",
     "claim_invalid": "The response contained an unsupported or identity-changing claim.",
-    "matched": "Research completed with one matching candidate. Review its cited model synthesis before adoption.",
+    "matched": "Editable AI suggestions are ready. Review them before adoption; they are not independently verified.",
     "ambiguous": "Research returned multiple candidates. No claims were selected for adoption.",
     "no_results": "The research request completed with no matching results; this is not product verification.",
     "response_incomplete": "The response did not complete within the provider output budget or policy. "

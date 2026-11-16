@@ -432,8 +432,9 @@
 				{#key editedItem.reviewId}
 					<ProductResearch
 						item={editedItem}
-						onadopt={(patch) => {
+						onadopt={(patch, itemPatch) => {
 							workflow.updateReviewDraft({
+								...itemPatch,
 								custom_fields: { ...editedItem.custom_fields, ...patch },
 							});
 							showCustomFields = true;
