@@ -22,6 +22,8 @@ INVENTORY_GUIDANCE = (
     "INVENTORY CONTENT: Name and describe the identified item, its function and relevant supported attributes, "
     "not a photo caption or a description of its packaging. A readable package label can identify the product "
     "even when only its packaging is visible; use the label as evidence, not as the subject of the description. "
+    "Put markings in their dedicated identifier fields rather than narrating label text or repeating codes "
+    "in the description. "
     "Do not infer unseen condition, quantity, contents or specifications from packaging alone. "
     "Keep unknown facts unknown and preserve uncertainty rather than filling gaps. "
     "Use domain-appropriate terminology in the output language (for example, German automotive wheel spacers "

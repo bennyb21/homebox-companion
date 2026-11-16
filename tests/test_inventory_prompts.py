@@ -38,6 +38,7 @@ def test_capture_describes_product_not_photo_even_with_saved_preferences(builder
     prompt = builder(*args, field_preferences=preferences, output_language="German")
     assert "not a photo caption" in prompt
     assert "readable package label can identify the product" in prompt
+    assert "dedicated identifier fields" in prompt
     assert "Do not infer unseen condition, quantity, contents or specifications" in prompt
     assert "unknown facts unknown" in prompt
     assert "Spurplatten/Spurverbreiterung" in prompt

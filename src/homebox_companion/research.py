@@ -419,7 +419,9 @@ class OpenAIResponsesResearchProvider:
                         "correction rather than silently treating it as the observed value. Serial markings may be "
                         "clues. Do not invent facts or installation/safety approval. These are editable AI "
                         "suggestions, not certified facts. Include normal provider citations for web-derived "
-                        "information; no per-field citation mapping is required. Put the JSON object first."
+                        "information after the JSON object, not inside field values: the UI displays source links "
+                        "separately. Field values must be plain inventory text without Markdown citations or URLs. "
+                        "No per-field citation mapping is required. Put the JSON object first."
                     ),
                     tools=[{"type": "web_search", "search_context_size": "low"}],
                     tool_choice="required",
