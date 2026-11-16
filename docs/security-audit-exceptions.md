@@ -423,6 +423,11 @@ changed frontend security contexts before rebinding:
   untrusted prerender/build configuration input was introduced. The static SPA,
   Svelte/Vite/TS configuration, `.npmrc`, plugin and deepmerge contexts are unchanged.
   This is scoped source review, not a formal proof of exploit unreachability.
+- Hosted WebKit exposed synchronous ResizeObserver geometry writes in autosize.
+  The release correction coalesces them in requestAnimationFrame and cancels the
+  pending frame on teardown. Only the existing autosize binding is renewed again;
+  no data sink, exception or browser-error filtering is added. The unchanged DE/EN
+  mobile browser tests retain their no-unhandled-errors assertion.
 
 Exactly 75 changed existing source hashes and the two frontend manifest/lock
 root-version hashes are renewed. Seven new inventory bindings cover autosize,

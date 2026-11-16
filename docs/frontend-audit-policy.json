@@ -7,7 +7,7 @@
     "frontend/src/app.css": "a4ef6bfabd2ccf38c8c9165c2f342dfa7392701c9873d927d1c3b554ca317b86",
     "frontend/src/app.d.ts": "3d450fc2fc7b0f10b6a9493a682769aac34f8b612f0f5d1bc4845a7b0bfe9f0a",
     "frontend/src/app.html": "81087890cfd4ad371101ddaf9dfd9527378d8103e6f240ff134ccc3a5daabbb1",
-    "frontend/src/lib/actions/autosize.ts": "6cddf72a24e0adffa8d1431f05fbe466a91abc9daf50c7523103629ede42cbba",
+    "frontend/src/lib/actions/autosize.ts": "a5ca05557852626b7796bdcae9c657605fd38f4f645a9bc278343226b52cc29a",
     "frontend/src/lib/actions/dialog.ts": "6d2f0c13cfd55c16e03719d77c6b654fee088c9fa3a377180fb8a64990932109",
     "frontend/src/lib/actions/expandable.ts": "21c8b11878bd87c390297d585b33f0792c231523984d4068e05d7f793dc4c4e2",
     "frontend/src/lib/actions/longpress.ts": "1df14288a554367a4afc260287cb93a1a6ec373bda27b8c1b367df0e483bc2cc",

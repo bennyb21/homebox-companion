@@ -105,6 +105,6 @@ test('whole-item photo/context research requires explicit field adoption', async
 	).toBeDisabled();
 	await page.getByLabel('Adopt Specifications').check();
 	await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
-	await expect(page.getByLabel('Specifications', { exact: true })).toHaveValue('Steel');
+	await expect(page.locator('[id="review-cf-Specifications"]')).toHaveValue('Steel');
 	await expect(page.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
 });

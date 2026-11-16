@@ -169,10 +169,10 @@ for (const corruption of ['entity', 'duplicate-slot']) {
 		await page.goto('/location');
 		await page.getByRole('button', { name: 'Resume Session' }).click();
 		await expect(page.getByRole('button', { name: /Download original photo 1/ })).toBeVisible();
-		await expect(page.getByText(/Photo 1: unconfirmed/)).toHaveCount(
+		await expect(page.getByText(/Photo\s+1: unconfirmed/)).toHaveCount(
 			corruption === 'duplicate-slot' ? 2 : 1
 		);
-		await expect(page.getByText(/Photo 1: unconfirmed/).first()).toBeVisible();
+		await expect(page.getByText(/Photo\s+1: unconfirmed/).first()).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Submit All Items' })).toHaveCount(0);
 		expect((await readDrafts(page, 'deployment:user:g1'))[0].confirmedItems).toEqual(
 			raw.confirmedItems
