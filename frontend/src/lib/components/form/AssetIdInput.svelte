@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * AssetIdInput - Input field with QR scanner for asset IDs
 	 *
@@ -29,7 +31,7 @@
 		value,
 		identity,
 		disabled = false,
-		placeholder = 'e.g., 000-001',
+		placeholder,
 		showLabel = true,
 		onChange,
 	}: Props = $props();
@@ -113,8 +115,8 @@
 <div>
 	{#if showLabel}
 		<div class="mb-1 flex items-baseline gap-2">
-			<label for={fieldId} class="text-body-sm font-medium text-neutral-300">Asset ID</label>
-			<span class="text-caption text-neutral-500">Optional – auto-assigned if blank</span>
+			<label for={fieldId} class="text-body-sm font-medium text-neutral-300">{t('Asset ID')}</label>
+			<span class="text-caption text-neutral-500">{t('Optional – auto-assigned if blank')}</span>
 		</div>
 	{/if}
 
@@ -123,12 +125,12 @@
 			<input
 				type="text"
 				id={fieldId}
-				aria-label={showLabel ? undefined : 'Asset ID'}
+				aria-label={showLabel ? undefined : t('Asset ID')}
 				aria-invalid={!!validationError}
 				aria-describedby={validationError ? `${fieldId}-error` : undefined}
 				value={value ?? ''}
 				oninput={handleInputChange}
-				{placeholder}
+				placeholder={placeholder ?? t('e.g., 000-001')}
 				{disabled}
 				class="input w-full text-body-sm"
 			/>
@@ -139,8 +141,8 @@
 			onclick={() => (showScanner = true)}
 			{disabled}
 			class="flex items-center justify-center rounded-lg border border-neutral-600 bg-neutral-800 text-neutral-400 transition-colors hover:border-neutral-500 hover:bg-neutral-700 hover:text-neutral-200 disabled:opacity-50 size-9"
-			aria-label="Scan QR code"
-			title="Scan QR code"
+			aria-label={t('Scan QR code')}
+			title={t('Scan QR code')}
 		>
 			<QrCode size={18} strokeWidth={1.5} />
 		</button>
@@ -153,5 +155,5 @@
 </div>
 
 {#if showScanner}
-	<QrScanner onScan={handleScan} onClose={handleScannerClose} title="Scan Asset ID QR Code" />
+	<QrScanner onScan={handleScan} onClose={handleScannerClose} title={t('Scan Asset ID QR Code')} />
 {/if}

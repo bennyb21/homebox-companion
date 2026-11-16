@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * AccountSection - User account info and logout button.
 	 */
@@ -33,7 +35,7 @@
 <section class="card space-y-4">
 	<h2 class="flex items-center gap-2 text-body-lg font-semibold text-neutral-100">
 		<User class="text-primary-400" size={20} strokeWidth={1.5} />
-		Account
+		{t('Account')}
 	</h2>
 
 	<!-- Signed in as -->
@@ -47,7 +49,7 @@
 				<User size={20} strokeWidth={1.5} />
 			</div>
 			<div class="min-w-0 flex-1">
-				<p class="text-caption text-neutral-500">Signed in as</p>
+				<p class="text-caption text-neutral-500">{t('Signed in as')}</p>
 				<p class="truncate font-medium text-neutral-100">{authStore.email}</p>
 			</div>
 		</div>
@@ -56,13 +58,13 @@
 	{#if authStore.isLegacy}
 		<Button variant="danger" full onclick={handleLogout}>
 			<LogOut size={20} strokeWidth={1.5} />
-			<span>Sign Out</span>
+			<span>{t('Sign Out')}</span>
 		</Button>
 	{:else}
 		<div
 			class="rounded-xl border border-success-500/30 bg-success-500/10 p-4 text-body-sm text-success-500"
 		>
-			Connected using a Homebox API key
+			{t('Connected using a Homebox API key')}
 		</div>
 	{/if}
 </section>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * FieldPrefsSection - AI output configuration and field customizations.
 	 * Organized into three collapsible sections:
@@ -51,11 +53,11 @@
 <section class="card space-y-4">
 	<h2 class="flex items-center gap-2 text-body-lg font-semibold text-neutral-100">
 		<SlidersHorizontal class="text-primary-400" size={20} strokeWidth={1.5} />
-		Configure AI Output
+		{t('Configure AI Output')}
 	</h2>
 
 	<p class="text-body-sm text-neutral-400">
-		Customize how the AI generates item data. Leave fields empty to use default behavior.
+		{t('Customize how the AI generates item data. Leave fields empty to use default behavior.')}
 	</p>
 
 	{#if service.isLoading.fieldPrefs}
@@ -63,7 +65,7 @@
 			<div
 				class="animate-spin rounded-full border-2 border-current border-t-transparent size-5"
 			></div>
-			<span>Loading preferences...</span>
+			<span>{t('Loading preferences...')}</span>
 		</div>
 	{:else}
 		{#if service.errors.fieldPrefs}
@@ -84,7 +86,7 @@
 				onclick={() => service.toggleGeneralSettings()}
 			>
 				<Settings2 class="text-primary-400" size={20} strokeWidth={1.5} />
-				<span>General Settings</span>
+				<span>{t('General Settings')}</span>
 				{#if overriddenGeneralCount > 0}
 					<span class="rounded-full bg-primary-600/30 px-2 py-0.5 text-caption text-primary-400">
 						{overriddenGeneralCount}
@@ -104,14 +106,14 @@
 							<div class="flex items-center gap-2">
 								<Languages class="text-primary-400" size={20} strokeWidth={1.5} />
 								<label for="output_language" class="font-semibold text-neutral-100"
-									>Output Language</label
+									>{t('Output Language')}</label
 								>
 							</div>
 							{#if service.fieldPrefs.output_language}
 								<button
 									type="button"
 									class="btn-icon-touch text-neutral-400 hover:text-warning-400"
-									title="Reset to default"
+									title={t('Reset to default')}
 									onclick={() => service.resetSingleFieldPref('output_language')}
 								>
 									<RotateCcw size={14} strokeWidth={2} />
@@ -119,7 +121,7 @@
 							{/if}
 						</div>
 						<p class="text-caption text-neutral-400">
-							Choose what language the AI should use for item names, descriptions, and notes.
+							{t('Choose what language the AI should use for item names, descriptions, and notes.')}
 						</p>
 						<input
 							type="text"
@@ -128,15 +130,17 @@
 							oninput={(e) => service.updateFieldPref('output_language', e.currentTarget.value)}
 							placeholder={service.effectiveDefaults
 								? service.effectiveDefaults.output_language
-								: 'Loading...'}
+								: t('Loading...')}
 							class="input"
 						/>
 						<div class="rounded-lg border border-warning-500/30 bg-warning-500/10 p-2">
 							<p class="flex items-start gap-2 text-caption text-warning-500">
 								<TriangleAlert class="mt-0.5 shrink-0" size={16} strokeWidth={1.5} />
 								<span>
-									<strong>Note:</strong> Field customization instructions below should still be written
-									in English. Only the AI output will be in the configured language.
+									<strong>{t('Note:')}</strong>
+									{t(
+										'Field customization instructions below should still be written in English. Only the AI output will be in the configured language.'
+									)}
 								</span>
 							</p>
 						</div>
@@ -147,13 +151,15 @@
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
 								<Tag class="text-primary-400" size={20} strokeWidth={1.5} />
-								<label for="default_tag" class="font-semibold text-neutral-100">Default Tag</label>
+								<label for="default_tag" class="font-semibold text-neutral-100"
+									>{t('Default Tag')}</label
+								>
 							</div>
 							{#if service.fieldPrefs.default_tag_id}
 								<button
 									type="button"
 									class="btn-icon-touch text-neutral-400 hover:text-warning-400"
-									title="Reset to default"
+									title={t('Reset to default')}
 									onclick={() => service.resetSingleFieldPref('default_tag_id')}
 								>
 									<RotateCcw size={14} strokeWidth={2} />
@@ -161,7 +167,7 @@
 							{/if}
 						</div>
 						<p class="text-caption text-neutral-400">
-							Automatically tag all items created via Homebox Companion with this tag.
+							{t('Automatically tag all items created via Homebox Companion with this tag.')}
 						</p>
 						<select
 							id="default_tag"
@@ -169,17 +175,17 @@
 							onchange={(e) => service.updateFieldPref('default_tag_id', e.currentTarget.value)}
 							class="input"
 						>
-							<option value="">No default tag</option>
+							<option value="">{t('No default tag')}</option>
 							{#each service.availableTags as tag (tag.id)}
 								<option value={tag.id}>
 									{tag.name}{service.effectiveDefaults?.default_tag_id === tag.id
-										? ' (env default)'
+										? t(' (env default)')
 										: ''}
 								</option>
 							{/each}
 						</select>
 						<p class="text-caption text-neutral-500">
-							Useful for identifying items added through this app in your Homebox inventory.
+							{t('Useful for identifying items added through this app in your Homebox inventory.')}
 						</p>
 					</div>
 
@@ -189,14 +195,14 @@
 							<div class="flex items-center gap-2">
 								<FileText class="text-primary-400" size={20} strokeWidth={1.5} />
 								<label for="naming_examples" class="font-semibold text-neutral-100"
-									>Naming Examples</label
+									>{t('Naming Examples')}</label
 								>
 							</div>
 							{#if service.fieldPrefs.naming_examples}
 								<button
 									type="button"
 									class="btn-icon-touch text-neutral-400 hover:text-warning-400"
-									title="Reset to default"
+									title={t('Reset to default')}
 									onclick={() => service.resetSingleFieldPref('naming_examples')}
 								>
 									<RotateCcw size={14} strokeWidth={2} />
@@ -204,13 +210,13 @@
 							{/if}
 						</div>
 						<p class="text-caption text-neutral-400">
-							Comma-separated examples that show the AI how to format item names.
+							{t('Comma-separated examples that show the AI how to format item names.')}
 						</p>
 						<textarea
 							id="naming_examples"
 							value={service.fieldPrefs.naming_examples || ''}
 							oninput={(e) => service.updateFieldPref('naming_examples', e.currentTarget.value)}
-							placeholder={service.effectiveDefaults?.naming_examples || 'No default'}
+							placeholder={service.effectiveDefaults?.naming_examples || t('No default')}
 							rows="2"
 							class="input resize-none text-body-sm"></textarea>
 					</div>
@@ -228,7 +234,7 @@
 				onclick={() => service.toggleDefaultFields()}
 			>
 				<SlidersHorizontal class="text-primary-400" size={20} strokeWidth={1.5} />
-				<span>Default Fields</span>
+				<span>{t('Default Fields')}</span>
 				{#if overriddenFieldCount > 0}
 					<span class="rounded-full bg-primary-600/30 px-2 py-0.5 text-caption text-primary-400">
 						{overriddenFieldCount}
@@ -246,13 +252,13 @@
 						<div class="space-y-2 rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-3">
 							<div class="flex items-center justify-between">
 								<label for={field.key} class="block text-body-sm font-semibold text-neutral-100">
-									{field.label}
+									{t(field.label)}
 								</label>
 								{#if service.fieldPrefs[field.key]}
 									<button
 										type="button"
 										class="btn-icon-touch text-neutral-400 hover:text-warning-400"
-										title="Reset to default"
+										title={t('Reset to default')}
 										onclick={() => service.resetSingleFieldPref(field.key)}
 									>
 										<RotateCcw size={14} strokeWidth={2} />
@@ -263,7 +269,7 @@
 								id={field.key}
 								value={service.fieldPrefs[field.key] || ''}
 								oninput={(e) => service.updateFieldPref(field.key, e.currentTarget.value)}
-								placeholder={service.effectiveDefaults?.[field.key] || 'No default'}
+								placeholder={service.effectiveDefaults?.[field.key] || t('No default')}
 								rows="1"
 								class="input resize-none text-body-sm transition-all duration-200"
 								onfocus={(e) => {
@@ -288,7 +294,7 @@
 				onclick={() => service.toggleCustomFields()}
 			>
 				<Layers class="text-primary-400" size={20} strokeWidth={1.5} />
-				<span>Custom Fields</span>
+				<span>{t('Custom Fields')}</span>
 				<ChevronDown
 					class="ml-auto transition-transform {service.showCustomFields ? 'rotate-180' : ''}"
 					size={16}
@@ -298,8 +304,9 @@
 			{#if service.showCustomFields}
 				<div class="mt-3 space-y-3">
 					<p class="text-caption text-neutral-400">
-						Define custom Homebox fields that the AI will populate during detection. Each field
-						needs a name (as shown in Homebox) and an AI instruction.
+						{t(
+							'Define custom Homebox fields that the AI will populate during detection. Each field needs a name (as shown in Homebox) and an AI instruction.'
+						)}
 					</p>
 
 					{#if service.customFieldDefs.length > 0}
@@ -311,12 +318,12 @@
 										class="space-y-2 rounded-xl border border-primary-500/40 bg-neutral-800/30 p-3"
 									>
 										<div class="flex items-center justify-between">
-											<span class="text-caption font-medium text-primary-400">Editing</span>
+											<span class="text-caption font-medium text-primary-400">{t('Editing')}</span>
 											<div class="flex items-center gap-1">
 												<button
 													type="button"
 													class="btn-icon-touch text-success-400 hover:text-success-300"
-													title="Done editing"
+													title={t('Done editing')}
 													onclick={() => (editingFieldIndex = null)}
 												>
 													<Check size={14} strokeWidth={2} />
@@ -324,7 +331,7 @@
 												<button
 													type="button"
 													class="btn-icon-touch text-error-400 hover:text-error-300"
-													title="Remove field"
+													title={t('Remove field')}
 													onclick={() => {
 														service.removeCustomField(i);
 														editingFieldIndex = null;
@@ -339,14 +346,14 @@
 											value={field.name}
 											oninput={(e) =>
 												service.updateCustomFieldProp(i, 'name', e.currentTarget.value)}
-											placeholder="Field name (e.g. Storage Location)"
+											placeholder={t('Field name (e.g. Storage Location)')}
 											class="input text-body-sm"
 										/>
 										<textarea
 											value={field.ai_instruction}
 											oninput={(e) =>
 												service.updateCustomFieldProp(i, 'ai_instruction', e.currentTarget.value)}
-											placeholder="AI instruction (e.g. Where this item should be stored)"
+											placeholder={t('AI instruction (e.g. Where this item should be stored)')}
 											rows="3"
 											class="input resize-none text-body-sm"></textarea>
 									</div>
@@ -360,13 +367,13 @@
 												for="custom-field-{i}"
 												class="block text-body-sm font-semibold text-neutral-100"
 											>
-												{field.name || 'Untitled Field'}
+												{field.name || t('Untitled Field')}
 											</label>
 											<div class="flex items-center gap-1">
 												<button
 													type="button"
 													class="btn-icon-touch text-neutral-400 hover:text-primary-400"
-													title="Edit field"
+													title={t('Edit field')}
 													onclick={() => (editingFieldIndex = i)}
 												>
 													<Pencil size={14} strokeWidth={2} />
@@ -374,7 +381,7 @@
 												<button
 													type="button"
 													class="btn-icon-touch hover:text-error-400 text-neutral-400"
-													title="Remove field"
+													title={t('Remove field')}
 													onclick={() => {
 														service.removeCustomField(i);
 														if (editingFieldIndex !== null && i < editingFieldIndex) {
@@ -391,7 +398,7 @@
 											value={field.ai_instruction}
 											oninput={(e) =>
 												service.updateCustomFieldProp(i, 'ai_instruction', e.currentTarget.value)}
-											placeholder="AI instruction for this field"
+											placeholder={t('AI instruction for this field')}
 											rows="1"
 											class="input resize-none text-body-sm transition-all duration-200"
 											onfocus={(e) => {
@@ -415,7 +422,7 @@
 						}}
 					>
 						<Plus size={16} strokeWidth={2} />
-						Add Field
+						{t('Add Field')}
 					</Button>
 				</div>
 			{/if}
@@ -433,10 +440,10 @@
 					<div
 						class="animate-spin rounded-full border-2 border-current border-t-transparent size-5"
 					></div>
-					<span>Generating preview...</span>
+					<span>{t('Generating preview...')}</span>
 				{:else}
 					<Eye size={20} strokeWidth={1.5} />
-					<span>Preview AI Prompt</span>
+					<span>{t('Preview AI Prompt')}</span>
 					<ChevronDown
 						class="ml-auto transition-transform {service.showPromptPreview ? 'rotate-180' : ''}"
 						size={16}
@@ -447,13 +454,15 @@
 			{#if service.showPromptPreview && service.promptPreview}
 				<div class="mt-3 space-y-2">
 					<div class="flex items-center justify-between">
-						<span class="text-caption font-medium text-neutral-400">System Prompt Preview</span>
+						<span class="text-caption font-medium text-neutral-400"
+							>{t('System Prompt Preview')}</span
+						>
 						<button
 							type="button"
 							class="btn-icon-touch"
 							onclick={() => (promptFullscreen = true)}
-							title="Expand fullscreen"
-							aria-label="View prompt fullscreen"
+							title={t('Expand fullscreen')}
+							aria-label={t('View prompt fullscreen')}
 						>
 							<Maximize2 size={20} strokeWidth={1.5} />
 						</button>
@@ -463,8 +472,9 @@
 							class="max-h-80 whitespace-pre-wrap wrap-break-word p-4 font-mono text-caption text-neutral-400 overflow-auto">{service.promptPreview}</pre>
 					</div>
 					<p class="text-caption text-neutral-500">
-						This is what the AI will see when analyzing your images. Tags shown are examples; actual
-						tags from your Homebox instance will be used.
+						{t(
+							'This is what the AI will see when analyzing your images. Tags shown are examples; actual tags from your Homebox instance will be used.'
+						)}
 					</p>
 				</div>
 			{/if}
@@ -484,15 +494,15 @@
 					<div
 						class="animate-spin rounded-full border-2 border-neutral-100/30 border-t-neutral-100 size-5"
 					></div>
-					<span>Saving...</span>
+					<span>{t('Saving...')}</span>
 				{:else if service.saveState === 'success'}
 					<div class="flex items-center justify-center rounded-full bg-success-500/20 size-8">
 						<Check class="text-success-500" size={20} strokeWidth={2.5} />
 					</div>
-					<span>Saved!</span>
+					<span>{t('Saved!')}</span>
 				{:else}
 					<Check size={16} strokeWidth={2} />
-					<span>Save</span>
+					<span>{t('Save')}</span>
 				{/if}
 			</Button>
 		</div>
@@ -502,8 +512,8 @@
 <!-- Fullscreen Prompt Preview Modal -->
 <FullscreenPanel
 	bind:open={promptFullscreen}
-	title="AI System Prompt"
-	subtitle="This is what the AI sees when analyzing your images"
+	title={t('AI System Prompt')}
+	subtitle={t('This is what the AI sees when analyzing your images')}
 	onclose={() => (promptFullscreen = false)}
 >
 	{#snippet icon()}

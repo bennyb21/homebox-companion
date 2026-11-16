@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 function editor() {
 	const source = readFileSync(
@@ -26,6 +27,7 @@ function editor() {
 	);
 	const exports = {};
 	runInNewContext(script, {
+		t,
 		exports,
 		$state: (value) => value,
 		$derived: (value) => value,

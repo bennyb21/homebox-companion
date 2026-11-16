@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import Eye from '@lucide/svelte/icons/eye';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -66,12 +68,12 @@
 		e.preventDefault();
 
 		if (!email || !password) {
-			showToast('Please enter email and password', 'warning');
+			showToast(t('Please enter email and password'), 'warning');
 			return;
 		}
 
 		isSubmitting = true;
-		setLoading(true, 'Signing in...');
+		setLoading(true, t('Signing in...'));
 
 		try {
 			const response = await auth.login(email, password);
@@ -81,7 +83,7 @@
 		} catch (error) {
 			log.error('Login failed:', error);
 			showToast(
-				error instanceof Error ? error.message : 'Login failed. Please check your credentials.',
+				error instanceof Error ? error.message : t('Login failed. Please check your credentials.'),
 				'error'
 			);
 		} finally {
@@ -96,7 +98,7 @@
 </script>
 
 <svelte:head>
-	<title>Login - Homebox Companion</title>
+	<title>{t('Login - Homebox Companion')}</title>
 </svelte:head>
 
 <div class="animate-in flex flex-col items-center justify-center pb-16 pt-8">
@@ -106,7 +108,7 @@
 			<div
 				class="animate-spin rounded-full border-4 border-primary-500/30 border-t-primary-500 size-12"
 			></div>
-			<p class="text-body-sm text-neutral-400">Loading...</p>
+			<p class="text-body-sm text-neutral-400">{t('Loading...')}</p>
 		</div>
 	{:else if authStore.isLegacy && !authStore.isAuthenticated}
 		<!-- Refined logo icon -->
@@ -127,14 +129,14 @@
 		</div>
 
 		<!-- Typography with improved hierarchy -->
-		<h1 class="mb-2 px-4 text-center text-h1 text-neutral-100">Welcome back</h1>
+		<h1 class="mb-2 px-4 text-center text-h1 text-neutral-100">{t('Welcome back')}</h1>
 		<p class="mb-6 max-w-xs px-4 text-center text-body text-neutral-400">
-			Sign in to continue to Homebox Companion
+			{t('Sign in to continue to Homebox Companion')}
 		</p>
 
 		<form class="w-full max-w-sm space-y-5 px-4" onsubmit={handleSubmit}>
 			<div>
-				<label for="email" class="label">Email</label>
+				<label for="email" class="label">{t('Email')}</label>
 				<input
 					type="email"
 					id="email"
@@ -147,13 +149,13 @@
 			</div>
 
 			<div>
-				<label for="password" class="label">Password</label>
+				<label for="password" class="label">{t('Password')}</label>
 				<div class="relative">
 					<input
 						type={showPassword ? 'text' : 'password'}
 						id="password"
 						bind:value={password}
-						placeholder="Enter your password"
+						placeholder={t('Enter your password')}
 						required
 						autocomplete="current-password"
 						class="input pr-12"
@@ -162,7 +164,7 @@
 						type="button"
 						onclick={togglePasswordVisibility}
 						class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-300"
-						aria-label={showPassword ? 'Hide password' : 'Show password'}
+						aria-label={showPassword ? t('Hide password') : t('Show password')}
 					>
 						{#if showPassword}
 							<!-- Eye off icon -->
@@ -177,7 +179,7 @@
 
 			<div class="pt-2">
 				<Button type="submit" variant="primary" full loading={isSubmitting}>
-					<span>Sign In</span>
+					<span>{t('Sign In')}</span>
 					<ArrowRight size={20} strokeWidth={2} />
 				</Button>
 			</div>

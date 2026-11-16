@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * UpdateFieldEditor - Conditional field editor for update approval actions
 	 *
@@ -137,7 +139,7 @@
 <div class="space-y-2.5">
 	{#if displayInfo?.target_name || displayInfo?.item_name}
 		<div class="rounded-lg bg-neutral-800/50 px-2.5 py-1.5">
-			<span class="text-caption text-neutral-500">Updating:</span>
+			<span class="text-caption text-neutral-500">{t('Updating:')}</span>
 			<span class="ml-1 text-body-sm text-neutral-300"
 				>{displayInfo.target_name ?? displayInfo.item_name}</span
 			>
@@ -149,12 +151,12 @@
 
 	{#if fieldsBeingChanged.includes('name')}
 		<div>
-			<label for="{idPrefix}-name" class={labelClass}>New Name</label>
+			<label for="{idPrefix}-name" class={labelClass}>{t('New Name')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-name"
 				bind:value={name}
-				placeholder="Item name"
+				placeholder={t('Item name')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -163,7 +165,7 @@
 
 	{#if fieldsBeingChanged.includes('quantity')}
 		<div>
-			<label for="{idPrefix}-qty" class={labelClass}>New Quantity</label>
+			<label for="{idPrefix}-qty" class={labelClass}>{t('New Quantity')}</label>
 			<input
 				type="number"
 				id="{idPrefix}-qty"
@@ -177,11 +179,11 @@
 
 	{#if fieldsBeingChanged.includes('description')}
 		<div>
-			<label for="{idPrefix}-desc" class={labelClass}>New Description</label>
+			<label for="{idPrefix}-desc" class={labelClass}>{t('New Description')}</label>
 			<textarea
 				id="{idPrefix}-desc"
 				bind:value={description}
-				placeholder="Description"
+				placeholder={t('Description')}
 				rows="2"
 				class="{inputClass} resize-none"
 				{disabled}></textarea>
@@ -190,12 +192,12 @@
 
 	{#if fieldsBeingChanged.includes('color')}
 		<div>
-			<label for="{idPrefix}-color" class={labelClass}>New Color</label>
+			<label for="{idPrefix}-color" class={labelClass}>{t('New Color')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-color"
 				bind:value={color}
-				placeholder="Color (e.g., #FF5733)"
+				placeholder={t('Color (e.g., #FF5733)')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -204,12 +206,12 @@
 
 	{#if fieldsBeingChanged.includes('parent_id')}
 		<div>
-			<label for="{idPrefix}-parent" class={labelClass}>New Parent</label>
+			<label for="{idPrefix}-parent" class={labelClass}>{t('New Parent')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-parent"
 				bind:value={parentId}
-				placeholder="Parent ID (leave blank to keep the current one)"
+				placeholder={t('Parent ID (leave blank to keep the current one)')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -218,7 +220,7 @@
 
 	{#if fieldsBeingChanged.includes('location')}
 		<p class="text-caption text-neutral-400">
-			Move directly into a location, removing the parent item.
+			{t('Move directly into a location, removing the parent item.')}
 		</p>
 		<LocationSelector
 			bind:value={locationId}
@@ -231,7 +233,8 @@
 
 	{#if fieldsBeingChanged.includes('location_override_id')}
 		<div>
-			<label for="{idPrefix}-location-override" class={labelClass}>Physical location override</label
+			<label for="{idPrefix}-location-override" class={labelClass}
+				>{t('Physical location override')}</label
 			>
 			<select
 				id="{idPrefix}-location-override"
@@ -239,26 +242,27 @@
 				class={inputClass}
 				{disabled}
 			>
-				<option value="">Cancel this override change</option>
+				<option value="">{t('Cancel this override change')}</option>
 				{#if overrideProposalMissing}
-					<option value={locationOverrideId}>Proposed location ({locationOverrideId})</option>
+					<option value={locationOverrideId}>{t('Proposed location (')}{locationOverrideId})</option
+					>
 				{/if}
 				{#each locationStore.flatList as loc (loc.location.id)}
 					<option value={loc.location.id}>{loc.path}</option>
 				{/each}
 			</select>
 			<p class="text-caption text-neutral-400">
-				Keeps the parent item; changes this item’s physical location.
+				{t('Keeps the parent item; changes this item’s physical location.')}
 			</p>
 			{#if loadingOverrideLocations}
-				<p role="status" class="text-caption text-neutral-400">Loading locations…</p>
+				<p role="status" class="text-caption text-neutral-400">{t('Loading locations…')}</p>
 			{:else if overrideLocationsError}
-				<p role="alert" class="text-caption text-error-400">Could not load locations.</p>
+				<p role="alert" class="text-caption text-error-400">{t('Could not load locations.')}</p>
 				<button
 					type="button"
 					class="min-h-touch text-body-sm text-accent"
 					onclick={() => overrideLocationsAttempt++}
-					{disabled}>Retry loading locations</button
+					{disabled}>{t('Retry loading locations')}</button
 				>
 			{/if}
 		</div>
@@ -266,7 +270,7 @@
 	{#if fieldsBeingChanged.includes('clear_location_override')}
 		<label class="flex min-h-touch items-center gap-2 text-body-sm text-neutral-300">
 			<input type="checkbox" bind:checked={clearLocationOverride} {disabled} />
-			Use parent-chain location
+			{t('Use parent-chain location')}
 		</label>
 	{/if}
 
@@ -277,11 +281,11 @@
 	{#if fieldsBeingChanged.includes('notes') && !hasExtendedFieldsBeingChanged}
 		<!-- Only show standalone notes when NOT also showing extended fields -->
 		<div>
-			<label for="{idPrefix}-notes" class={labelClass}>New Notes</label>
+			<label for="{idPrefix}-notes" class={labelClass}>{t('New Notes')}</label>
 			<textarea
 				id="{idPrefix}-notes"
 				bind:value={notes}
-				placeholder="Notes"
+				placeholder={t('Notes')}
 				rows="2"
 				class="{inputClass} resize-none"
 				{disabled}></textarea>
@@ -291,12 +295,12 @@
 	<!-- Extended fields being changed -->
 	{#if fieldsBeingChanged.includes('manufacturer')}
 		<div>
-			<label for="{idPrefix}-manufacturer" class={labelClass}>New Manufacturer</label>
+			<label for="{idPrefix}-manufacturer" class={labelClass}>{t('New Manufacturer')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-manufacturer"
 				bind:value={manufacturer}
-				placeholder="Manufacturer"
+				placeholder={t('Manufacturer')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -305,12 +309,12 @@
 
 	{#if fieldsBeingChanged.includes('model_number')}
 		<div>
-			<label for="{idPrefix}-model" class={labelClass}>New Model Number</label>
+			<label for="{idPrefix}-model" class={labelClass}>{t('New Model Number')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-model"
 				bind:value={modelNumber}
-				placeholder="Model Number"
+				placeholder={t('Model Number')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -319,12 +323,12 @@
 
 	{#if fieldsBeingChanged.includes('serial_number')}
 		<div>
-			<label for="{idPrefix}-serial" class={labelClass}>New Serial Number</label>
+			<label for="{idPrefix}-serial" class={labelClass}>{t('New Serial Number')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-serial"
 				bind:value={serialNumber}
-				placeholder="Serial Number"
+				placeholder={t('Serial Number')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -333,7 +337,7 @@
 
 	{#if fieldsBeingChanged.includes('purchase_price')}
 		<div>
-			<label for="{idPrefix}-price" class={labelClass}>New Purchase Price</label>
+			<label for="{idPrefix}-price" class={labelClass}>{t('New Purchase Price')}</label>
 			<input
 				type="number"
 				id="{idPrefix}-price"
@@ -349,12 +353,12 @@
 
 	{#if fieldsBeingChanged.includes('purchase_from')}
 		<div>
-			<label for="{idPrefix}-vendor" class={labelClass}>New Purchased From</label>
+			<label for="{idPrefix}-vendor" class={labelClass}>{t('New Purchased From')}</label>
 			<input
 				type="text"
 				id="{idPrefix}-vendor"
 				bind:value={purchaseFrom}
-				placeholder="Vendor"
+				placeholder={t('Vendor')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -364,11 +368,11 @@
 	{#if fieldsBeingChanged.includes('notes') && hasExtendedFieldsBeingChanged}
 		<!-- Notes shown here when part of extended fields update -->
 		<div>
-			<label for="{idPrefix}-notes-ext" class={labelClass}>New Notes</label>
+			<label for="{idPrefix}-notes-ext" class={labelClass}>{t('New Notes')}</label>
 			<textarea
 				id="{idPrefix}-notes-ext"
 				bind:value={notes}
-				placeholder="Notes"
+				placeholder={t('Notes')}
 				rows="2"
 				class="{inputClass} resize-none"
 				{disabled}></textarea>
@@ -376,6 +380,6 @@
 	{/if}
 
 	{#if fieldsBeingChanged.length === 0}
-		<p class="text-body-sm text-neutral-500">No specific fields to edit.</p>
+		<p class="text-body-sm text-neutral-500">{t('No specific fields to edit.')}</p>
 	{/if}
 </div>

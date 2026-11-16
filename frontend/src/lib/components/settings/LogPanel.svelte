@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * LogPanel - Reusable collapsible log viewer panel.
 	 *
@@ -77,7 +79,7 @@
 		isLoading = false,
 		error = null,
 		isEmpty = false,
-		emptyMessage = 'No data available.',
+		emptyMessage = t('No data available.'),
 		subtitleLeft,
 		subtitleRight,
 		fullscreenSubtitle,
@@ -109,8 +111,8 @@
 			class="btn-icon-touch"
 			onclick={onRefresh}
 			disabled={refreshDisabled || refreshLoading}
-			title={error ? 'Retry' : 'Refresh'}
-			aria-label={error ? 'Retry' : 'Refresh'}
+			title={error ? t('Retry') : t('Refresh')}
+			aria-label={error ? t('Retry') : t('Refresh')}
 		>
 			<RefreshCw class={refreshLoading ? 'animate-spin' : ''} size={20} strokeWidth={1.5} />
 		</button>
@@ -121,8 +123,8 @@
 			class="btn-icon-touch"
 			onclick={onDownload}
 			disabled={downloadDisabled}
-			title="Download"
-			aria-label="Download"
+			title={t('Download')}
+			aria-label={t('Download')}
 		>
 			<Download size={20} strokeWidth={1.5} />
 		</button>
@@ -133,8 +135,8 @@
 			class="btn-icon-touch"
 			onclick={onExport}
 			disabled={exportDisabled}
-			title="Export"
-			aria-label="Export"
+			title={t('Export')}
+			aria-label={t('Export')}
 		>
 			<Share size={20} strokeWidth={1.5} />
 		</button>
@@ -145,8 +147,8 @@
 			class="btn-icon-touch"
 			onclick={onClear}
 			disabled={clearDisabled}
-			title="Clear"
-			aria-label="Clear"
+			title={t('Clear')}
+			aria-label={t('Clear')}
 		>
 			<Trash2 size={20} strokeWidth={1.5} />
 		</button>
@@ -168,8 +170,8 @@
 						type="button"
 						class="btn-icon-touch"
 						onclick={() => (isFullscreen = true)}
-						title="Expand fullscreen"
-						aria-label="View fullscreen"
+						title={t('Expand fullscreen')}
+						aria-label={t('View fullscreen')}
 					>
 						<Maximize2 size={20} strokeWidth={1.5} />
 					</button>
@@ -195,7 +197,7 @@
 			<div
 				class="animate-spin rounded-full border-2 border-current border-t-transparent size-4"
 			></div>
-			<span>Loading...</span>
+			<span>{t('Loading...')}</span>
 		{:else}
 			<span>{toggleLabel}</span>
 			<ChevronDown

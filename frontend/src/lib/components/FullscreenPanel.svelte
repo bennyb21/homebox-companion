@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * FullscreenPanel - A full-viewport overlay for expanded content viewing.
 	 *
@@ -76,8 +78,8 @@
 					type="button"
 					class="btn-icon-touch"
 					onclick={handleClose}
-					title="Close fullscreen (Escape)"
-					aria-label="Close"
+					title={t('Close fullscreen (Escape)')}
+					aria-label={t('Close')}
 				>
 					<X size={20} strokeWidth={1.5} />
 				</button>

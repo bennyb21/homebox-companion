@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * RecoveryBanner - Prompts user to recover a crashed session
 	 *
@@ -29,19 +31,19 @@
 	function getStatusText(status: string): string {
 		switch (status) {
 			case 'location':
-				return 'selecting a location';
+				return t('selecting a location');
 			case 'capturing':
-				return 'capturing photos';
+				return t('capturing photos');
 			case 'analyzing':
-				return 'analyzing photos';
+				return t('analyzing photos');
 			case 'partial_analysis':
-				return 'analyzing photos';
+				return t('analyzing photos');
 			case 'reviewing':
-				return 'reviewing items';
+				return t('reviewing items');
 			case 'confirming':
-				return 'confirming items';
+				return t('confirming items');
 			case 'submitting':
-				return 'submitting items';
+				return t('submitting items');
 			default:
 				return 'in progress';
 		}
@@ -62,11 +64,12 @@
 			</div>
 
 			<div class="flex-1">
-				<h3 class="text-body font-semibold text-primary-100">Session Recovery Available</h3>
+				<h3 class="text-body font-semibold text-primary-100">{t('Session Recovery Available')}</h3>
 				<p class="mt-1 text-body-sm text-primary-200/80">
-					You were {getStatusText(summary.status)}
+					{t('You were')}
+					{getStatusText(summary.status)}
 					{#if summary.locationName}
-						at <span class="font-medium text-primary-100">{summary.locationName}</span>
+						{t('at')} <span class="font-medium text-primary-100">{summary.locationName}</span>
 					{/if}
 					{summary.ageText}.
 				</p>
@@ -78,14 +81,21 @@
 			{#if summary.imageCount > 0}
 				<div class="flex items-center gap-1.5">
 					<ImageIcon size={14} strokeWidth={1.5} />
-					<span>{summary.imageCount} photo{summary.imageCount !== 1 ? 's' : ''}</span>
+					<span
+						>{t(summary.imageCount === 1 ? '{count} photo' : '{count} photos', {
+							count: summary.imageCount,
+						})}</span
+					>
 				</div>
 			{/if}
 			{#if summary.confirmedCount > 0}
 				<div class="flex items-center gap-1.5">
 					<CheckSquare size={14} strokeWidth={1.5} />
 					<span
-						>{summary.confirmedCount} item{summary.confirmedCount !== 1 ? 's' : ''} confirmed</span
+						>{t(summary.confirmedCount === 1 ? '{count} item' : '{count} items', {
+							count: summary.confirmedCount,
+						})}
+						{t('confirmed')}</span
 					>
 				</div>
 			{/if}
@@ -97,14 +107,14 @@
 					<div
 						class="animate-spin rounded-full border-2 border-current border-t-transparent size-4"
 					></div>
-					<span>Recovering...</span>
+					<span>{t('Recovering...')}</span>
 				{:else}
 					<Play size={16} strokeWidth={1.5} />
-					<span>Resume Session</span>
+					<span>{t('Resume Session')}</span>
 				{/if}
 			</Button>
 			<Button variant="ghost" onclick={onDismiss} disabled={loading}>
-				<span>Start Fresh</span>
+				<span>{t('Start Fresh')}</span>
 			</Button>
 		</div>
 	</div>

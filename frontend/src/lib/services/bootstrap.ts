@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 import { browser } from '$app/environment';
 import { authStore, registerAuthLifecycle, type HomeboxConnection } from '$lib/stores/auth.svelte';
 import { collectionStore } from '$lib/stores/collection.svelte';
@@ -43,7 +44,8 @@ async function clearScopedState(): Promise<void> {
 
 async function discoverConfig(): Promise<ConfigResponse> {
 	const response = await fetch('/api/config', { headers: { Accept: 'application/json' } });
-	if (!response.ok) throw new Error(`Unable to load Companion configuration (${response.status})`);
+	if (!response.ok)
+		throw new Error(t('Unable to load Companion configuration ({p0})', { p0: response.status }));
 	const config: unknown = await response.json();
 	if (
 		!config ||
@@ -51,7 +53,7 @@ async function discoverConfig(): Promise<ConfigResponse> {
 		!('auth_mode' in config) ||
 		(config.auth_mode !== 'legacy' && config.auth_mode !== 'api_key')
 	) {
-		throw new Error('Companion returned an invalid authentication configuration');
+		throw new Error(t('Companion returned an invalid authentication configuration'));
 	}
 	return config as ConfigResponse;
 }
@@ -62,7 +64,7 @@ async function establishConnection(): Promise<void> {
 		omitGroup: true,
 	});
 	if (!connection.connected || !connection.context_id || !connection.user_id) {
-		throw new Error('Homebox returned an invalid connection response');
+		throw new Error(t('Homebox returned an invalid connection response'));
 	}
 	const identityChanged = previousScope && previousScope.contextId !== connection.context_id;
 	if (identityChanged) {
@@ -99,7 +101,7 @@ async function runBootstrap(): Promise<void> {
 		await establishConnection();
 	} catch (error) {
 		authStore.setConnectionError(
-			error instanceof Error ? error.message : 'Unable to connect to Homebox'
+			error instanceof Error ? error.message : t('Unable to connect to Homebox')
 		);
 	} finally {
 		authStore.setInitialized(true);
@@ -126,7 +128,7 @@ export async function retryConnection(): Promise<void> {
 		await establishConnection();
 	} catch (error) {
 		authStore.setConnectionError(
-			error instanceof Error ? error.message : 'Unable to connect to Homebox'
+			error instanceof Error ? error.message : t('Unable to connect to Homebox')
 		);
 	}
 }
@@ -137,7 +139,7 @@ export async function completeLegacyLogin(): Promise<void> {
 		await establishConnection();
 	} catch (error) {
 		authStore.setConnectionError(
-			error instanceof Error ? error.message : 'Unable to connect to Homebox'
+			error instanceof Error ? error.message : t('Unable to connect to Homebox')
 		);
 		throw error;
 	}

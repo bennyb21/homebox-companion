@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { page } from '$app/stores';
 	import { scanWorkflow } from '$lib/workflows/scan.svelte';
 	import { getIsDemoModeExplicit } from '$lib/api/settings';
@@ -29,7 +31,7 @@
 <nav
 	class="glass pb-safe fixed bottom-0 z-50 border-t border-neutral-700 md:hidden inset-x-0"
 	style="view-transition-name: bottom-nav; transform: translateZ(0); -webkit-transform: translateZ(0);"
-	aria-label="Main navigation"
+	aria-label={t('Main navigation')}
 >
 	<AppContainer class="px-2">
 		<ul class="flex h-16 items-center justify-around" role="menubar">

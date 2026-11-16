@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onMount } from 'svelte';
 	import { modalDialog } from '$lib/actions/dialog';
 	import X from '@lucide/svelte/icons/x';
@@ -175,7 +177,7 @@
 		img.onerror = () => {
 			if (disposed || pendingImage !== img) return;
 			isImageLoading = false;
-			imageError = 'Unable to load this image. Try again or choose another image.';
+			imageError = t('Unable to load this image. Try again or choose another image.');
 		};
 		img.src = images[index].dataUrl;
 	}
@@ -462,7 +464,7 @@
 
 <dialog
 	use:modalDialog
-	aria-label="Edit Thumbnail"
+	aria-label={t('Edit Thumbnail')}
 	oncancel={(event) => {
 		event.preventDefault();
 		onClose();
@@ -474,7 +476,7 @@
 	>
 		<div class="flex items-center justify-between border-b border-neutral-700 p-4">
 			<div>
-				<h3 class="text-body-lg font-semibold text-neutral-100">Edit Thumbnail</h3>
+				<h3 class="text-body-lg font-semibold text-neutral-100">{t('Edit Thumbnail')}</h3>
 				<p class="max-w-xs truncate text-body-sm text-neutral-400">
 					{itemName}
 				</p>
@@ -483,7 +485,7 @@
 				type="button"
 				class="flex min-h-touch min-w-touch items-center justify-center rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-neutral-100"
 				onclick={onClose}
-				aria-label="Close"
+				aria-label={t('Close')}
 			>
 				<X size={20} strokeWidth={1.5} />
 			</button>
@@ -492,7 +494,7 @@
 		<!-- Instructions at top for better discovery -->
 		<div class="border-b border-neutral-700/50 bg-neutral-800/50 px-4 py-2">
 			<p class="text-center text-caption text-neutral-400">
-				Drag to pan • Scroll to zoom • On mobile: pinch to zoom, two fingers to rotate
+				{t('Drag to pan • Scroll to zoom • On mobile: pinch to zoom, two fingers to rotate')}
 			</p>
 		</div>
 
@@ -500,7 +502,7 @@
 		{#if images.length > 1}
 			<div class="border-b border-neutral-700/50 px-4 py-3">
 				<span class="mb-2 block text-caption font-medium text-neutral-400"
-					>Select source image:</span
+					>{t('Select source image:')}</span
 				>
 				<div class="flex gap-3 overflow-x-auto pb-2">
 					{#each images as img, index (`${img.file.name}-${img.file.size}-${index}`)}
@@ -515,14 +517,19 @@
 									? 'border-primary-500 ring-2 ring-primary-500/30'
 									: 'border-neutral-700 hover:border-neutral-600'}"
 							>
-								<img src={img.dataUrl} alt="Image {index + 1}" class="object-cover size-full" />
+								<img
+									src={img.dataUrl}
+									alt={t('Image {count}', { count: index + 1 })}
+									class="object-cover size-full"
+								/>
 							</div>
 							<span
 								class="text-caption {selectedImageIndex === index
 									? 'font-medium text-primary-400'
 									: 'text-neutral-500'}"
 							>
-								Image {index + 1}
+								{t('Image')}
+								{index + 1}
 							</span>
 						</button>
 					{/each}
@@ -533,13 +540,13 @@
 		<!-- Canvas area with cursor states -->
 		{#if isImageLoading}
 			<p class="px-4 pt-4 text-center text-body-sm text-neutral-400" role="status">
-				Loading image...
+				{t('Loading image...')}
 			</p>
 		{:else if imageError}
 			<div class="space-y-2 px-4 pt-4 text-center">
 				<p class="text-body-sm text-error-400" role="alert">{imageError}</p>
 				<Button variant="secondary" onclick={() => loadImage(selectedImageIndex)}
-					>Retry image</Button
+					>{t('Retry image')}</Button
 				>
 			</div>
 		{/if}
@@ -570,15 +577,15 @@
 						class="flex items-center gap-1.5 text-caption font-medium text-neutral-300"
 					>
 						<Search class="text-primary-400" size={16} strokeWidth={1.5} />
-						Zoom
+						{t('Zoom')}
 					</label>
 				</div>
 				<!-- Tick marks for zoom -->
 				<div class="relative mb-1">
 					<div class="flex justify-between px-0.5 text-xxs text-neutral-600">
-						<span>Min</span>
-						<span>Mid</span>
-						<span>Max</span>
+						<span>{t('Min')}</span>
+						<span>{t('Mid')}</span>
+						<span>{t('Max')}</span>
 					</div>
 				</div>
 				<input
@@ -602,7 +609,7 @@
 						class="flex items-center gap-1.5 text-caption font-medium text-neutral-300"
 					>
 						<RotateCcw class="text-primary-400" size={16} strokeWidth={1.5} />
-						Rotation
+						{t('Rotation')}
 					</label>
 				</div>
 				<!-- Tick marks for rotation -->
@@ -621,7 +628,7 @@
 						class="relative z-10 flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-lg bg-neutral-800 p-2 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-neutral-100"
 						onclick={rotateLeft90}
 						disabled={!loadedImage}
-						aria-label="Rotate 90° left"
+						aria-label={t('Rotate 90° left')}
 						title="-90°"
 					>
 						<RotateCcw size={20} strokeWidth={1.5} />
@@ -642,7 +649,7 @@
 						class="relative z-10 flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-lg bg-neutral-800 p-2 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-neutral-100"
 						onclick={rotateRight90}
 						disabled={!loadedImage}
-						aria-label="Rotate 90° right"
+						aria-label={t('Rotate 90° right')}
 						title="+90°"
 					>
 						<RotateCw size={20} strokeWidth={1.5} />
@@ -658,17 +665,17 @@
 					onclick={resetTransform}
 					disabled={!loadedImage}
 				>
-					Reset to Default
+					{t('Reset to Default')}
 				</button>
 			</div>
 		</div>
 
 		<!-- Actions -->
 		<div class="flex gap-3 border-t border-neutral-700 p-4">
-			<Button variant="secondary" onclick={onClose}>Cancel</Button>
+			<Button variant="secondary" onclick={onClose}>{t('Cancel')}</Button>
 			<Button variant="primary" onclick={saveCrop} disabled={isImageLoading || !loadedImage}>
 				<Check size={16} strokeWidth={1.5} />
-				<span>Save Thumbnail</span>
+				<span>{t('Save Thumbnail')}</span>
 			</Button>
 		</div>
 	</div>

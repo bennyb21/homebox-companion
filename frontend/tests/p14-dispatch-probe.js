@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import ts from 'typescript';
+import { t } from './i18n.js';
 const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
 const retryable = process.argv[2] === 'rejected';
 let calls = 0;
 globalThis.p14dispatch = {
+	t,
 	itemsApi: {
 		create: async () => {
 			calls++;

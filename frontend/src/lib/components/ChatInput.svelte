@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ChatInput - Text input for sending chat messages
 	 *
@@ -67,7 +69,7 @@
 		{#if chatStore.isStreaming}
 			<div class="flex flex-1 items-center px-2 py-1.5 text-body-sm text-primary-500">
 				<span
-					>Assistant is responding<span class="typing-ellipsis" aria-hidden="true"
+					>{t('Assistant is responding')}<span class="typing-ellipsis" aria-hidden="true"
 						><span>.</span><span>.</span><span>.</span></span
 					></span
 				>
@@ -78,10 +80,10 @@
 				bind:value={inputValue}
 				onkeydown={handleKeydown}
 				oninput={handleInput}
-				placeholder="Ask about your inventory..."
+				placeholder={t('Ask about your inventory...')}
 				rows="1"
 				autocomplete="off"
-				aria-label="Chat message input"
+				aria-label={t('Chat message input')}
 				class="max-h-20 flex-1 resize-none rounded-md border-0 bg-transparent px-2 py-1.5 text-body leading-relaxed text-neutral-200 outline-hidden placeholder:text-neutral-500"
 			></textarea>
 		{/if}
@@ -89,7 +91,7 @@
 		<button
 			type="submit"
 			disabled={isDisabled}
-			aria-label="Send message"
+			aria-label={t('Send message')}
 			class="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-linear-to-br/srgb from-primary-500 to-primary-600 text-neutral-100 shadow-primary-glow-sm transition-all duration-fast hover:scale-105 hover:shadow-primary-glow active:scale-95 disabled:cursor-not-allowed disabled:bg-neutral-700 disabled:text-neutral-600 disabled:shadow-none size-8"
 		>
 			{#if chatStore.isStreaming}
@@ -103,7 +105,7 @@
 			<button
 				type="button"
 				onclick={handleCancel}
-				aria-label="Stop generating"
+				aria-label={t('Stop generating')}
 				class="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-error-500 text-neutral-100 shadow-error-glow-sm transition-all duration-fast hover:scale-105 hover:bg-error-600 hover:shadow-error-glow active:scale-95 size-8"
 			>
 				<Square size={12} fill="currentColor" />
@@ -114,10 +116,10 @@
 			<button
 				type="button"
 				onclick={onClearHistory}
-				aria-label="Clear chat history"
+				aria-label={t('Clear chat history')}
 				class="cursor-pointer rounded border-0 bg-transparent px-1.5 py-0.5 text-caption text-neutral-500 transition-all duration-fast hover:bg-error-500/10 hover:text-error-500 active:scale-95"
 			>
-				Clear
+				{t('Clear')}
 			</button>
 		{/if}
 	</div>

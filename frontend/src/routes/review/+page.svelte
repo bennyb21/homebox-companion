@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount, onDestroy, untrack } from 'svelte';
@@ -344,30 +346,30 @@
 </script>
 
 <svelte:head>
-	<title>Review Items - Homebox Companion</title>
+	<title>{t('Review Items - Homebox Companion')}</title>
 </svelte:head>
 
 <div class="animate-in pb-32">
 	<StepIndicator currentStep={3} />
 
-	<h2 class="mb-1 text-h2 text-neutral-100">Review Items</h2>
-	<p class="mb-6 text-body-sm text-neutral-400">Edit or skip detected items</p>
+	<h2 class="mb-1 text-h2 text-neutral-100">{t('Review Items')}</h2>
+	<p class="mb-6 text-body-sm text-neutral-400">{t('Edit or skip detected items')}</p>
 	{#if !workflow.isEditingFailedItem}
 		<p class="mb-4 text-caption text-neutral-400" role="status" aria-live="polite">
 			{workflow.saveState === 'saving'
-				? 'Saving…'
+				? t('Saving…')
 				: workflow.saveState === 'saved'
-					? 'Saved'
-					: 'Unable to save. Keep this page open and retry.'}
+					? t('Saved')
+					: t('Unable to save. Keep this page open and retry.')}
 		</p>
 		{#if workflow.saveState === 'error'}
-			<Button variant="secondary" onclick={() => workflow.persistAsync()}>Retry save</Button>
+			<Button variant="secondary" onclick={() => workflow.persistAsync()}>{t('Retry save')}</Button>
 		{/if}
 	{/if}
 
 	<BackLink
 		href={workflow.isEditingFailedItem ? '/summary' : '/capture'}
-		label={workflow.isEditingFailedItem ? 'Back to Summary' : 'Back to Capture'}
+		label={workflow.isEditingFailedItem ? t('Back to Summary') : t('Back to Capture')}
 		onclick={goBack}
 		disabled={isProcessing}
 	/>
@@ -387,16 +389,16 @@
 						type="button"
 						class="absolute bottom-3 right-3 flex min-h-touch items-center gap-2 rounded-lg bg-neutral-950/70 px-3 py-2.5 text-body-sm text-neutral-100 transition-all hover:bg-neutral-950/90 focus:outline-hidden focus:ring-2 focus:ring-neutral-100/50 md:[@media(hover:hover)]:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
 						onclick={openThumbnailEditor}
-						aria-label="Edit thumbnail image"
+						aria-label={t('Edit thumbnail image')}
 					>
 						<SquarePen size={16} strokeWidth={1.5} />
-						<span>Edit Thumbnail</span>
+						<span>{t('Edit Thumbnail')}</span>
 					</button>
 					{#if editedItem.customThumbnail}
 						<span
 							class="absolute left-3 top-3 rounded bg-primary-600/90 px-2 py-1 text-caption font-medium text-neutral-100"
 						>
-							Custom
+							{t('Custom')}
 						</span>
 					{/if}
 				</div>
@@ -406,8 +408,8 @@
 					class="flex aspect-video flex-col items-center justify-center bg-neutral-800 text-neutral-500"
 				>
 					<ImageIcon class="mb-2 opacity-40" size={64} strokeWidth={1} />
-					<p class="text-body-sm">No image available</p>
-					<p class="mt-1 text-caption">Add photos below</p>
+					<p class="text-body-sm">{t('No image available')}</p>
+					<p class="mt-1 text-caption">{t('Add photos below')}</p>
 				</div>
 			{/if}
 
@@ -418,11 +420,12 @@
 				>
 					<DuplicateWarningIcon match={editedItem.duplicate_match} />
 					<div class="text-body-sm">
-						<p class="font-medium text-warning-300">Possible Duplicate</p>
-						<p class="text-warning-200/80">This item may already exist in your inventory</p>
+						<p class="font-medium text-warning-300">{t('Possible Duplicate')}</p>
+						<p class="text-warning-200/80">{t('This item may already exist in your inventory')}</p>
 						<p class="mt-0.5 text-caption text-warning-200/60">
-							Serial number "{editedItem.duplicate_match.serial_number}" found in "{editedItem
-								.duplicate_match.item_name}"
+							{t('Serial number "')}{editedItem.duplicate_match.serial_number}{t(
+								'" found in "'
+							)}{editedItem.duplicate_match.item_name}"
 						</p>
 					</div>
 				</div>
@@ -464,10 +467,14 @@
 					}}
 				/>
 				{#if editedItem.entity_type_id || editedItem.template_id}
-					<p class="text-caption text-neutral-400">
-						AI correction and merge are unavailable for native profiles. Edit fields manually. Type
-						changes preserve existing fields as additional fields.
-					</p>
+					<details class="text-caption text-neutral-400">
+						<summary class="min-h-touch cursor-pointer py-3">{t('About native templates')}</summary>
+						<p class="text-caption text-neutral-400">
+							{t(
+								'AI correction and merge are unavailable for native profiles. Edit fields manually. Type changes preserve existing fields as additional fields.'
+							)}
+						</p>
+					</details>
 				{/if}
 				<!-- Core fields: name, quantity, description -->
 				<ItemCoreFields
@@ -533,11 +540,14 @@
 					/>
 				{/if}
 
-				<p class="text-caption text-neutral-400">
-					Photo changes here update attachments only and keep your manual fields; they do not rerun
-					AI. To analyze new views, use Back to Capture, then Change photos or analysis options and
-					explicitly Reanalyze with AI.
-				</p>
+				<details class="text-caption text-neutral-400">
+					<summary class="min-h-touch cursor-pointer py-3">{t('About changing photos')}</summary>
+					<p class="text-caption text-neutral-400">
+						{t(
+							'Photo changes here update attachments only and keep your manual fields; they do not rerun AI. To analyze new views, use Back to Capture, then Change photos or analysis options and explicitly Reanalyze with AI.'
+						)}
+					</p>
+				</details>
 				<!-- Images panel -->
 				<ImagesPanel
 					bind:images={() => allImages, setReviewImages}
@@ -564,7 +574,7 @@
 		</div>
 	{:else}
 		<div class="py-12 text-center text-neutral-500">
-			<p>No items to review</p>
+			<p>{t('No items to review')}</p>
 		</div>
 	{/if}
 
@@ -588,7 +598,10 @@
 			<!-- Item counter in footer for mobile - positioned above bottom nav -->
 			<div class="flex items-center justify-center py-3 md:hidden">
 				<span class="text-body-sm font-medium text-neutral-300">
-					Item {currentIndex + 1} of {detectedItems.length}
+					{t('Item')}
+					{currentIndex + 1}
+					{t('of')}
+					{detectedItems.length}
 				</span>
 			</div>
 			<!-- Action buttons -->
@@ -597,7 +610,7 @@
 					<div class="flex-1">
 						<Button variant="secondary" full onclick={skipItem} disabled={isProcessing}>
 							<ChevronsRight size={20} strokeWidth={1.5} />
-							<span>Skip</span>
+							<span>{t('Skip')}</span>
 						</Button>
 					</div>
 				{/if}
@@ -610,10 +623,10 @@
 				>
 					<Button variant="primary" full onclick={confirmItem} disabled={isProcessing}>
 						<Check size={20} strokeWidth={2} />
-						<span>{workflow.isEditingFailedItem ? 'Save Changes' : 'Confirm'}</span>
+						<span>{workflow.isEditingFailedItem ? t('Save Changes') : t('Confirm')}</span>
 					</Button>
 					{#if !workflow.isEditingFailedItem}
-						<InfoTooltip text="Long-press to confirm all remaining items at once." />
+						<InfoTooltip text={t('Long-press to confirm all remaining items at once.')} />
 					{/if}
 				</div>
 			</div>
@@ -624,12 +637,15 @@
 <!-- Confirm All Dialog -->
 <ConfirmDialog
 	open={showConfirmAllDialog}
-	title="Confirm All Remaining Items"
-	message="Confirm all {remainingCount} remaining {remainingCount === 1
-		? 'item'
-		: 'items'} and proceed to review & submit?"
-	confirmLabel="Confirm All"
-	cancelLabel="Cancel"
+	title={t('Confirm All Remaining Items')}
+	message={t(
+		remainingCount === 1
+			? 'Confirm all {count} remaining item and proceed to review & submit?'
+			: 'Confirm all {count} remaining items and proceed to review & submit?',
+		{ count: remainingCount }
+	)}
+	confirmLabel={t('Confirm All')}
+	cancelLabel={t('Cancel')}
 	onConfirm={handleConfirmAll}
 	onCancel={() => (showConfirmAllDialog = false)}
 />

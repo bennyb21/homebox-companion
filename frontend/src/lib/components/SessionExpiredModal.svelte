@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
@@ -25,7 +27,7 @@
 		e.preventDefault();
 
 		if (!email || !password) {
-			errorMessage = 'Please enter email and password';
+			errorMessage = t('Please enter email and password');
 			return;
 		}
 
@@ -44,7 +46,7 @@
 		} catch (error) {
 			log.error('Re-authentication failed:', error);
 			errorMessage =
-				error instanceof Error ? error.message : 'Login failed. Please check your credentials.';
+				error instanceof Error ? error.message : t('Login failed. Please check your credentials.');
 		} finally {
 			isSubmitting = false;
 		}
@@ -66,8 +68,8 @@
 				<CircleAlert class="text-warning-500" size={20} />
 			</div>
 			<div>
-				<h3 class="text-lg font-semibold text-neutral-200">Session Expired</h3>
-				<p class="text-body-sm text-neutral-400">Please log in again to continue</p>
+				<h3 class="text-lg font-semibold text-neutral-200">{t('Session Expired')}</h3>
+				<p class="text-body-sm text-neutral-400">{t('Please log in again to continue')}</p>
 			</div>
 		</div>
 	</div>
@@ -83,12 +85,12 @@
 		{/if}
 
 		<div>
-			<label for="reauth-email" class="label">Email</label>
+			<label for="reauth-email" class="label">{t('Email')}</label>
 			<input
 				type="email"
 				id="reauth-email"
 				bind:value={email}
-				placeholder="Enter your email"
+				placeholder={t('Enter your email')}
 				required
 				disabled={isSubmitting}
 				autocomplete="email"
@@ -97,12 +99,12 @@
 		</div>
 
 		<div>
-			<label for="reauth-password" class="label">Password</label>
+			<label for="reauth-password" class="label">{t('Password')}</label>
 			<input
 				type="password"
 				id="reauth-password"
 				bind:value={password}
-				placeholder="Enter your password"
+				placeholder={t('Enter your password')}
 				required
 				disabled={isSubmitting}
 				autocomplete="current-password"
@@ -113,7 +115,7 @@
 		<div class="flex flex-col gap-2 pt-2">
 			<Button type="submit" variant="primary" full loading={isSubmitting}>
 				<Lock size={20} strokeWidth={2} />
-				<span>Sign In</span>
+				<span>{t('Sign In')}</span>
 			</Button>
 
 			<button
@@ -122,7 +124,7 @@
 				onclick={handleLogout}
 				disabled={isSubmitting}
 			>
-				Sign out and return to login page
+				{t('Sign out and return to login page')}
 			</button>
 		</div>
 	</form>

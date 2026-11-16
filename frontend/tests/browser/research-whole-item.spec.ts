@@ -53,7 +53,9 @@ test('whole-item explicit research sends photos and supports edited selective ad
 	expect(calls).toHaveLength(0);
 	await expect(page.getByLabel('Exact part/model number', { exact: true })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Research this item', exact: true }).click();
-	await expect(page.getByLabel('Proposed Specifications', { exact: true })).toHaveValue('10 mm');
+	await expect(
+		page.locator('#product-research').getByLabel('Specifications', { exact: true })
+	).toHaveValue('10 mm');
 	expect(calls).toHaveLength(1);
 	expect(calls[0].context.model_number).toBe('0112-S90-6-10-032-N-B');
 	expect(calls[0].context.images[0]).toMatch(/^data:image\//);
@@ -64,16 +66,23 @@ test('whole-item explicit research sends photos and supports edited selective ad
 		'href',
 		'https://example.com/product'
 	);
-	await page.getByLabel('Proposed Specifications', { exact: true }).fill('Reviewed 10 mm');
+	await page
+		.locator('#product-research')
+		.getByLabel('Specifications', { exact: true })
+		.fill('Reviewed 10 mm');
 	await page.getByLabel('Adopt Specifications', { exact: true }).check();
 	await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
-	await expect(page.getByLabel('Specifications', { exact: true })).toHaveValue('Reviewed 10 mm');
+	await expect(page.locator('#review-cf-Specifications')).toHaveValue('Reviewed 10 mm');
 	expect(calls).toHaveLength(1);
 	await page.getByRole('button', { name: 'Research this item', exact: true }).click();
-	await expect(page.getByLabel('Proposed Specifications', { exact: true })).toBeVisible();
+	await expect(
+		page.locator('#product-research').getByLabel('Specifications', { exact: true })
+	).toBeVisible();
 	await page.getByRole('button', { name: 'Discard suggestions', exact: true }).click();
-	await expect(page.getByLabel('Proposed Specifications', { exact: true })).toHaveCount(0);
-	await expect(page.getByLabel('Specifications', { exact: true })).toHaveValue('Reviewed 10 mm');
+	await expect(
+		page.locator('#product-research').getByLabel('Specifications', { exact: true })
+	).toHaveCount(0);
+	await expect(page.locator('#review-cf-Specifications')).toHaveValue('Reviewed 10 mm');
 	expect(
 		api.requests.filter(
 			(r) => ['POST', 'PUT', 'PATCH'].includes(r.method()) && /\/api\/items/.test(r.url())

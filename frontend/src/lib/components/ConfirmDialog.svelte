@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import Button from './Button.svelte';
 	import Card from './Card.svelte';
 	import { modalDialog } from '$lib/actions/dialog';
@@ -17,8 +19,8 @@
 		open = false,
 		title,
 		message,
-		confirmLabel = 'Confirm',
-		cancelLabel = 'Cancel',
+		confirmLabel = t('Confirm'),
+		cancelLabel = t('Cancel'),
 		onConfirm,
 		onCancel,
 	}: Props = $props();

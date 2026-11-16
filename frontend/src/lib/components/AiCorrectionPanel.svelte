@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { slide } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -32,7 +34,7 @@
 		onclick={onToggle}
 	>
 		<ChevronDown class="transition-transform {expanded ? 'rotate-180' : ''}" size={16} />
-		<span>AI Correction</span>
+		<span>{t('AI Correction')}</span>
 	</button>
 
 	{#if expanded}
@@ -41,14 +43,16 @@
 			transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
 		>
 			{#if loading}
-				<AnalysisProgressBar current={0} total={1} message="Correcting with AI..." />
+				<AnalysisProgressBar current={0} total={1} message={t('Correcting with AI...')} />
 			{:else}
 				<p class="text-caption text-neutral-500">
-					Tell the AI what's wrong and it will re-analyze the image
+					{t("Tell the AI what's wrong and it will re-analyze the image")}
 				</p>
 				<textarea
 					bind:value={correctionPrompt}
-					placeholder="e.g., 'The brand is Sony, not Samsung' or 'This is a multimeter, not a voltmeter'"
+					placeholder={t(
+						"e.g., 'The brand is Sony, not Samsung' or 'This is a multimeter, not a voltmeter'"
+					)}
 					rows="2"
 					class="input resize-none"></textarea>
 				<Button
@@ -59,7 +63,7 @@
 					disabled={loading || !correctionPrompt.trim()}
 				>
 					<RefreshCcw size={16} strokeWidth={2} />
-					<span>Correct with AI</span>
+					<span>{t('Correct with AI')}</span>
 				</Button>
 			{/if}
 		</div>

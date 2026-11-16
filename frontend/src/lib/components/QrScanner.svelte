@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { modalDialog } from '$lib/actions/dialog';
 	import { onMount, onDestroy } from 'svelte';
 	import QrScanner from 'qr-scanner';
@@ -16,7 +18,7 @@
 		title?: string;
 	}
 
-	let { onScan, onClose, onError, title = 'Scan QR Code' }: Props = $props();
+	let { onScan, onClose, onError, title = t('Scan QR Code') }: Props = $props();
 
 	let videoElement = $state<HTMLVideoElement>();
 	let fileInput: HTMLInputElement;
@@ -40,7 +42,7 @@
 			// Check for secure context - camera APIs require HTTPS
 			if (!window.isSecureContext) {
 				isInsecureContext = true;
-				error = 'Camera requires HTTPS. Use the upload option below.';
+				error = t('Camera requires HTTPS. Use the upload option below.');
 				isStarting = false;
 				cameraFailed = true;
 				onError?.(error);
@@ -48,7 +50,7 @@
 			}
 
 			if (!videoElement) {
-				error = 'Video element not ready. Please try again.';
+				error = t('Video element not ready. Please try again.');
 				isStarting = false;
 				cameraFailed = true;
 				onError?.(error);
@@ -58,7 +60,7 @@
 			// Use library's official method to check camera availability
 			const hasCamera = await QrScanner.hasCamera();
 			if (!hasCamera) {
-				error = 'No camera detected. Use the upload option below.';
+				error = t('No camera detected. Use the upload option below.');
 				errorDebugCode = 'NOCAMERA';
 				isStarting = false;
 				cameraFailed = true;
@@ -150,31 +152,35 @@
 					msg.includes('Permission') ||
 					msg.includes('NotAllowed')
 				) {
-					error =
-						'Camera permission denied. Check your browser settings, or use the upload option below.';
+					error = t(
+						'Camera permission denied. Check your browser settings, or use the upload option below.'
+					);
 				} else if (
 					name === 'NotFoundError' ||
 					msg.includes('NotFound') ||
 					msg.includes('DevicesNotFound')
 				) {
-					error = 'No camera detected. Use the upload option below.';
+					error = t('No camera detected. Use the upload option below.');
 				} else if (name === 'NotReadableError' || msg.includes('NotReadable')) {
-					error =
-						'Camera is in use by another app. Close other apps or use the upload option below.';
+					error = t(
+						'Camera is in use by another app. Close other apps or use the upload option below.'
+					);
 				} else if (name === 'OverconstrainedError' || msg.includes('Overconstrained')) {
-					error = 'Camera settings not supported. Use the upload option below.';
+					error = t('Camera settings not supported. Use the upload option below.');
 				} else if (name === 'NotSupportedError' || msg.includes('NotSupported')) {
-					error = 'Camera not supported in this browser. Use the upload option below.';
+					error = t('Camera not supported in this browser. Use the upload option below.');
 				} else if (name === 'AbortError' || msg.includes('Abort')) {
-					error = 'Camera request was aborted. Try again or use the upload option below.';
+					error = t('Camera request was aborted. Try again or use the upload option below.');
 				} else if (name === 'SecurityError' || msg.includes('Security')) {
-					error = 'Camera blocked for security reasons. Check site permissions.';
+					error = t('Camera blocked for security reasons. Check site permissions.');
 				} else {
 					// Show the raw error message for unknown errors to help debugging
-					error = `Camera error: ${msg || 'Unknown error'}. Use the upload option below.`;
+					error = t('Camera error: {p0}. Use the upload option below.', {
+						p0: msg || t('Unknown error'),
+					});
 				}
 			} else {
-				error = 'Failed to start camera. Use the upload option below.';
+				error = t('Failed to start camera. Use the upload option below.');
 			}
 
 			onError?.(error);
@@ -315,9 +321,9 @@
 			onScan(result.data);
 		} catch (err) {
 			if (err instanceof Error && err.message.includes('No QR code found')) {
-				error = 'No QR code found in image. Try a clearer photo.';
+				error = t('No QR code found in image. Try a clearer photo.');
 			} else {
-				error = 'Could not read QR code from image. Try again.';
+				error = t('Could not read QR code from image. Try again.');
 			}
 			onError?.(error);
 		} finally {
@@ -353,7 +359,7 @@
 			type="button"
 			onclick={handleClose}
 			class="min-h-touch min-w-touch p-2 text-neutral-400 transition-colors hover:text-neutral-100"
-			aria-label="Close scanner"
+			aria-label={t('Close scanner')}
 		>
 			<X size={24} />
 		</button>
@@ -370,7 +376,10 @@
 				</div>
 				<p class="mb-2 text-neutral-300">{error}</p>
 				{#if errorDebugCode}
-					<p class="mb-4 font-mono text-caption text-neutral-500">Error code: {errorDebugCode}</p>
+					<p class="mb-4 font-mono text-caption text-neutral-500">
+						{t('Error code:')}
+						{errorDebugCode}
+					</p>
 				{/if}
 
 				<!-- Action buttons -->
@@ -386,10 +395,10 @@
 							<div
 								class="animate-spin rounded-full border-2 border-neutral-100 border-t-transparent size-5"
 							></div>
-							<span>Processing...</span>
+							<span>{t('Processing...')}</span>
 						{:else}
 							<Camera size={20} />
-							<span>Take Photo</span>
+							<span>{t('Take Photo')}</span>
 						{/if}
 					</button>
 
@@ -400,7 +409,7 @@
 							onclick={handleRetryCamera}
 							class="min-h-touch rounded-lg bg-neutral-800 px-4 py-2 text-neutral-100 transition-colors hover:bg-neutral-700"
 						>
-							Try Camera Again
+							{t('Try Camera Again')}
 						</button>
 					{/if}
 
@@ -409,7 +418,7 @@
 						onclick={handleClose}
 						class="min-h-touch px-4 py-2 text-neutral-500 transition-colors hover:text-neutral-100"
 					>
-						Cancel
+						{t('Cancel')}
 					</button>
 				</div>
 			</div>
@@ -417,7 +426,7 @@
 			<div class="relative">
 				<!-- Video element for QR scanner -->
 				<video bind:this={videoElement} class="scanner-video rounded-xl bg-neutral-950">
-					<track kind="captions" label="No captions available" />
+					<track kind="captions" label={t('No captions available')} />
 				</video>
 
 				<!-- Scanning overlay -->
@@ -429,7 +438,7 @@
 							<div
 								class="mx-auto mb-2 animate-spin rounded-full border-2 border-neutral-100 border-t-transparent size-8"
 							></div>
-							<p class="text-body-sm text-neutral-300">Starting camera...</p>
+							<p class="text-body-sm text-neutral-300">{t('Starting camera...')}</p>
 						</div>
 					</div>
 				{/if}
@@ -440,9 +449,11 @@
 	<!-- Footer with instructions -->
 	<div class="bg-neutral-950/80 p-4 text-center">
 		{#if cameraFailed}
-			<p class="text-body-sm text-neutral-500">Take a photo of the QR code</p>
+			<p class="text-body-sm text-neutral-500">{t('Take a photo of the QR code')}</p>
 		{:else}
-			<p class="text-body-sm text-neutral-500">Point your camera at a Homebox location QR code</p>
+			<p class="text-body-sm text-neutral-500">
+				{t('Point your camera at a Homebox location QR code')}
+			</p>
 		{/if}
 	</div>
 </dialog>

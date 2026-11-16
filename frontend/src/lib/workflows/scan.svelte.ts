@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * ScanWorkflow - Coordinates the entire scan-to-submit workflow
  *
@@ -57,7 +58,7 @@ class ScanWorkflow {
 	private reviewService = new ReviewService();
 	private submissionService = new SubmissionService(async () => {
 		if (!(await this.persistAsync()))
-			throw new Error('Cannot safely submit: draft checkpoint failed.');
+			throw new Error(t('Cannot safely submit: draft checkpoint failed.'));
 	});
 	private persistence = new ScanPersistence();
 
@@ -178,7 +179,9 @@ class ScanWorkflow {
 			await this.persistAsync();
 			return true;
 		} catch {
-			this._error = 'Could not preserve the review photos. Your results have not been discarded.';
+			this._error = t(
+				'Could not preserve the review photos. Your results have not been discarded.'
+			);
 			return false;
 		} finally {
 			this.changingInputs = false;
@@ -200,8 +203,9 @@ class ScanWorkflow {
 			(!value && images.some((image) => key(image) !== key(images[0]))) ||
 			(value && images.some((image) => image.assetId && image.additionalFiles?.length))
 		) {
-			this._error =
-				'Align capture profiles, descriptions and asset IDs before regrouping; a shared asset ID cannot be copied to multiple items.';
+			this._error = t(
+				'Align capture profiles, descriptions and asset IDs before regrouping; a shared asset ID cannot be copied to multiple items.'
+			);
 			return false;
 		}
 		this.captureService.setOneItemPerPhoto(value);
@@ -548,7 +552,7 @@ class ScanWorkflow {
 		// Prevent starting a new analysis if one is already in progress
 		if (this._status === 'analyzing') {
 			log.warn('Analysis already in progress (status check), ignoring duplicate request');
-			this._error = 'Analysis already in progress';
+			this._error = t('Analysis already in progress');
 			return;
 		}
 
@@ -598,7 +602,7 @@ class ScanWorkflow {
 				);
 			}
 		} else {
-			this._error = result.error || 'Analysis failed';
+			this._error = result.error || t('Analysis failed');
 			this._status = 'capturing';
 			log.error(`Analysis failed: ${this._error}, returning to capture mode`);
 		}
@@ -672,7 +676,7 @@ class ScanWorkflow {
 			}
 		} else {
 			// If retry completely failed, go back to partial_analysis state
-			this._error = result.error || 'Retry failed';
+			this._error = result.error || t('Retry failed');
 			this._status = 'partial_analysis';
 			log.error(`Retry failed: ${this._error}`);
 		}
@@ -695,7 +699,7 @@ class ScanWorkflow {
 		const itemCount = this.reviewService.detectedItems.length;
 		if (itemCount === 0) {
 			log.warn('No items to review, returning to capture');
-			this._error = 'No items were successfully detected';
+			this._error = t('No items were successfully detected');
 			this._status = 'capturing';
 			return;
 		}
@@ -892,7 +896,7 @@ class ScanWorkflow {
 				itemValidationError(index === 0 && currentItemOverride ? currentItemOverride : item)
 			)
 		) {
-			this._error = 'Fix the invalid item fields before confirming.';
+			this._error = t('Fix the invalid item fields before confirming.');
 			return 0;
 		}
 		const count = this.reviewService.confirmAllRemainingItems(currentItemOverride);
@@ -903,7 +907,7 @@ class ScanWorkflow {
 	/** Finish review and move to confirmation */
 	async finishReview(): Promise<void> {
 		if (!this.reviewService.hasConfirmedItems) {
-			this._error = 'Please confirm at least one item';
+			this._error = t('Please confirm at least one item');
 			return;
 		}
 		this._status = 'confirming';
@@ -1008,12 +1012,12 @@ class ScanWorkflow {
 	}> {
 		const generation = this.contextGeneration;
 		if (!captureSessionScope()) {
-			throw new Error('Cannot submit without a verified Homebox context and collection');
+			throw new Error(t('Cannot submit without a verified Homebox context and collection'));
 		}
 		const items = this.reviewService.confirmedItems;
 
 		if (items.length === 0) {
-			this._error = 'No items to submit';
+			this._error = t('No items to submit');
 			return {
 				success: false,
 				successCount: 0,
@@ -1024,7 +1028,7 @@ class ScanWorkflow {
 		}
 
 		if (items.some((item) => itemValidationError(item))) {
-			this._error = 'Fix the invalid item fields before submitting.';
+			this._error = t('Fix the invalid item fields before submitting.');
 			return {
 				success: false,
 				successCount: 0,
@@ -1052,13 +1056,16 @@ class ScanWorkflow {
 
 		// Handle results
 		if (result.failCount > 0 && result.successCount === 0 && result.partialSuccessCount === 0) {
-			this._error = 'All items failed to create';
+			this._error = t('All items failed to create');
 			this._status = 'confirming';
 		} else if (result.failCount > 0) {
-			this._error = `Created ${result.successCount + result.partialSuccessCount} items, ${result.failCount} failed`;
+			this._error = t('Created {p0} items, {p1} failed', {
+				p0: result.successCount + result.partialSuccessCount,
+				p1: result.failCount,
+			});
 			// Keep status as 'submitting' to show per-item status UI
 		} else if (Object.values(this.submissionService.itemStatuses).includes('partial_success')) {
-			this._error = 'Some items need attention in Homebox; the draft is retained.';
+			this._error = t('Some items need attention in Homebox; the draft is retained.');
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
 			// Keep original fields/photos and known IDs recoverable for incomplete work.
 			this._status = 'confirming';
@@ -1089,7 +1096,7 @@ class ScanWorkflow {
 	}> {
 		const generation = this.contextGeneration;
 		if (!captureSessionScope()) {
-			throw new Error('Cannot submit without a verified Homebox context and collection');
+			throw new Error(t('Cannot submit without a verified Homebox context and collection'));
 		}
 		const items = this.reviewService.confirmedItems;
 
@@ -1132,7 +1139,10 @@ class ScanWorkflow {
 			if (generation !== this.contextGeneration) return result;
 			this._status = 'complete';
 		} else if (result.failCount > 0) {
-			this._error = `Retried: ${result.successCount + result.partialSuccessCount} succeeded, ${result.failCount} still failing`;
+			this._error = t('Retried: {p0} succeeded, {p1} still failing', {
+				p0: result.successCount + result.partialSuccessCount,
+				p1: result.failCount,
+			});
 		}
 
 		if (generation !== this.contextGeneration) return result;
@@ -1340,7 +1350,9 @@ class ScanWorkflow {
 		) {
 			if (
 				!window.confirm(
-					'Discard retained photos and unconfirmed upload records? Download the originals and check the known Homebox items first. This cannot undo any Homebox writes.'
+					t(
+						'Discard retained photos and unconfirmed upload records? Download the originals and check the known Homebox items first. This cannot undo any Homebox writes.'
+					)
 				)
 			)
 				return false;

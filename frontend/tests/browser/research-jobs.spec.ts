@@ -12,7 +12,10 @@ test('saved-item research jobs show durable status and require selected adoption
 		item: 'item1',
 		state,
 		result: {
-			research: { sources: [{ url: 'https://example.com/spec', title: 'Synthetic source' }] },
+			research: {
+				status: 'matched',
+				sources: [{ url: 'https://example.com/spec', title: 'Synthetic source' }],
+			},
 			proposals: [
 				{
 					name: 'Specifications',
@@ -32,10 +35,10 @@ test('saved-item research jobs show durable status and require selected adoption
 		return json({ state });
 	});
 	await page.goto('/research');
-	await expect(page.getByText('matched', { exact: true })).toBeVisible();
+	await expect(page.getByText(/Research ready/)).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Apply selected to Homebox' })).toBeDisabled();
-	await page.getByLabel('Proposed Specifications', { exact: true }).fill('Reviewed steel');
+	await page.getByLabel('Specifications', { exact: true }).fill('Reviewed steel');
 	await page.getByLabel('Adopt Specifications').check();
 	await page.getByRole('button', { name: 'Apply selected to Homebox' }).click();
-	await expect(page.getByText('applied', { exact: true })).toBeVisible();
+	await expect(page.getByText('Applied', { exact: true })).toBeVisible();
 });

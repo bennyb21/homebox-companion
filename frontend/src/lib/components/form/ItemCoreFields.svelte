@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ItemCoreFields - Shared form fields for name, quantity, and description
 	 *
@@ -41,7 +43,7 @@
 <div class={spacing}>
 	<!-- Name field -->
 	<div>
-		<label for="{idPrefix}-name" class={labelClass}>Name</label>
+		<label for="{idPrefix}-name" class={labelClass}>{t('Name')}</label>
 		{#if size === 'sm'}
 			<input
 				type="text"
@@ -49,7 +51,7 @@
 				bind:value={name}
 				aria-invalid={!!nameError}
 				aria-describedby={nameError ? `${idPrefix}-name-error` : undefined}
-				placeholder="Item name"
+				placeholder={t('Item name')}
 				class={inputClass}
 				{disabled}
 			/>
@@ -60,7 +62,7 @@
 				aria-invalid={!!nameError}
 				aria-describedby={nameError ? `${idPrefix}-name-error` : undefined}
 				rows="1"
-				placeholder="Item name"
+				placeholder={t('Item name')}
 				class="input-expandable"
 				use:expandable
 				{disabled}></textarea>
@@ -76,7 +78,7 @@
 
 	<!-- Quantity field -->
 	<div>
-		<label for="{idPrefix}-quantity" class={labelClass}>Quantity</label>
+		<label for="{idPrefix}-quantity" class={labelClass}>{t('Quantity')}</label>
 		<input
 			type="number"
 			id="{idPrefix}-quantity"
@@ -98,12 +100,12 @@
 
 	<!-- Description field -->
 	<div>
-		<label for="{idPrefix}-description" class={labelClass}>Description</label>
+		<label for="{idPrefix}-description" class={labelClass}>{t('Description')}</label>
 		{#if size === 'sm'}
 			<textarea
 				id="{idPrefix}-description"
 				bind:value={description}
-				placeholder="Optional description"
+				placeholder={t('Optional description')}
 				rows="2"
 				class="{inputClass} resize-none"
 				{disabled}></textarea>
@@ -112,7 +114,7 @@
 				id="{idPrefix}-description"
 				bind:value={description}
 				rows="1"
-				placeholder="Optional description"
+				placeholder={t('Optional description')}
 				class="input-expandable"
 				use:expandable
 				{disabled}></textarea>

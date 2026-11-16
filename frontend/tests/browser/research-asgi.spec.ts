@@ -37,13 +37,16 @@ for (const [scenario, code] of [
 			await expect(
 				page.getByRole('button', { name: 'Research this item', exact: true })
 			).toBeVisible();
-			await expect(
-				page.getByText('Research uses: default — gpt-6-luna', { exact: true })
-			).toBeVisible();
+			await expect(page.getByText('default · gpt-6-luna', { exact: true })).toBeVisible();
 			await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
 			await page.getByLabel('Name', { exact: true }).fill('QUERY-CONFIDENTIALITY-CANARY');
 			await page.getByRole('button', { name: 'Research this item', exact: true }).click();
-			await expect(page.getByText(code, { exact: true })).toBeVisible();
+			if (scenario === 'matched') {
+				await expect(page.getByText(/Research ready/)).toBeVisible();
+				await expect(page.getByText('Diagnostic details', { exact: true })).toHaveCount(0);
+			} else {
+				await expect(page.getByText(code, { exact: true })).not.toBeVisible();
+			}
 			if (scenario === 'matched') {
 				await expect(page.getByRole('link', { name: 'Synthetic', exact: true })).toHaveAttribute(
 					'href',
@@ -51,14 +54,13 @@ for (const [scenario, code] of [
 				);
 				await page.getByLabel('Adopt Specifications').check();
 				await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
-				await expect(page.getByLabel('Specifications', { exact: true })).toHaveValue(
-					'Steel, 12 mm'
-				);
+				await expect(page.locator('#review-cf-Specifications')).toHaveValue('Steel, 12 mm');
 			} else {
 				await expect(
 					page.getByRole('button', { name: 'Adopt selected fields', exact: true })
 				).toHaveCount(0);
 				await page.getByText('Diagnostic details', { exact: true }).click();
+				await expect(page.getByText(code, { exact: true })).toBeVisible();
 				const details = page.getByRole('textbox', { name: 'Safe diagnostic details' });
 				await expect(details).toHaveValue(/req_0123456789abcdef/);
 				await expect(details).not.toHaveValue(/CONFIDENTIALITY-CANARY/);
@@ -103,7 +105,8 @@ for (const width of [390, 1280]) {
 			await expect(
 				page.getByRole('button', { name: 'Research this item', exact: true })
 			).toBeVisible();
-			await page.getByRole('link', { name: 'Edit active research profile' }).click();
+			await page.getByRole('link', { name: 'Research settings' }).click();
+			await page.getByRole('button', { name: 'Edit selected profile', exact: true }).click();
 			const dialog = page.getByRole('dialog');
 			await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('default');
 			await expect(dialog.getByLabel('Status', { exact: true })).toHaveValue('primary');
@@ -144,9 +147,7 @@ for (const width of [390, 1280]) {
 			await expect(page.getByLabel('Name', { exact: true })).toHaveValue(
 				'Retain unsaved synthetic item'
 			);
-			await expect(
-				page.getByText('Research uses: Off research — gpt-6.1-terra', { exact: true })
-			).toBeVisible();
+			await expect(page.getByText('Off research · gpt-6.1-terra', { exact: true })).toBeVisible();
 			const evidence = await bridge.inspect();
 			expect(evidence.wire).toEqual([]);
 			expect(evidence.inventory_writes).toBe(0);
@@ -170,6 +171,7 @@ test('real ASGI named Off tests distinguish metadata access, empty research and 
 		await page.goto('/settings');
 		const unknown = page.getByRole('group', { name: 'Profile Unverified', exact: true });
 		await unknown.getByRole('button', { name: 'Check API access', exact: true }).click();
+		await page.getByText('Diagnostic details', { exact: true }).click();
 		await expect(page.getByText('connection_verified', { exact: true })).toBeVisible();
 		let evidence = await bridge.inspect();
 		expect(evidence.wire).toEqual([
@@ -199,6 +201,9 @@ test('real ASGI named Off tests distinguish metadata access, empty research and 
 			expect(body.success).toBe(scenario === 'no_results');
 			expect(body.research_result.status).toBe(scenario);
 			if (scenario === 'no_results') {
+				const details = page.getByText('Diagnostic details', { exact: true }).locator('..');
+				if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open)))
+					await page.getByText('Diagnostic details', { exact: true }).click();
 				await expect(page.getByText('no_results', { exact: true })).toBeVisible();
 			} else {
 				expect(body.research_result.claims).toEqual([]);
@@ -259,10 +264,10 @@ test('real ASGI native identity adoption stays edited, selective and stale-safe'
 		await uploadSyntheticPhoto(page);
 		await analyzePhotos(page);
 		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
-		await expect(page.getByLabel('Proposed Manufacturer', { exact: true })).toHaveValue(
-			'Example Maker'
-		);
-		await expect(page.getByLabel('Proposed Model number', { exact: true })).toHaveValue('MODEL-B');
+		await expect(
+			page.locator('#product-research').getByLabel('Manufacturer', { exact: true })
+		).toHaveValue('Example Maker');
+		await expect(page.getByLabel('Model number', { exact: true })).toHaveValue('MODEL-B');
 		await expect(
 			page.getByText('Model label may refer to a product family.', { exact: true })
 		).toBeVisible();
@@ -271,12 +276,15 @@ test('real ASGI native identity adoption stays edited, selective and stale-safe'
 				exact: true,
 			})
 		).toHaveCount(0);
-		await page.getByLabel('Proposed Manufacturer', { exact: true }).fill('Reviewed maker');
+		await page
+			.locator('#product-research')
+			.getByLabel('Manufacturer', { exact: true })
+			.fill('Reviewed maker');
 		await page.getByLabel('Adopt Manufacturer', { exact: true }).check();
 		await expect(page.getByLabel('Adopt Model number', { exact: true })).not.toBeChecked();
 		await page.screenshot({ path: test.info().outputPath('native-identity-review.png') });
 		await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
-		await expect(page.getByLabel('Manufacturer', { exact: true })).toHaveValue('Reviewed maker');
+		await expect(page.locator('#review-manufacturer')).toHaveValue('Reviewed maker');
 		await expect(page.getByLabel('Model Number', { exact: true })).toHaveValue('MODEL-A');
 		await expect(page.getByLabel('Serial Number', { exact: true })).toHaveValue('SERIAL-KEEP');
 		// A second manual model edit makes this new result stale, never overwrites the draft.
@@ -312,10 +320,10 @@ test('real ASGI saved job preserves safe diagnostic and never replays on refresh
 		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 		await expect(async () => {
 			await page.getByRole('button', { name: 'Refresh jobs' }).click();
-			await expect(page.getByText('response_incomplete', { exact: true })).toBeVisible();
+			await expect(page.getByText(/Research incomplete/)).toBeVisible();
 		}).toPass();
 		await page.reload();
-		await expect(page.getByText('response_incomplete', { exact: true })).toBeVisible();
+		await expect(page.getByText(/Research incomplete/)).toBeVisible();
 		const evidence = await bridge.inspect();
 		expect(evidence.wire).toHaveLength(1);
 		expect(evidence.inventory_writes).toBe(0);

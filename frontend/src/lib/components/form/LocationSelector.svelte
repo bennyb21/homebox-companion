@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * LocationSelector - Dropdown for selecting item location
 	 *
@@ -27,7 +29,7 @@
 		size = 'md',
 		disabled = false,
 		idPrefix = 'location',
-		fallbackDisplay = 'No location',
+		fallbackDisplay = t('No location'),
 	}: Props = $props();
 
 	// Dynamic classes based on size
@@ -36,10 +38,10 @@
 </script>
 
 <div>
-	<label for="{idPrefix}-location" class={labelClass}>Location</label>
+	<label for="{idPrefix}-location" class={labelClass}>{t('Location')}</label>
 	{#if locationStore.flatList.length > 0}
 		<select id="{idPrefix}-location" bind:value class={inputClass} {disabled}>
-			<option value="">Select location...</option>
+			<option value="">{t('Select location...')}</option>
 			{#each locationStore.flatList as loc (loc.location.id)}
 				<option value={loc.location.id}>{loc.path}</option>
 			{/each}

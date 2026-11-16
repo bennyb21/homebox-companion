@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import Check from '@lucide/svelte/icons/check';
 	import ConfirmDialog from './ConfirmDialog.svelte';
 	import { resetLocationState } from '$lib/stores/locations.svelte';
@@ -6,7 +8,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { scanWorkflow } from '$lib/workflows/scan.svelte';
-	const names = ['Location', 'Capture', 'Review', 'Summary'];
+	const names = $derived([t('Location'), t('Capture'), t('Review'), t('Summary')]);
 	async function visit(step: number) {
 		if (!(await scanWorkflow.visitStep(step))) return;
 		const routes = [
@@ -44,7 +46,7 @@
 		<!-- Step circle -->
 		<button
 			type="button"
-			aria-label={`Step ${step}: ${names[step - 1]}`}
+			aria-label={t('Step {p0}: {p1}', { p0: step, p1: names[step - 1] })}
 			aria-current={step === currentStep ? 'step' : undefined}
 			disabled={step === currentStep || !scanWorkflow.canVisitStep(step)}
 			onclick={() => visit(step)}
@@ -69,14 +71,16 @@
 		class="mb-4 text-caption text-neutral-400 underline"
 		onclick={() => {
 			discardOpen = true;
-		}}>Discard entire draft</button
+		}}>{t('Discard entire draft')}</button
 	>
 {/if}
 <ConfirmDialog
 	open={discardOpen}
-	title="Discard entire draft?"
-	message="This removes all unsaved photos, results, manual edits and undo history from this capture session. It never deletes items in Homebox."
-	confirmLabel="Discard draft"
+	title={t('Discard entire draft?')}
+	message={t(
+		'This removes all unsaved photos, results, manual edits and undo history from this capture session. It never deletes items in Homebox.'
+	)}
+	confirmLabel={t('Discard draft')}
 	onCancel={() => {
 		discardOpen = false;
 	}}

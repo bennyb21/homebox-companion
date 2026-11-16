@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { i18nModuleUrl } from '../i18n.js';
 const source = await readFile(new URL('../../src/lib/api/research.ts', import.meta.url), 'utf8');
-const compiled = ts.transpile(source, {
-	target: ts.ScriptTarget.ES2022,
-	module: ts.ModuleKind.ES2022,
-});
+const compiled = ts.transpile(
+	source.replace("'$lib/i18n/index.svelte'", JSON.stringify(i18nModuleUrl)),
+	{
+		target: ts.ScriptTarget.ES2022,
+		module: ts.ModuleKind.ES2022,
+	}
+);
 const { researchOutcome } = await import(`data:text/javascript,${encodeURIComponent(compiled)}`);
 
 test('legacy failed status uses additive diagnostic for incomplete and refusal', () => {

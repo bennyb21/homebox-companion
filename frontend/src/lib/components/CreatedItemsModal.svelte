@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import Package from '@lucide/svelte/icons/package';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import ScanLine from '@lucide/svelte/icons/scan-line';
@@ -130,10 +132,10 @@
 	}
 </script>
 
-<Modal bind:open title="Created Items" {onclose}>
+<Modal bind:open title={t('Created Items')} {onclose}>
 	<div class="space-y-2">
 		{#if items.length === 0}
-			<p class="py-8 text-center text-neutral-500">No items created</p>
+			<p class="py-8 text-center text-neutral-500">{t('No items created')}</p>
 		{:else}
 			<div class="max-h-80 space-y-2 overflow-y-auto">
 				{#each items as item (item.id)}
@@ -178,10 +180,10 @@
 													? 'text-neutral-500'
 													: 'text-neutral-400 hover:bg-neutral-700 hover:text-primary-400'}"
 										title={printStatus[item.id] === 'success'
-											? 'Printed!'
+											? t('Printed!')
 											: printStatus[item.id] === 'error'
-												? 'Print failed'
-												: 'Print Label'}
+												? t('Print failed')
+												: t('Print Label')}
 										onclick={() => handlePrintLabel(item.id)}
 										disabled={printStatus[item.id] === 'printing'}
 									>
@@ -202,7 +204,7 @@
 										target="_blank"
 										rel="noopener noreferrer"
 										class="flex min-h-touch min-w-touch items-center justify-center rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-primary-400"
-										title="Open in Homebox"
+										title={t('Open in Homebox')}
 									>
 										<!-- eslint-enable svelte/no-navigation-without-resolve -->
 										<ExternalLink size={18} strokeWidth={1.5} />
@@ -234,7 +236,7 @@
 										onclick={() => onScanSubItems(item.id, item.name)}
 									>
 										<ScanLine size={12} strokeWidth={2} />
-										<span>Scan Sub-Items</span>
+										<span>{t('Scan Sub-Items')}</span>
 									</button>
 								{/if}
 							</div>

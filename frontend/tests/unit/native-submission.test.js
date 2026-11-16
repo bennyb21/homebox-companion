@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { t } from '../i18n.js';
 
 function deferred() {
 	let resolve, reject;
@@ -265,6 +266,7 @@ async function loadSubmission(itemsApi) {
 	);
 	const id = `nativeSubmission${sequence++}`;
 	globalThis[id] = {
+		t,
 		itemsApi,
 		$state: (value) => value,
 		itemValidationError: () => null,

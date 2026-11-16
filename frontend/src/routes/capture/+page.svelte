@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount, untrack } from 'svelte';
@@ -39,7 +41,7 @@
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Lightbulb from '@lucide/svelte/icons/lightbulb';
 
-	const log = createLogger({ prefix: 'Capture' });
+	const log = createLogger({ prefix: t('Capture') });
 
 	// Capture limits (loaded from config, with safe defaults)
 	let maxImages = $state(30);
@@ -235,7 +237,7 @@
 			} catch (error) {
 				if (isCurrent())
 					showToast(
-						error instanceof Error ? error.message : 'Unable to read this image.',
+						error instanceof Error ? error.message : t('Unable to read this image.'),
 						'warning'
 					);
 				continue;
@@ -247,7 +249,7 @@
 				0
 			);
 			if (count >= maxImages) {
-				showToast(`Maximum ${maxImages} images allowed`, 'warning');
+				showToast(t('Maximum {p0} images allowed', { p0: maxImages }), 'warning');
 				return;
 			}
 			const previewUrl = createTrackedObjectUrl(validated);
@@ -426,9 +428,11 @@
 
 <ConfirmDialog
 	open={showInputChange}
-	title="Discard analysis results and manual edits?"
-	message="Changing photos, grouping or analysis options discards all current results, manual edits and removed-draft undo history. Source and added review photos, location and capture options are kept. Reanalysis only runs when you explicitly request it."
-	confirmLabel="Discard results and edit inputs"
+	title={t('Discard analysis results and manual edits?')}
+	message={t(
+		'Changing photos, grouping or analysis options discards all current results, manual edits and removed-draft undo history. Source and added review photos, location and capture options are kept. Reanalysis only runs when you explicitly request it.'
+	)}
+	confirmLabel={t('Discard results and edit inputs')}
 	onCancel={() => {
 		showInputChange = false;
 	}}
@@ -439,34 +443,36 @@
 />
 
 <svelte:head>
-	<title>Capture Items - Homebox Companion</title>
+	<title>{t('Capture Items - Homebox Companion')}</title>
 </svelte:head>
 
 <div class="animate-in pb-28">
 	<StepIndicator currentStep={2} />
 
-	<h2 class="mb-1 text-h2 text-neutral-100">Capture Items</h2>
+	<h2 class="mb-1 text-h2 text-neutral-100">{t('Capture Items')}</h2>
 	{#if reviewPreview}
 		<p class="mb-6 text-body-sm text-neutral-400">
-			Your analyzed photos are shown below. Return to Review to continue with your saved edits.
+			{t(
+				'Your analyzed photos are shown below. Return to Review to continue with your saved edits.'
+			)}
 		</p>
 		{#if locationPath}
-			<p class="mb-4 text-body-sm text-neutral-300">Location: {locationPath}</p>
+			<p class="mb-4 text-body-sm text-neutral-300">{t('Location:')} {locationPath}</p>
 		{/if}
 		<Button
 			variant="secondary"
 			onclick={() => {
 				showInputChange = true;
 			}}
-			disabled={workflow.captureLocked}>Change photos or analysis options</Button
+			disabled={workflow.captureLocked}>{t('Change photos or analysis options')}</Button
 		>
 		<div class="space-y-4">
 			{#each images as image, index (image.dataUrl)}
 				<div class="card space-y-3">
-					<h3 class="text-body-sm font-semibold text-neutral-200">Item photo {index + 1}</h3>
+					<h3 class="text-body-sm font-semibold text-neutral-200">{t('Item photo')} {index + 1}</h3>
 					<img
 						src={image.dataUrl}
-						alt="Captured {index + 1}"
+						alt={t('Captured {count}', { count: index + 1 })}
 						class="max-h-64 w-full rounded-lg object-contain"
 					/>
 					{#if image.additionalDataUrls?.length}
@@ -474,7 +480,10 @@
 							{#each image.additionalDataUrls as additionalUrl, additionalIndex (additionalUrl)}
 								<img
 									src={additionalUrl}
-									alt="Item {index + 1}, additional photo {additionalIndex + 1}"
+									alt={t('Item {item}, additional photo {photo}', {
+										item: index + 1,
+										photo: additionalIndex + 1,
+									})}
 									class="rounded-lg object-contain size-20"
 								/>
 							{/each}
@@ -485,26 +494,26 @@
 		</div>
 	{:else}
 		<details class="mb-3 text-caption text-neutral-400">
-			<summary class="cursor-pointer py-2">Saved photo quality — not AI input</summary>
+			<summary class="cursor-pointer py-2">{t('Saved photo quality — not AI input')}</summary>
 			<p>
-				Add a sharp, well-lit close-up of engraved numbers or labels for identification.
-				HBC_IMAGE_QUALITY changes stored Homebox photos; AI images are normally resized to at most
-				2048 pixels on the longest side and JPEG quality 85.
+				{t(
+					'Add a sharp, well-lit close-up of engraved numbers or labels for identification. HBC_IMAGE_QUALITY changes stored Homebox photos; AI images are normally resized to at most 2048 pixels on the longest side and JPEG quality 85.'
+				)}
 			</p>
 		</details>
 		<Switch
-			label="One item per photo"
+			label={t('One item per photo')}
 			checked={workflow.oneItemPerPhoto}
 			disabled={isAnalyzing || status === 'partial_analysis'}
 			onchange={(checked) => workflow.setOneItemPerPhoto(checked)}
 		/>
 		<p class="mt-2 text-body-sm font-medium text-neutral-100">
-			{workflow.oneItemPerPhoto ? 'One item per photo' : 'Multiple photos of one item'}
+			{workflow.oneItemPerPhoto ? t('One item per photo') : t('Multiple photos of one item')}
 		</p>
 		<p class="mb-3 text-caption text-neutral-400">
 			{workflow.oneItemPerPhoto
-				? 'Each photo creates one item, not multiple objects within a photo.'
-				: 'All photos show one item and are analyzed together.'}
+				? t('Each photo creates one item, not multiple objects within a photo.')
+				: t('All photos show one item and are analyzed together.')}
 		</p>
 		<p class="mb-3 text-body-sm text-neutral-200">
 			{images.length}
@@ -513,14 +522,16 @@
 		</p>
 		{#if workflow.legacyGrouping}
 			<p class="mb-3 text-caption text-warning-300">
-				Legacy draft: existing photo groups and results are preserved. Choose a grouping mode
-				explicitly to adopt the new behavior.
+				{t(
+					'Legacy draft: existing photo groups and results are preserved. Choose a grouping mode explicitly to adopt the new behavior.'
+				)}
 			</p>
 		{/if}
 		{#if workflow.analysisStale}
 			<p class="mb-3 text-body-sm text-warning-300">
-				Analysis is stale. Review the inputs, then explicitly Reanalyze with AI. No analysis has
-				been started.
+				{t(
+					'Analysis is stale. Review the inputs, then explicitly Reanalyze with AI. No analysis has been started.'
+				)}
 			</p>
 		{/if}
 
@@ -531,7 +542,7 @@
 				<button
 					type="button"
 					class="flex shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-neutral-400 transition-colors hover:bg-primary-500/20 hover:text-neutral-200 size-10"
-					aria-label="Change location"
+					aria-label={t('Change location')}
 					onclick={goBack}
 					disabled={isAnalyzing}
 				>
@@ -542,12 +553,12 @@
 				<div class="flex flex-col gap-0.5">
 					<div class="flex items-center gap-2">
 						<MapPin class="shrink-0" size={16} strokeWidth={1.5} />
-						<span>Items will be added to:</span>
+						<span>{t('Items will be added to:')}</span>
 					</div>
 					<span class="pl-6 font-semibold text-neutral-200">{locationPath}</span>
 					{#if parentItemName}
 						<div class="flex items-center gap-2 pl-6">
-							<span class="text-neutral-500">Inside:</span>
+							<span class="text-neutral-500">{t('Inside:')}</span>
 							<span class="font-semibold text-primary-400">{parentItemName}</span>
 						</div>
 					{/if}
@@ -566,8 +577,8 @@
 						runId={analysisAttemptId}
 						ready={status === 'reviewing'}
 						message={status === 'reviewing'
-							? 'Analysis complete!'
-							: progress.message || 'Analyzing...'}
+							? t('Analysis complete!')
+							: progress.message || t('Analyzing...')}
 						onComplete={() => handleAnalysisComplete(analysisAttemptId)}
 					/>
 				{/key}
@@ -586,26 +597,30 @@
 
 					<div class="flex-1">
 						<h3 class="mb-1 text-body font-semibold text-warning-100">
-							Some Images Failed to Analyze
+							{t('Some Images Failed to Analyze')}
 						</h3>
 						<p class="mb-3 text-body-sm text-warning-200/80">
-							{failedImageCount} of {images.length} image(s) could not be processed. You can retry the
-							failed images, continue with the successful ones, or remove the failed images.
+							{failedImageCount}
+							{t('of')}
+							{images.length}
+							{t(
+								'image(s) could not be processed. You can retry the failed images, continue with the successful ones, or remove the failed images.'
+							)}
 						</p>
 
 						<!-- Stats -->
 						<div class="mb-4 flex gap-4 text-caption">
 							<div class="flex items-center gap-1.5">
 								<div class="bg-success-400 rounded-full size-2"></div>
-								<span class="text-neutral-300">{succeededImageCount} succeeded</span>
+								<span class="text-neutral-300">{succeededImageCount} {t('succeeded')}</span>
 							</div>
 							<div class="flex items-center gap-1.5">
 								<div class="bg-error-400 rounded-full size-2"></div>
-								<span class="text-neutral-300">{failedImageCount} failed</span>
+								<span class="text-neutral-300">{failedImageCount} {t('failed')}</span>
 							</div>
 							<div class="flex items-center gap-1.5">
 								<div class="rounded-full bg-primary-400 size-2"></div>
-								<span class="text-neutral-300">{detectedItemCount} items detected</span>
+								<span class="text-neutral-300">{detectedItemCount} {t('items detected')}</span>
 							</div>
 						</div>
 
@@ -621,7 +636,7 @@
 								disabled={isStartingAnalysis}
 							>
 								<RefreshCw size={16} strokeWidth={1.5} />
-								<span>Retry Failed Images</span>
+								<span>{t('Retry Failed Images')}</span>
 							</Button>
 							<Button
 								variant="primary"
@@ -631,7 +646,7 @@
 								}}
 								disabled={isStartingAnalysis}
 							>
-								<span>Continue with Successful</span>
+								<span>{t('Continue with Successful')}</span>
 								<ChevronRight size={16} strokeWidth={1.5} />
 							</Button>
 							<Button
@@ -643,7 +658,7 @@
 								disabled={isStartingAnalysis}
 							>
 								<Trash2 size={16} strokeWidth={1.5} />
-								<span>Remove Failed</span>
+								<span>{t('Remove Failed')}</span>
 							</Button>
 						</div>
 					</div>
@@ -670,7 +685,7 @@
 								/>
 								<span
 									class="text-caption font-medium text-primary-400 transition-colors group-hover:text-primary-300"
-									>Camera</span
+									>{t('Camera')}</span
 								>
 							</div>
 						</button>
@@ -687,7 +702,7 @@
 								/>
 								<span
 									class="text-caption font-medium text-primary-400 transition-colors group-hover:text-primary-300"
-									>Upload</span
+									>{t('Upload')}</span
 								>
 							</div>
 						</button>
@@ -704,7 +719,7 @@
 							<div class="relative shrink-0 overflow-hidden rounded-lg bg-neutral-800 size-16">
 								<img
 									src={image.dataUrl}
-									alt="Captured {index + 1}"
+									alt={t('Captured {count}', { count: index + 1 })}
 									class="object-cover size-full"
 								/>
 								<div
@@ -717,13 +732,16 @@
 							<!-- Title, Image count and total size -->
 							<div class="min-w-0 flex-1">
 								<p class="text-body-sm font-semibold text-neutral-100">
-									Item # {String(index + 1).padStart(3, '0')}
+									{t('Item #')}
+									{String(index + 1).padStart(3, '0')}
 								</p>
 								<p class="text-caption text-neutral-400">
-									Image Count: {1 + (image.additionalFiles?.length || 0)}
+									{t('Image Count:')}
+									{1 + (image.additionalFiles?.length || 0)}
 								</p>
 								<p class="text-caption text-neutral-400">
-									Total Size: {formatFileSize(
+									{t('Total Size:')}
+									{formatFileSize(
 										image.file.size +
 											(image.additionalFiles?.reduce((sum, f) => sum + f.size, 0) || 0)
 									)}
@@ -739,7 +757,9 @@
 									<button
 										type="button"
 										class="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-200"
-										aria-label={expandedImages.has(index) ? 'Collapse options' : 'Expand options'}
+										aria-label={expandedImages.has(index)
+											? t('Collapse options')
+											: t('Expand options')}
 										onclick={() => toggleImageExpanded(index)}
 										disabled={isAnalyzing}
 									>
@@ -754,7 +774,7 @@
 									<button
 										type="button"
 										class="hover:text-error-400 rounded-lg p-2 text-neutral-400 transition-colors hover:bg-error-500/10"
-										aria-label="Remove image"
+										aria-label={t('Remove image')}
 										onclick={() => removeImage(index)}
 										disabled={isAnalyzing}
 									>
@@ -780,9 +800,11 @@
 								{#if !image.separateItems}
 									<div>
 										<div class="mb-2 flex items-center gap-0.5">
-											<span class="text-body-sm font-medium text-neutral-200">Asset ID</span>
+											<span class="text-body-sm font-medium text-neutral-200">{t('Asset ID')}</span>
 											<InfoTooltip
-												text="Enter an asset ID manually or scan a pre-printed QR code. Leave blank for auto-assignment."
+												text={t(
+													'Enter an asset ID manually or scan a pre-printed QR code. Leave blank for auto-assignment.'
+												)}
 											/>
 										</div>
 										<AssetIdInput
@@ -798,14 +820,17 @@
 								<!-- Description section -->
 								<div>
 									<div class="mb-2 flex items-center gap-0.5">
-										<span class="text-body-sm font-medium text-neutral-200">Description</span>
+										<span class="text-body-sm font-medium text-neutral-200">{t('Description')}</span
+										>
 										<InfoTooltip
-											text="Describe the item(s) to help with identification. You can also paste images from your clipboard here."
+											text={t(
+												'Describe the item(s) to help with identification. You can also paste images from your clipboard here.'
+											)}
 										/>
 									</div>
 									<input
 										type="text"
-										placeholder="Optional: describe what's in this photo..."
+										placeholder={t("Optional: describe what's in this photo...")}
 										value={image.extraInstructions}
 										oninput={(e) =>
 											updateImageOption(
@@ -841,9 +866,13 @@
 								<!-- Additional photos section -->
 								<div class="border-t border-neutral-800/50 pt-3">
 									<div class="mb-2 flex items-center gap-0.5">
-										<span class="text-body-sm font-medium text-neutral-200">Additional photos</span>
+										<span class="text-body-sm font-medium text-neutral-200"
+											>{t('Additional photos')}</span
+										>
 										<InfoTooltip
-											text="Add close-ups, labels, serial numbers, different angles, invoices, receipts, etc."
+											text={t(
+												'Add close-ups, labels, serial numbers, different angles, invoices, receipts, etc.'
+											)}
 										/>
 									</div>
 
@@ -856,7 +885,7 @@
 											disabled={isAnalyzing}
 										>
 											<Camera class="text-neutral-400" size={16} strokeWidth={1.5} />
-											<span class="text-caption font-medium text-neutral-400">Camera</span>
+											<span class="text-caption font-medium text-neutral-400">{t('Camera')}</span>
 										</button>
 										<button
 											type="button"
@@ -865,7 +894,7 @@
 											disabled={isAnalyzing}
 										>
 											<Upload class="text-neutral-400" size={16} strokeWidth={1.5} />
-											<span class="text-caption font-medium text-neutral-400">Upload</span>
+											<span class="text-caption font-medium text-neutral-400">{t('Upload')}</span>
 										</button>
 									</div>
 
@@ -874,10 +903,12 @@
 										<div class="mb-2 flex items-center gap-2">
 											<Image class="text-primary-400" size={16} strokeWidth={1.5} />
 											<span class="text-body-sm font-medium text-neutral-200">
-												{image.additionalDataUrls.length} additional photo{image.additionalDataUrls
-													.length !== 1
-													? 's'
-													: ''}
+												{t(
+													image.additionalDataUrls.length === 1
+														? '{count} additional photo'
+														: '{count} additional photos',
+													{ count: image.additionalDataUrls.length }
+												)}
 											</span>
 										</div>
 										<div class="scrollbar-thin -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
@@ -888,13 +919,13 @@
 												>
 													<img
 														src={additionalUrl}
-														alt="Additional {additionalIndex + 1}"
+														alt={t('Additional {count}', { count: additionalIndex + 1 })}
 														class="object-cover size-full"
 													/>
 													<button
 														type="button"
 														class="absolute right-1 top-1 flex items-center justify-center rounded-full bg-neutral-950/70 [@media(hover:hover)]:opacity-0 focus-visible:opacity-100 transition-all hover:bg-error-600 group-hover:opacity-100 size-6"
-														aria-label="Remove additional image"
+														aria-label={t('Remove additional image')}
 														onclick={() => removeAdditionalImage(index, additionalIndex)}
 														disabled={isAnalyzing}
 													>
@@ -933,7 +964,7 @@
 							/>
 							<span
 								class="text-caption font-medium text-primary-400 transition-colors group-hover:text-primary-300"
-								>Camera</span
+								>{t('Camera')}</span
 							>
 						</div>
 					</button>
@@ -950,19 +981,21 @@
 							/>
 							<span
 								class="text-caption font-medium text-primary-400 transition-colors group-hover:text-primary-300"
-								>Upload</span
+								>{t('Upload')}</span
 							>
 						</div>
 					</button>
 				</div>
 
-				<h3 class="mb-2 text-center text-h3 text-neutral-100">Capture your items</h3>
+				<h3 class="mb-2 text-center text-h3 text-neutral-100">{t('Capture your items')}</h3>
 				<p class="mb-4 max-w-xs text-center text-body-sm text-neutral-400">
-					Take photos or upload images of items you want to add to your inventory
+					{t('Take photos or upload images of items you want to add to your inventory')}
 				</p>
 
 				<p class="text-caption text-neutral-500">
-					{totalImageCount} / {maxImages} images &middot; {maxFileSizeMb}MB per file
+					{totalImageCount} / {maxImages}
+					{t('images ·')}
+					{maxFileSizeMb}{t('MB per file')}
 				</p>
 			</div>
 		{/if}
@@ -1000,14 +1033,16 @@
 					goto(workflow.state.status === 'confirming' ? resolve('/summary') : resolve('/review'))}
 			>
 				<span
-					>{workflow.state.status === 'confirming' ? 'Return to Summary' : 'Return to Review'}</span
+					>{workflow.state.status === 'confirming'
+						? t('Return to Summary')
+						: t('Return to Review')}</span
 				>
 				<ChevronRight size={20} strokeWidth={1.5} />
 			</Button>
 		{:else if showAnalyzingUI && isAnalyzing}
 			<Button variant="secondary" full onclick={cancelAnalysis}>
 				<X size={20} strokeWidth={1.5} />
-				<span>Cancel Analysis</span>
+				<span>{t('Cancel Analysis')}</span>
 			</Button>
 		{:else if !showAnalyzingUI}
 			<Button
@@ -1017,14 +1052,14 @@
 				onclick={startAnalysis}
 			>
 				{#if isStartingAnalysis}
-					<span>Starting...</span>
+					<span>{t('Starting...')}</span>
 				{:else}
-					<span>{workflow.analysisStale ? 'Reanalyze with AI' : 'Analyze with AI'}</span>
+					<span>{workflow.analysisStale ? t('Reanalyze with AI') : t('Analyze with AI')}</span>
 				{/if}
 				<Lightbulb size={20} strokeWidth={1.5} />
 			</Button>
 			{#if images.length === 0}
-				<p class="mt-2 text-center text-caption text-neutral-500">Add photos to continue</p>
+				<p class="mt-2 text-center text-caption text-neutral-500">{t('Add photos to continue')}</p>
 			{/if}
 		{/if}
 	</AppContainer>

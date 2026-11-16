@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * ApprovalItemPanel - Expandable panel for viewing/editing a pending approval action
 	 *
@@ -201,17 +203,17 @@
 		if (info?.target_name) return info.target_name;
 
 		// Items - fallback to item_name for backward compatibility
-		if (toolName === 'delete_item') return info?.item_name ?? 'Delete item';
-		if (toolName === 'update_item') return info?.item_name ?? 'Update item';
-		if (toolName === 'create_item') return info?.item_name ?? 'New item';
+		if (toolName === 'delete_item') return info?.item_name ?? t('Delete item');
+		if (toolName === 'update_item') return info?.item_name ?? t('Update item');
+		if (toolName === 'create_item') return info?.item_name ?? t('New item');
 		// Tags - use params.name as fallback since tags don't have display_info
-		if (toolName === 'create_tag') return (params?.name as string) ?? 'New tag';
-		if (toolName === 'update_tag') return (params?.name as string) ?? 'Update tag';
-		if (toolName === 'delete_tag') return (params?.name as string) ?? 'Delete tag';
+		if (toolName === 'create_tag') return (params?.name as string) ?? t('New tag');
+		if (toolName === 'update_tag') return (params?.name as string) ?? t('Update tag');
+		if (toolName === 'delete_tag') return (params?.name as string) ?? t('Delete tag');
 		// Locations
-		if (toolName === 'create_location') return (params?.name as string) ?? 'New location';
-		if (toolName === 'update_location') return (params?.name as string) ?? 'Update location';
-		if (toolName === 'delete_location') return (params?.name as string) ?? 'Delete location';
+		if (toolName === 'create_location') return (params?.name as string) ?? t('New location');
+		if (toolName === 'update_location') return (params?.name as string) ?? t('Update location');
+		if (toolName === 'delete_location') return (params?.name as string) ?? t('Delete location');
 
 		return toolName.replace(/_/g, ' ');
 	});
@@ -226,9 +228,10 @@
 
 	// Get the correct ID parameter based on entity type
 	const entityIdParam = $derived.by(() => {
-		if (entityType === 'tag') return (approval.parameters.tag_id as string) ?? 'Unknown';
-		if (entityType === 'location') return (approval.parameters.location_id as string) ?? 'Unknown';
-		return (approval.parameters.item_id as string) ?? 'Unknown';
+		if (entityType === 'tag') return (approval.parameters.tag_id as string) ?? t('Unknown');
+		if (entityType === 'location')
+			return (approval.parameters.location_id as string) ?? t('Unknown');
+		return (approval.parameters.item_id as string) ?? t('Unknown');
 	});
 
 	// Check which fields are being changed (for update actions)
@@ -448,7 +451,7 @@
 					: ''}"
 				disabled={approval.is_expired}
 				onclick={toggleExpanded}
-				aria-label={actionType === 'delete' ? 'View details' : 'Edit'}
+				aria-label={actionType === 'delete' ? t('View details') : t('Edit')}
 				aria-expanded={expanded}
 			>
 				{#if actionType === 'delete'}
@@ -464,7 +467,7 @@
 				class="flex min-h-touch min-w-touch items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-400 transition-all hover:border-error-500/50 hover:bg-error-500/10 hover:text-error-500 disabled:opacity-50"
 				disabled={isProcessing || approval.is_expired}
 				onclick={handleReject}
-				aria-label="Reject"
+				aria-label={t('Reject')}
 			>
 				{#if processingAction === 'reject'}
 					<div
@@ -484,8 +487,10 @@
 					: 'border-neutral-700 bg-neutral-800 text-neutral-400 hover:border-success-500/50 hover:bg-success-500/10 hover:text-success-500'}"
 				disabled={isProcessing || approval.is_expired}
 				onclick={handleApprove}
-				aria-label={expanded && hasModifications ? 'Approve with your changes' : 'Approve'}
-				title={expanded && hasModifications ? 'Apply your edits and approve' : 'Approve action'}
+				aria-label={expanded && hasModifications ? t('Approve with your changes') : t('Approve')}
+				title={expanded && hasModifications
+					? t('Apply your edits and approve')
+					: t('Approve action')}
 			>
 				{#if processingAction === 'approve'}
 					<div
@@ -522,7 +527,7 @@
 							size="sm"
 							disabled={isProcessing}
 							idPrefix="create-{approval.id}"
-							fallbackDisplay={approval.display_info?.location ?? 'No location'}
+							fallbackDisplay={approval.display_info?.location ?? t('No location')}
 						/>
 
 						<TagSelector
@@ -550,23 +555,23 @@
 					<!-- Create Tag/Location: Restricted form (Name + Description only) -->
 					<div class="space-y-3">
 						<div>
-							<label for="create-name-{approval.id}" class="label-sm">Name</label>
+							<label for="create-name-{approval.id}" class="label-sm">{t('Name')}</label>
 							<input
 								type="text"
 								id="create-name-{approval.id}"
 								bind:value={editedName}
-								placeholder="Name"
+								placeholder={t('Name')}
 								class="input-sm"
 								disabled={isProcessing}
 							/>
 						</div>
 
 						<div>
-							<label for="create-desc-{approval.id}" class="label-sm">Description</label>
+							<label for="create-desc-{approval.id}" class="label-sm">{t('Description')}</label>
 							<textarea
 								id="create-desc-{approval.id}"
 								bind:value={editedDescription}
-								placeholder="Optional description"
+								placeholder={t('Optional description')}
 								rows="2"
 								class="input-sm resize-none"
 								disabled={isProcessing}></textarea>
@@ -602,12 +607,24 @@
 				<!-- Delete Entity: Read-only verification -->
 				<div class="space-y-2">
 					<p class="text-body-sm text-neutral-400">
-						Are you sure you want to delete this {entityType}? This action cannot be undone.
+						{t(
+							entityType === 'tag'
+								? 'Are you sure you want to delete this tag? This action cannot be undone.'
+								: entityType === 'location'
+									? 'Are you sure you want to delete this location? This action cannot be undone.'
+									: 'Are you sure you want to delete this item? This action cannot be undone.'
+						)}
 					</p>
 					<div class="space-y-1 rounded-lg border border-error-500/20 bg-error-500/10 px-3 py-2">
 						{#if approval.display_info?.target_name || approval.display_info?.item_name}
 							<div>
-								<span class="text-caption capitalize text-neutral-500">{entityType}:</span>
+								<span class="text-caption capitalize text-neutral-500"
+									>{entityType === 'tag'
+										? t('Tag')
+										: entityType === 'location'
+											? t('Location')
+											: t('Item')}:</span
+								>
 								<span class="text-error-300 ml-1 text-body-sm"
 									>{approval.display_info.target_name ?? approval.display_info.item_name}</span
 								>
@@ -615,7 +632,7 @@
 						{/if}
 						{#if approval.display_info?.asset_id}
 							<div>
-								<span class="text-caption text-neutral-500">Asset ID:</span>
+								<span class="text-caption text-neutral-500">{t('Asset ID:')}</span>
 								<span class="ml-1 text-body-sm text-neutral-300"
 									>{approval.display_info.asset_id}</span
 								>
@@ -623,7 +640,7 @@
 						{/if}
 						{#if approval.display_info?.location}
 							<div>
-								<span class="text-caption text-neutral-500">Location:</span>
+								<span class="text-caption text-neutral-500">{t('Location:')}</span>
 								<span class="ml-1 text-body-sm text-neutral-300"
 									>{approval.display_info.location}</span
 								>
@@ -631,7 +648,14 @@
 						{/if}
 						{#if !approval.display_info?.target_name && !approval.display_info?.item_name}
 							<div>
-								<span class="text-caption capitalize text-neutral-500">{entityType} ID:</span>
+								<span class="text-caption capitalize text-neutral-500"
+									>{entityType === 'tag'
+										? t('Tag')
+										: entityType === 'location'
+											? t('Location')
+											: t('Item')}
+									{t('ID:')}</span
+								>
 								<span class="ml-1 text-body-sm text-neutral-300">{entityIdParam}</span>
 							</div>
 						{/if}

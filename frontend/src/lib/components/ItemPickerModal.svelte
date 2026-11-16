@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import Search from '@lucide/svelte/icons/search';
 	import Package from '@lucide/svelte/icons/package';
 	import Check from '@lucide/svelte/icons/check';
@@ -135,7 +137,7 @@
 	}
 </script>
 
-<Modal open={true} title="Select Container Item" onclose={onClose}>
+<Modal open={true} title={t('Select Container Item')} onclose={onClose}>
 	<!-- Search -->
 	<div class="mb-4">
 		<div class="relative">
@@ -144,7 +146,7 @@
 			</div>
 			<input
 				type="text"
-				placeholder="Search items..."
+				placeholder={t('Search items...')}
 				bind:value={searchQuery}
 				class="input-with-icon"
 			/>
@@ -160,10 +162,10 @@
 		{:else if filteredItems.length === 0}
 			<div class="py-12 text-center text-neutral-500">
 				{#if searchQuery}
-					<p>No items found for "{searchQuery}"</p>
+					<p>{t('No items found for "')}{searchQuery}"</p>
 				{:else}
-					<p>No items in this location</p>
-					<p class="mt-2 text-body-sm">Add some items first</p>
+					<p>{t('No items in this location')}</p>
+					<p class="mt-2 text-body-sm">{t('Add some items first')}</p>
 				{/if}
 			</div>
 		{:else}
@@ -190,7 +192,8 @@
 							{item.name}
 						</p>
 						<p class="text-body-sm text-neutral-500">
-							Quantity: {item.quantity}
+							{t('Quantity:')}
+							{item.quantity}
 						</p>
 					</div>
 
@@ -208,11 +211,11 @@
 		{#if currentItemId}
 			<Button variant="secondary" onclick={clearSelection}>
 				<X size={20} strokeWidth={1.5} />
-				<span>Clear Selection</span>
+				<span>{t('Clear Selection')}</span>
 			</Button>
 		{/if}
 		<Button variant="ghost" onclick={onClose}>
-			<span>Cancel</span>
+			<span>{t('Cancel')}</span>
 		</Button>
 	{/snippet}
 </Modal>

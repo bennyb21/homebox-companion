@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	/**
 	 * LogsSection - Application logs, frontend logs, chat transcript, and LLM debug log.
 	 *
@@ -28,7 +30,9 @@
 		if (!service.serverLogs) return '';
 		const { truncated, total_lines } = service.serverLogs;
 		const shown = truncated && total_lines > 300 ? 300 : total_lines;
-		return truncated ? `Last ${shown} of ${total_lines} lines` : `${total_lines} lines`;
+		return truncated
+			? t('Last {p0} of {p1} lines', { p0: shown, p1: total_lines })
+			: t('{p0} lines', { p0: total_lines });
 	});
 
 	const serverLogsFullscreenSubtitle = $derived.by(() => {
@@ -40,7 +44,9 @@
 		if (!service.llmDebugLog) return '';
 		const { truncated, total_lines } = service.llmDebugLog;
 		const shown = truncated && total_lines > 300 ? 300 : total_lines;
-		return truncated ? `Last ${shown} of ${total_lines} lines` : `${total_lines} lines`;
+		return truncated
+			? t('Last {p0} of {p1} lines', { p0: shown, p1: total_lines })
+			: t('{p0} lines', { p0: total_lines });
 	});
 
 	const llmDebugLogsFullscreenSubtitle = $derived.by(() => {
@@ -56,11 +62,11 @@
 <section class="card space-y-4">
 	<h2 class="flex items-center gap-2 text-body-lg font-semibold text-neutral-100">
 		{@render logsIcon('h-5 w-5 text-primary-400')}
-		Logs & Debugging
+		{t('Logs & Debugging')}
 	</h2>
 
 	<p class="text-body-sm text-neutral-400">
-		View application logs, frontend console output, and AI interaction history for debugging.
+		{t('View application logs, frontend console output, and AI interaction history for debugging.')}
 	</p>
 
 	<button
@@ -71,7 +77,7 @@
 		aria-controls={logsId}
 	>
 		{@render logsIcon('h-5 w-5 text-primary-400')}
-		<span>{showLogsSection ? 'Hide Logs' : 'View Logs'}</span>
+		<span>{showLogsSection ? t('Hide Logs') : t('View Logs')}</span>
 		<ChevronDown
 			class="ml-auto transition-transform {showLogsSection ? 'rotate-180' : ''}"
 			size={16}
@@ -82,14 +88,14 @@
 		{#if showLogsSection}
 			<!-- Application Logs -->
 			<LogPanel
-				title="Application Logs"
+				title={t('Application Logs')}
 				toggleLabel="Show Server Logs"
 				isExpanded={service.showServerLogs}
 				onToggle={() => service.toggleServerLogs()}
 				isLoading={service.isLoading.serverLogs}
 				error={service.errors.serverLogs}
 				isEmpty={!service.serverLogs?.logs}
-				emptyMessage="No server logs available."
+				emptyMessage={t('No server logs available.')}
 				subtitleLeft={service.serverLogs?.filename ?? undefined}
 				subtitleRight={serverLogsSubtitleRight}
 				fullscreenSubtitle={serverLogsFullscreenSubtitle}
@@ -115,16 +121,22 @@
 
 			<!-- Frontend Logs -->
 			<LogPanel
-				title="Frontend Logs"
+				title={t('Frontend Logs')}
 				toggleLabel="Show Frontend Logs"
-				description="Browser console logs stored in memory. Cleared on page refresh."
+				description={t('Browser console logs stored in memory. Cleared on page refresh.')}
 				isExpanded={service.showFrontendLogs}
 				onToggle={() => service.toggleFrontendLogs()}
 				isEmpty={service.frontendLogs.length === 0}
-				emptyMessage="No frontend logs available. Logs will appear here as you use the app."
+				emptyMessage={t('No frontend logs available. Logs will appear here as you use the app.')}
 				subtitleLeft="In-memory buffer"
-				subtitleRight={`${service.frontendLogs.length} ${service.frontendLogs.length === 1 ? 'entry' : 'entries'}`}
-				fullscreenSubtitle={`In-memory buffer • ${service.frontendLogs.length} ${service.frontendLogs.length === 1 ? 'entry' : 'entries'}`}
+				subtitleRight={t(service.frontendLogs.length === 1 ? '{count} entry' : '{count} entries', {
+					count: service.frontendLogs.length,
+				})}
+				fullscreenSubtitle={t('In-memory buffer • {entries}', {
+					entries: t(service.frontendLogs.length === 1 ? '{count} entry' : '{count} entries', {
+						count: service.frontendLogs.length,
+					}),
+				})}
 				onRefresh={() => service.refreshFrontendLogs()}
 				onExport={() => service.exportFrontendLogs()}
 				onClear={() => service.clearFrontendLogs()}
@@ -141,16 +153,22 @@
 
 			<!-- Chat Transcript -->
 			<LogPanel
-				title="Chat Transcript"
+				title={t('Chat Transcript')}
 				toggleLabel="Show Chat Transcript"
-				description="Export your conversation history. Clear chat from the chat window."
+				description={t('Export your conversation history. Clear chat from the chat window.')}
 				isExpanded={showChatTranscript}
 				onToggle={() => (showChatTranscript = !showChatTranscript)}
 				isEmpty={chatStore.messageCount === 0}
-				emptyMessage="No chat messages. Start a conversation in the chat window."
+				emptyMessage={t('No chat messages. Start a conversation in the chat window.')}
 				subtitleLeft="Conversation history"
-				subtitleRight={`${chatStore.messageCount} ${chatStore.messageCount === 1 ? 'message' : 'messages'}`}
-				fullscreenSubtitle={`Conversation history • ${chatStore.messageCount} ${chatStore.messageCount === 1 ? 'message' : 'messages'}`}
+				subtitleRight={t(chatStore.messageCount === 1 ? '{count} message' : '{count} messages', {
+					count: chatStore.messageCount,
+				})}
+				fullscreenSubtitle={t('Conversation history • {messages}', {
+					messages: t(chatStore.messageCount === 1 ? '{count} message' : '{count} messages', {
+						count: chatStore.messageCount,
+					}),
+				})}
 				onExport={() => service.exportChatTranscript()}
 				exportDisabled={chatStore.messageCount === 0}
 				hasFullscreen={true}
@@ -166,15 +184,17 @@
 
 			<!-- LLM Debug Log -->
 			<LogPanel
-				title="LLM Debug Log"
+				title={t('LLM Debug Log')}
 				toggleLabel="Show LLM Debug Log"
-				description="Chat and vision interactions. INFO records summaries; DEBUG includes prompts and responses; TRACE also includes tool schemas. Image payloads are omitted."
+				description={t(
+					'Chat and vision interactions. INFO records summaries; DEBUG includes prompts and responses; TRACE also includes tool schemas. Image payloads are omitted.'
+				)}
 				isExpanded={service.showLLMDebugLog}
 				onToggle={() => service.toggleLLMDebugLog()}
 				isLoading={service.isLoading.llmDebugLog}
 				error={service.errors.llmDebugLog}
 				isEmpty={!service.llmDebugLog?.logs}
-				emptyMessage="No LLM debug log files found."
+				emptyMessage={t('No LLM debug log files found.')}
 				subtitleLeft={service.llmDebugLog?.filename ?? undefined}
 				subtitleRight={llmDebugLogsSubtitleRight}
 				fullscreenSubtitle={llmDebugLogsFullscreenSubtitle}

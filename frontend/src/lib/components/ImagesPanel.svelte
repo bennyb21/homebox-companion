@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n/index.svelte';
+
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -62,13 +64,16 @@
 		for (const file of Array.from(input.files)) {
 			// Check max images limit if provided
 			if (maxImages !== undefined && images.length >= maxImages) {
-				showToast(`Maximum ${maxImages} images allowed`, 'warning');
+				showToast(t('Maximum {p0} images allowed', { p0: maxImages }), 'warning');
 				break;
 			}
 
 			// Check file size
 			if (file.size > maxFileSizeMb * 1024 * 1024) {
-				showToast(`${file.name} is too large (max ${maxFileSizeMb}MB)`, 'warning');
+				showToast(
+					t('{p0} is too large (max {p1}MB)', { p0: file.name, p1: maxFileSizeMb }),
+					'warning'
+				);
 				continue;
 			}
 			images = [...images, file];
@@ -102,7 +107,7 @@
 			onclick={() => cameraInput.click()}
 		>
 			<Camera class="text-neutral-400" size={16} strokeWidth={1.5} />
-			<span class="text-caption font-medium text-neutral-400">Camera</span>
+			<span class="text-caption font-medium text-neutral-400">{t('Camera')}</span>
 		</button>
 		<button
 			type="button"
@@ -110,7 +115,7 @@
 			onclick={() => fileInput.click()}
 		>
 			<Upload class="text-neutral-400" size={16} strokeWidth={1.5} />
-			<span class="text-caption font-medium text-neutral-400">Upload</span>
+			<span class="text-caption font-medium text-neutral-400">{t('Upload')}</span>
 		</button>
 	</div>
 {/snippet}
@@ -144,7 +149,7 @@
 			size={16}
 			strokeWidth={1.5}
 		/>
-		<span class="font-medium">Attached Photos</span>
+		<span class="font-medium">{t('Attached Photos')}</span>
 		{#if images.length > 0}
 			<span class="ml-auto rounded-full bg-neutral-800 px-2 py-0.5 text-caption"
 				>{images.length}</span
@@ -159,7 +164,7 @@
 				<div class="mb-3 flex items-center gap-2">
 					<ImageIcon class="text-primary-300" size={16} />
 					<span class="text-body-sm font-medium text-neutral-200">
-						{images.length} photo{images.length !== 1 ? 's' : ''}
+						{t(images.length === 1 ? '{count} photo' : '{count} photos', { count: images.length })}
 					</span>
 				</div>
 
@@ -171,13 +176,13 @@
 						>
 							<img
 								src={getThumbnailUrl(img, index)}
-								alt="Photo {index + 1}"
+								alt={t('Photo {count}', { count: index + 1 })}
 								class="object-cover size-full"
 							/>
 							<button
 								type="button"
 								class="absolute right-1 top-1 flex items-center justify-center rounded-full bg-neutral-950/70 [@media(hover:hover)]:opacity-0 focus-visible:opacity-100 transition-all hover:bg-error-500 group-hover:opacity-100 size-6"
-								aria-label="Remove image"
+								aria-label={t('Remove image')}
 								onclick={() => removeImage(index)}
 							>
 								<X class="text-neutral-100" size={14} strokeWidth={2.5} />
@@ -189,10 +194,10 @@
 									{#if customThumbnail}
 										<span class="flex items-center gap-0.5">
 											<SquarePen size={10} />
-											Edited
+											{t('Edited')}
 										</span>
 									{:else}
-										Primary
+										{t('Primary')}
 									{/if}
 								{:else}
 									{index + 1}
@@ -209,7 +214,7 @@
 			{:else}
 				<!-- Empty state: compact add buttons (same style as when photos exist) -->
 				<p class="mb-2 text-caption text-neutral-500">
-					Add labels, serial numbers, different angles
+					{t('Add labels, serial numbers, different angles')}
 				</p>
 				{@render addPhotoButtons()}
 			{/if}

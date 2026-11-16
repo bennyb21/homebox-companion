@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 import { vision } from '$lib/api/vision';
 import { request as apiRequest } from '$lib/api/client';
 import { authStore } from '$lib/stores/auth.svelte';
@@ -67,27 +68,31 @@ export class ReviewEditor {
 			const fields = profile.template?.fields ?? [];
 			if (profile.entity_type.id !== entityTypeId || fields.some((field) => field.type !== 'text'))
 				throw new Error(
-					'Unsupported profile: only native text fields are supported. Draft unchanged.'
+					t('Unsupported profile: only native text fields are supported. Draft unchanged.')
 				);
 			const defaults = Object.fromEntries(
 				fields.map((field) => [field.name, field.textValue ?? ''])
 			);
 			if (Object.keys(defaults).length !== fields.length)
-				throw new Error('Ambiguous duplicate template field names. Draft unchanged.');
+				throw new Error(t('Ambiguous duplicate template field names. Draft unchanged.'));
 			apply({
 				entity_type_id: entityTypeId,
 				template_id: profile.template?.id ?? null,
 				custom_fields: { ...defaults, ...currentFields() },
 			});
 			showToast(
-				'Type changed. Existing values are preserved, including fields outside the new template.',
+				t(
+					'Type changed. Existing values are preserved, including fields outside the new template.'
+				),
 				'info'
 			);
 			return true;
 		} catch (error) {
 			if (valid())
 				showToast(
-					error instanceof Error ? error.message : 'Could not change item type. Draft unchanged.',
+					error instanceof Error
+						? error.message
+						: t('Could not change item type. Draft unchanged.'),
 					'error'
 				);
 			return false;
@@ -116,7 +121,7 @@ export class ReviewEditor {
 			return false;
 		}
 		if (!image) {
-			showToast('Original image not found', 'error');
+			showToast(t('Original image not found'), 'error');
 			return false;
 		}
 		const request = new AbortController();
@@ -178,7 +183,7 @@ export class ReviewEditor {
 		} catch (error) {
 			if (valid()) {
 				log.error('AI correction failed:', error);
-				showToast(error instanceof Error ? error.message : 'Correction failed', 'error');
+				showToast(error instanceof Error ? error.message : t('Correction failed'), 'error');
 			}
 			return false;
 		} finally {

@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/index.svelte';
 /**
  * Collection Store - Svelte 5 Class-based State
  *
@@ -139,7 +140,7 @@ class CollectionStore {
 		} catch (err) {
 			log.warn('Failed to fetch groups:', err);
 			this._groups = [];
-			this._error = err instanceof Error ? err.message : 'Failed to load collections';
+			this._error = err instanceof Error ? err.message : t('Failed to load collections');
 			throw err;
 		} finally {
 			this._loading = false;

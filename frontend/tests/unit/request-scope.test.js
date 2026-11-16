@@ -4,10 +4,12 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
 
+import { t } from '../i18n.js';
 let moduleId = 0;
 async function loadModule(path, bindings) {
 	const source = await readFile(new URL(`../../src/lib/${path}`, import.meta.url), 'utf8');
 	const id = `scopeTest${moduleId++}`;
+	bindings = { t, ...bindings };
 	globalThis[id] = bindings;
 	const compiled = ts.transpile(source.replace(/^import[\s\S]*?;\s*$/gm, ''), {
 		target: ts.ScriptTarget.ES2022,
