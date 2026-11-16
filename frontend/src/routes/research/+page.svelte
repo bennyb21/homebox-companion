@@ -112,9 +112,8 @@
 		<h1 class="text-h1 text-neutral-100">Product research jobs</h1>
 		<ResearchProfileSummary returnTo="research" />
 		<p>
-			Product information and associated photos are sent to OpenAI and may incur API costs. No
-			automatic changes to Homebox. Unknown outcomes may already have incurred costs. Cancelling
-			cannot refund an already dispatched search.
+			Product information and associated photos are sent to OpenAI and may incur API costs.
+			Suggestions are not independently verified; no automatic changes to Homebox.
 		</p>
 		<label
 			>Saved item<select aria-label="Saved item" class="input mt-2" bind:value={itemId}
@@ -169,8 +168,8 @@
 						attempt. No automatic retry.
 					</p>{/if}
 				{#if job.result}
-					<p>AI suggestions; not independently verified. {job.result.research.ambiguity || ''}</p>
-					<p>Provider citations:</p>
+					{#if job.result.research.ambiguity}<p>{job.result.research.ambiguity}</p>{/if}
+					<p>Sources:</p>
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations -->
 					{#each job.result.research.sources ?? [] as source (source.url)}<a
 							href={source.url}
@@ -197,7 +196,6 @@
 									maxlength="1200"
 									bind:value={proposal.value}></textarea></label
 							>
-							<p>{proposal.evidence}</p>
 							{#each proposal.source_urls as url (url)}<a
 									href={url}
 									target="_blank"

@@ -17,6 +17,13 @@ from server.dependencies import get_verified_gateway
 router = APIRouter(prefix="/research")
 Gateway = Annotated[HomeboxGateway, Depends(get_verified_gateway)]
 
+CORE_FIELDS = {
+    "title": ("Name", "name"),
+    "description": ("Description", "description"),
+    "manufacturer": ("Manufacturer", "manufacturer"),
+    "model_number": ("Model number", "model_number"),
+}
+
 # Deliberately small server-owned semantic vocabulary, not arbitrary model targets.
 NATIVE_FIELDS = {
     "manufacturer": {"manufacturer", "hersteller"},
@@ -91,19 +98,19 @@ def records(request: Request) -> dict:
 def core_proposals(result, context):
     return [
         {
-            "name": "Name" if claim.field == "title" else "Description",
-            "target": "name" if claim.field == "title" else "description",
+            "name": CORE_FIELDS[claim.field][0],
+            "target": CORE_FIELDS[claim.field][1],
             "current": getattr(context, claim.field),
             "value": claim.value,
-            "source_urls": [],
+            "source_urls": claim.source_urls,
             "evidence": claim.evidence,
         }
         for claim in result.claims
-        if claim.field in {"title", "description"}
+        if result.status == "matched" and claim.field in CORE_FIELDS
     ]
 
 
-def proposals(result, profile, current):
+def proposals(result, profile, current, *, native_core=False):
     fields = (profile.get("template") or {}).get("fields", [])
     if any(f.get("type") != "text" for f in fields) or len({f["name"] for f in fields}) != len(fields):
         raise HTTPException(400, "Research requires an unambiguous native TEXT template")
@@ -111,6 +118,10 @@ def proposals(result, profile, current):
     if result.status != "matched":
         return output
     for claim in result.claims:
+        # Whole-item clients have these native properties. Do not propose a duplicate
+        # template field, but retain the template mapping for legacy identity clients.
+        if native_core and claim.field in CORE_FIELDS:
+            continue
         matches = [f for f in fields if f["name"].casefold() in NATIVE_FIELDS.get(claim.field, set())]
         if len(matches) == 1:
             field = matches[0]
@@ -160,7 +171,7 @@ async def lookup(body: Lookup, request: Request, gateway: Gateway):
         context = body.context or body.identity
         assert context is not None
         result = await p.research(context)
-        mapped = proposals(result, profile, body.current_values)
+        mapped = proposals(result, profile, body.current_values, native_core=body.context is not None)
         if body.context is not None:
             mapped.extend(core_proposals(result, body.context))
         reviews[id_] = {

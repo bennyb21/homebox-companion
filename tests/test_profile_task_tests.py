@@ -88,11 +88,19 @@ async def test_documented_terra_eligibility_bypasses_stale_sdk_catalog(client, d
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("outcome,success", [("matched", True), ("no_results", True), ("incomplete", False)])
-async def test_explicit_research_test_uses_named_off_profile_same_adapter(client, disk, monkeypatch, outcome, success):
+@pytest.mark.parametrize("whole_context", [False, True])
+async def test_explicit_research_test_uses_named_off_profile_same_adapter(
+    client, disk, monkeypatch, outcome, success, whole_context
+):
     import json
 
     from test_research_citation_contract import IDENTITY, cited_response
 
+    from homebox_companion.core import field_preferences
+
+    preferences = disk.parent / "field_preferences.json"
+    preferences.write_text(json.dumps({"output_language": "German"}))
+    monkeypatch.setattr(field_preferences, "PREFERENCES_FILE", preferences)
     calls = []
     data = cited_response(empty=outcome == "no_results")
     if outcome == "incomplete":
@@ -107,8 +115,12 @@ async def test_explicit_research_test_uses_named_off_profile_same_adapter(client
         assert body["store"] is False and body["background"] is False
         assert body["tool_choice"] == "required"
         context = json.loads(body["input"][0]["content"][0]["text"])
-        assert context["model_number"] == IDENTITY.identifier_exact
-        assert context["manufacturer"] == IDENTITY.manufacturer
+        assert "German" in body["instructions"]
+        if whole_context:
+            assert context["description"] == "Example Maker pump MODEL-A, label PART-02"
+        else:
+            assert context["model_number"] == IDENTITY.identifier_exact
+            assert context["manufacturer"] == IDENTITY.manufacturer
         assert "identity_confirmed" not in context
         assert request.headers["authorization"] == "Bearer OWN-secret"
         return httpx.Response(200, json=data)
@@ -126,7 +138,13 @@ async def test_explicit_research_test_uses_named_off_profile_same_adapter(client
     )
     before = disk.read_bytes()
     response = await client.post(
-        "/api/llm/profiles/Off/test", json={"test_kind": "research", "identity": IDENTITY.model_dump(exclude_none=True)}
+        "/api/llm/profiles/Off/test",
+        json={"test_kind": "research"}
+        | (
+            {"context": {"description": "Example Maker pump MODEL-A, label PART-02"}}
+            if whole_context
+            else {"identity": IDENTITY.model_dump(exclude_none=True)}
+        ),
     )
     assert response.status_code == 200
     body = response.json()

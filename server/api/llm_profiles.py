@@ -32,7 +32,13 @@ from homebox_companion.core.persistent_settings import (
     load_settings,
     mutate_settings,
 )
-from homebox_companion.research import OpenAIResponsesResearchProvider, ProductIdentity, ResearchPolicy, ResearchResult
+from homebox_companion.research import (
+    OpenAIResponsesResearchProvider,
+    ProductContext,
+    ProductIdentity,
+    ResearchPolicy,
+    ResearchResult,
+)
 from homebox_companion.research_diagnostics import Diagnostic, diagnostic, http_error_code, safe_request_id
 
 from ..dependencies import require_auth
@@ -114,6 +120,7 @@ class TestConnectionRequest(CredentialRequest):
     model_config = ConfigDict(extra="forbid")
     test_kind: Literal["connection", "research"] = "connection"
     identity: ProductIdentity | None = None
+    context: ProductContext | None = None
 
     # Optional override for testing before saving
     model: str | None = None
@@ -500,8 +507,8 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
 
     # A model-level validation error echoes the complete input, including an
     # optional key override. Keep this cross-field error fixed and input-free.
-    if request and request.test_kind == "research" and request.identity is None:
-        raise HTTPException(422, "Research testing requires an explicit product identity")
+    if request and request.test_kind == "research" and (request.identity is None) == (request.context is None):
+        raise HTTPException(422, "Research testing requires product context or a legacy identity, not both")
 
     clear_settings_cache()
     settings = load_settings()
@@ -527,10 +534,11 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
             selected.credential_source = "own"
             selected.credential_profile_name = None
             selected.api_key = SecretStr(request.api_key)
-        assert request.identity is not None
+        context = request.context or request.identity
+        assert context is not None
         result = await OpenAIResponsesResearchProvider(
             ResearchPolicy(enabled=True, profile_name=name), selected, settings=settings
-        ).research(request.identity)
+        ).research(context)
         return TestConnectionResponse(
             success=result.status in {"matched", "no_results"},
             message=result.diagnostic.message

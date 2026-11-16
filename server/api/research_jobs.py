@@ -13,6 +13,14 @@ from server.services.research_jobs import ResearchJobs
 
 router = APIRouter(prefix="/research/jobs")
 
+# Proposal targets use frontend snake_case; Homebox reads/writes use camelCase.
+HOMEBOX_CORE_FIELDS = {
+    "name": "name",
+    "description": "description",
+    "manufacturer": "manufacturer",
+    "model_number": "modelNumber",
+}
+
 
 class JobInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -51,7 +59,8 @@ def policy_hash(provider):
     profile = getattr(provider, "profile", None)
     return fingerprint(
         {
-            "schema": 2,
+            "schema": 3,
+            "output_language": getattr(provider, "output_language", None),
             "tool_calls": 1,
             "output_tokens": 2400,
             "provider": "openai-responses",
@@ -222,8 +231,8 @@ async def apply(id_: UUID, body: Selection, request: Request, gateway: Gateway):
         core_patch = {}
         for i in set(body.selected):
             target = proposed[i].get("target")
-            if target in {"name", "description"}:
-                core_patch[target] = body.edits.get(str(i), proposed[i]["value"])
+            if target in HOMEBOX_CORE_FIELDS:
+                core_patch[HOMEBOX_CORE_FIELDS[target]] = body.edits.get(str(i), proposed[i]["value"])
                 continue
             matches = [f for f in fields if f["name"] == proposed[i]["name"] and f.get("type") == "text"]
             if len(matches) != 1:
@@ -236,8 +245,8 @@ async def apply(id_: UUID, body: Selection, request: Request, gateway: Gateway):
             readback = await gateway.get_item(row["item"])
             if any(
                 (
-                    readback.get(proposed[i]["target"])
-                    if proposed[i].get("target") in {"name", "description"}
+                    readback.get(HOMEBOX_CORE_FIELDS[proposed[i]["target"]])
+                    if proposed[i].get("target") in HOMEBOX_CORE_FIELDS
                     else values(readback).get(proposed[i]["name"])
                 )
                 != body.edits.get(str(i), proposed[i]["value"])

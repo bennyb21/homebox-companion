@@ -27,12 +27,12 @@ Failures remain visible rather than disappearing after five seconds. The UI disp
 ## Tests are different tasks
 
 - **Check API access** tests the named saved profile's access, not web research. The revised backend uses an exact-model metadata GET for official OpenAI profiles; other providers may retain a billable completion check. Read the returned message to see what passed.
-- **Run research test** opens a dialog requiring a public model/part identifier and an explicit **Run paid research test** click. It tests the named profile even when Off, without assigning it or changing inventory. A completed no-results response is not a successful product match.
+- **Run research test** opens a product-context dialog (description, brand, markings or technical details) and an explicit **Run paid research test** click. It tests the named profile even when Off, without assigning it or changing inventory. A completed no-results response is not a successful product match.
 - Opening, saving, selecting, enabling, and navigation do not start either test. Only one profile test can run at a time, and test POSTs disable automatic authentication replay.
 
 ## Integration and verification boundary
 
-The frontend requires the revised backend identity/test contract: optional safe `diagnostic` on research and test responses, optional `research_result` on profile-test responses, and `test_kind: connection|research` with structured identity for research. Incomplete/refused backend results may retain status `failed`; the UI recognizes `response_incomplete` / `response_refused` diagnostics. Older results without diagnostics remain readable. An old backend that requires `identity_confirmed` is not compatible with new lookup requests.
+The frontend requires the revised backend identity/test contract: optional safe `diagnostic` on research and test responses, optional `research_result` on profile-test responses, and `test_kind: connection|research` with product context for research (legacy structured identity remains accepted). Incomplete/refused backend results may retain status `failed`; the UI recognizes `response_incomplete` / `response_refused` diagnostics. Older results without diagnostics remain readable. An old backend that requires `identity_confirmed` is not compatible with new lookup requests.
 
 Browser UI regressions retain synthetic API fixtures. The additional
 `research-asgi.spec.ts` harness forwards actual browser research/settings/profile-test
@@ -46,6 +46,9 @@ This is offline integration, not provider entitlement or live search quality evi
 
 The separate isolated-Homebox fullstack suite uses real loopback HTTP and native item
 readback/restart, with synthetic provider boundaries. Build before either browser run.
-The 0.4.0 test candidate includes a separate actual-provider public-reference-photo
-probe: seven suggestions and one citation, not owned-item photo/fitment acceptance.
+The 0.4.1 quality candidate retains the separate public-reference-photo probe
+boundary: actual-provider checks are not owned-item photo or fitment acceptance.
+Research uses the configured output language and native manufacturer/model adoption;
+the profile test uses product context. Sources and genuine ambiguity remain visible
+without generic per-suggestion notices.
 Hosted source/image gates and protected manual approval remain required before publication.

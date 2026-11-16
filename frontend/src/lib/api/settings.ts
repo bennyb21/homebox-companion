@@ -338,6 +338,7 @@ export interface LLMProfileUpdate {
 
 export interface ProfileTestRequest {
 	test_kind: 'connection' | 'research';
+	context?: { description: string };
 	identity?: {
 		manufacturer?: string;
 		identifier_kind: 'model_number' | 'part_number';

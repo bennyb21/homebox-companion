@@ -438,6 +438,8 @@
 								custom_fields: { ...editedItem.custom_fields, ...patch },
 							});
 							showCustomFields = true;
+							if (itemPatch.manufacturer !== undefined || itemPatch.model_number !== undefined)
+								showExtendedFields = true;
 						}}
 					/>
 				{/key}

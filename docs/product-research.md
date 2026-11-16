@@ -51,6 +51,19 @@ Product title, description, manufacturer/model/part/serial markings and allowlis
 
 Suggestions are **not independently verified** and never provide installation, vehicle-fitment or safety approval. Values are editable and selectable. Provider citation links appear prominently as display metadata, separately from data acceptance. A missing citation or different proposed number does not discard otherwise usable suggestions. No model-supplied source URL is fetched; only validated HTTP(S) citation links are displayed.
 
+Research uses the effective configured output language, including technical
+values and ambiguity. The prompt prefers manufacturer sources, then regional
+specialists (DE/EU for German), without excluding useful foreign sources. Capture
+and research prompts describe the object with inventory terminology rather than
+narrating its label or packaging. Identifiers belong in their dedicated fields;
+generic warnings and citation markup do not belong in inventory descriptions.
+These are model instructions, not a deterministic wording guarantee.
+
+Native manufacturer and model number are editable/selectable core proposals for
+both drafts and saved items; adoption preserves edits and unrelated values. Legacy
+custom-field mappings remain readable. Provider sources and actual uncertainty
+stay visible, but the same generic notice is not repeated for every proposal.
+
 ## Response and review contract
 
 The adapter requests a bounded JSON object with `fields` and optional `ambiguity`. Flat useful fields, structured specifications and legacy candidate responses are also readable. Unknown or invalid individual fields are ignored. Duplicate/malformed JSON, refusals and incomplete responses remain diagnosed. No per-field citation mapping, citation-position proof, exact echo or wording gate is claimed. There is no second model call or paid repair.
@@ -89,9 +102,10 @@ dispatch retain conservative `unknown_outcome` semantics.
   It validates authenticated exact model metadata access only, not generation,
   billing or web search. It bypasses SDK provider inference without rewriting
   the model ID. Other providers retain explicitly labelled legacy completion tests.
-- Explicit `test_kind: "research"` requires `identity` with a public
-  manufacturer/part-or-model contract for the diagnostic test dialog. The UI must require an explicit
-  cost-confirmed action. The named profile is tested even when Off, through the
+- Explicit `test_kind: "research"` accepts product `context`; the dialog uses a
+  free-text product description rather than separate manufacturer/number inputs.
+  Legacy structured `identity` remains readable. The explicit **Run paid research
+  test** action identifies API costs. The named profile is tested even when Off, through the
   same bounded adapter; testing does not change any settings, canonical research
   selection, capture role or inventory. Success is true only for validated
   `matched` or `no_results`; the latter means request completed without results,
@@ -120,7 +134,7 @@ search quality. A separate actual-provider public product-family reference-photo
 returned seven suggestions and one citation; this is not an owned-item photo or
 fitment acceptance claim. No further paid calls are required for the image gates.
 
-Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is an unverified family/model suggestion only, not VIN-, engine-, model-year-specific compatibility or installation approval. Core title and description proposals are separately editable and selectable too. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
+Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is an unverified family/model suggestion only, not VIN-, engine-, model-year-specific compatibility or installation approval. Core title, description, manufacturer and model-number proposals are separately editable and selectable too. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
 
 ## Saved-item background jobs
 

@@ -5,7 +5,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
 	import ResearchProfileSummary from '$lib/components/ResearchProfileSummary.svelte';
-	import { researchOutcome, type ResearchResult } from '$lib/api/research';
+	import { researchOutcome, type ResearchResult, type ResearchItemPatch } from '$lib/api/research';
 	import { fileToDataUrl } from '$lib/services/serialize';
 	import { createUuidV4 } from '$lib/utils/uuid';
 	import type { DeepReadonly, ReviewItem } from '$lib/types';
@@ -14,10 +14,7 @@
 		onadopt,
 	}: {
 		item: DeepReadonly<ReviewItem>;
-		onadopt: (
-			patch: Record<string, string>,
-			itemPatch: { name?: string; description?: string }
-		) => void;
+		onadopt: (patch: Record<string, string>, itemPatch: ResearchItemPatch) => void;
 	} = $props();
 	type Proposal = {
 		name: string;
@@ -147,7 +144,7 @@
 		try {
 			const result = await request<{
 				patch: Record<string, string>;
-				item_patch: { name?: string; description?: string };
+				item_patch: ResearchItemPatch;
 			}>(`/research/lookups/${review.id}/apply`, {
 				method: 'POST',
 				signal: active.signal,
@@ -207,9 +204,7 @@
 	{#if review}
 		{#if review.result.ambiguity}<p>{review.result.ambiguity}</p>{/if}
 		<p>
-			AI suggestions. {review.result.sources?.length
-				? 'Provider citations (not independently verified):'
-				: 'No usable provider citations were returned.'}
+			{review.result.sources?.length ? 'Sources:' : 'No usable provider citations were returned.'}
 			{#each review.result.sources ?? [] as source (source.url)}
 				<a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>{/each}
 		</p>
@@ -225,7 +220,6 @@
 						maxlength="1200"
 						bind:value={proposal.value}></textarea></label
 				>
-				<p>{proposal.evidence}</p>
 			</div>
 		{/each}
 		{#if review.proposals.length}<Button

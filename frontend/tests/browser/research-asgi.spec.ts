@@ -186,8 +186,10 @@ test('real ASGI named Off tests distinguish metadata access, empty research and 
 				.getByRole('button', { name: 'Run research test', exact: true })
 				.click();
 			const dialog = page.getByRole('dialog');
-			await dialog.getByLabel('Identifier kind', { exact: true }).selectOption('model_number');
-			await dialog.getByLabel('Exact part/model number', { exact: true }).fill('MODEL-A');
+			await expect(dialog.getByLabel('Identifier kind', { exact: true })).toHaveCount(0);
+			await dialog
+				.getByLabel('Product context', { exact: true })
+				.fill('Example Maker pump MODEL-A');
 			const response = page.waitForResponse(
 				(r) =>
 					r.url().includes('/llm/profiles/Off%20research/test') && r.request().method() === 'POST'
@@ -227,6 +229,70 @@ test('real ASGI named Off tests distinguish metadata access, empty research and 
 			body: JSON.stringify(evidence),
 			contentType: 'application/json',
 		});
+	} finally {
+		await bridge.close();
+	}
+});
+
+test('real ASGI native identity adoption stays edited, selective and stale-safe', async ({
+	page,
+	api,
+}) => {
+	const bridge = await researchAsgi(api);
+	try {
+		await bridge.scenario('native');
+		api.on('POST', '/api/tools/vision/detect', () =>
+			json({
+				...detectedItems(['Synthetic pump']),
+				items: detectedItems(['Synthetic pump']).items.map((item) => ({
+					...item,
+					entity_type_id: type,
+					template_id: template,
+					manufacturer: 'Existing maker',
+					model_number: 'MODEL-A',
+					serial_number: 'SERIAL-KEEP',
+					custom_fields: { Specifications: '' },
+				})),
+			})
+		);
+		await selectLocation(page);
+		await uploadSyntheticPhoto(page);
+		await analyzePhotos(page);
+		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
+		await expect(page.getByLabel('Proposed Manufacturer', { exact: true })).toHaveValue(
+			'Example Maker'
+		);
+		await expect(page.getByLabel('Proposed Model number', { exact: true })).toHaveValue('MODEL-B');
+		await expect(
+			page.getByText('Model label may refer to a product family.', { exact: true })
+		).toBeVisible();
+		await expect(
+			page.getByText('AI suggestion; review before adoption. Not independently verified.', {
+				exact: true,
+			})
+		).toHaveCount(0);
+		await page.getByLabel('Proposed Manufacturer', { exact: true }).fill('Reviewed maker');
+		await page.getByLabel('Adopt Manufacturer', { exact: true }).check();
+		await expect(page.getByLabel('Adopt Model number', { exact: true })).not.toBeChecked();
+		await page.screenshot({ path: test.info().outputPath('native-identity-review.png') });
+		await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
+		await expect(page.getByLabel('Manufacturer', { exact: true })).toHaveValue('Reviewed maker');
+		await expect(page.getByLabel('Model Number', { exact: true })).toHaveValue('MODEL-A');
+		await expect(page.getByLabel('Serial Number', { exact: true })).toHaveValue('SERIAL-KEEP');
+		// A second manual model edit makes this new result stale, never overwrites the draft.
+		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
+		await page.getByLabel('Adopt Model number', { exact: true }).check();
+		await page.getByLabel('Model Number', { exact: true }).fill('MODEL-MANUAL');
+		await page.getByRole('button', { name: 'Adopt selected fields', exact: true }).click();
+		await expect(
+			page.getByText('Draft changed; compare again before adoption.', { exact: true })
+		).toBeVisible();
+		await expect(page.getByLabel('Model Number', { exact: true })).toHaveValue('MODEL-MANUAL');
+		const evidence = await bridge.inspect();
+		expect(evidence.network_attempts).toBe(0);
+		expect(evidence.inventory_writes).toBe(0);
+		expect(evidence.wire).toHaveLength(2);
+		expect(evidence.api_calls.filter((call) => call.path.endsWith('/apply'))).toHaveLength(1);
 	} finally {
 		await bridge.close();
 	}

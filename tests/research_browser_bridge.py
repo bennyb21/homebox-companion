@@ -139,6 +139,20 @@ async def main():
         )
         data = cited_response(suffix=True, empty=scenario == "no_results")
         data["model"] = body["model"]
+        if scenario == "native":
+            content = body["input"][0]["content"]
+            assert any(part["type"] == "input_image" for part in content)
+            assert json.loads(content[0]["text"])["model_number"] == "MODEL-A"
+            data["output"][1]["content"][0]["text"] = json.dumps(
+                {
+                    "fields": {
+                        "manufacturer": "Example Maker",
+                        "model_number": "MODEL-B",
+                        "description": "Supported product description",
+                    },
+                    "ambiguity": "Model label may refer to a product family.",
+                }
+            )
         if scenario == "incomplete":
             data.update(status="incomplete", incomplete_details={"reason": "max_output_tokens"}, output=[])
         if scenario == "refused":

@@ -30,6 +30,12 @@ PREFERENCES_FILE = CONFIG_DIR / "field_preferences.json"
 _preferences_lock = threading.RLock()
 
 
+INVENTORY_DESCRIPTION = (
+    "Describe the identified item, its function and supported features/specifications, not a photo caption. "
+    "max 1000 chars, NEVER mention quantity."
+)
+
+
 class FieldPreferencesLoadError(RuntimeError):
     """Saved preferences cannot be read safely; the original file is preserved."""
 
@@ -73,7 +79,7 @@ class FieldPreferences(BaseSettings):
     )
 
     # Description instructions - env var: HBC_AI_DESCRIPTION
-    description: str = "Product features and specifications - what IS this item. Max 1000 chars, NEVER mention quantity"
+    description: str = INVENTORY_DESCRIPTION
 
     # Quantity counting instructions - env var: HBC_AI_QUANTITY
     quantity: str = "Count identical items together, separate different variants"

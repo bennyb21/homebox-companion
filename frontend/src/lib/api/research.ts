@@ -1,3 +1,10 @@
+export interface ResearchItemPatch {
+	name?: string;
+	description?: string;
+	manufacturer?: string;
+	model_number?: string;
+}
+
 export interface ResearchDiagnostic {
 	code: string;
 	stage: 'configuration' | 'provider_resolution' | 'dispatch' | 'response' | 'parse';

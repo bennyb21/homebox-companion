@@ -371,3 +371,27 @@ extended. Successful usability acceptance still requires the deferred framework
 migration and fresh review before leaving this test pilot. Version 0.3.0 and all
 older published artifacts remain immutable. Required hosted gates and protected
 same-artifact publication are still mandatory.
+
+## 0.4.1 research-quality reassessment
+
+The parent independently reviewed runtime changes through
+`120e83ac0428325d5b8ba8549bfbaf07fcba5202`. The exact bound frontend delta was
+reviewed again before rebinding: research/settings API types, ProductResearch,
+LLMProfilesSection, and research/review routes. Native manufacturer/model patches
+use the existing explicit, edited and selective adoption flow. The profile test
+sends escaped free-text product context through the same authenticated endpoint.
+Removed per-proposal notices do not add a rendering or network path; sources and
+genuine ambiguity remain visible.
+
+These six files introduce no raw HTML, enhanced form action, `use:enhance`,
+redirect target, `setHeaders` or build-time input. Static build configuration,
+plugin/deepmerge context and npm configuration are unchanged. This is scoped
+source review, not a formal proof of exploit unreachability.
+
+Only those six source bindings and the two manifest/lock root-version bindings
+change. Third-party dependency objects, advisory objects, graph/counts, phase
+and historical raw fixtures are unchanged. The same three low advisories remain
+accepted risk for the private usability pilot, not zero findings; no new waiver
+or advisory is accepted. New findings still block. Successful usability acceptance
+still triggers framework migration and fresh review before leaving the pilot.
+Published 0.4.0 remains immutable; existing hosted and protected image gates apply.
