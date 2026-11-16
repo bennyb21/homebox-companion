@@ -41,9 +41,7 @@
 	let testedLabel = $state('');
 	let researchTestProfile = $state<LLMProfile | null>(null);
 	let showResearchTest = $state(false);
-	let testManufacturer = $state('');
-	let testIdentifier = $state('');
-	let testKind = $state<'model_number' | 'part_number'>('model_number');
+	let testContext = $state('');
 
 	// Edit modal state
 	let showModal = $state(false);
@@ -262,9 +260,7 @@
 	function openResearchTest(profile: LLMProfile) {
 		if (testingProfile !== null) return;
 		researchTestProfile = profile;
-		testManufacturer = '';
-		testIdentifier = '';
-		testKind = 'model_number';
+		testContext = '';
 		showResearchTest = true;
 	}
 
@@ -292,15 +288,10 @@
 	}
 
 	function runResearchTest() {
-		if (!researchTestProfile || !testIdentifier.trim() || testingProfile !== null) return;
+		if (!researchTestProfile || !testContext.trim() || testingProfile !== null) return;
 		const name = researchTestProfile.name;
-		const identity = {
-			identifier_kind: testKind,
-			identifier_exact: testIdentifier,
-			...(testManufacturer ? { manufacturer: testManufacturer } : {}),
-		};
 		showResearchTest = false;
-		void handleTest(name, { test_kind: 'research', identity });
+		void handleTest(name, { test_kind: 'research', context: { description: testContext } });
 	}
 
 	function getStatusBadgeClass(status: ProfileStatus): string {
@@ -473,37 +464,22 @@
 			{researchTestProfile?.name} — {researchTestProfile?.model}
 		</p>
 		<p class="text-body-sm text-neutral-300">
-			Public model/part search inputs are sent to OpenAI and may incur API costs. This tests this
-			saved profile only, without activating it or changing inventory.
+			Product context is sent to OpenAI and may incur API costs. This tests this saved profile only,
+			without activating it or changing inventory.
 		</p>
 		<label class="block"
-			>Manufacturer (optional)<input
+			>Product context<textarea
 				class="input mt-2"
-				bind:value={testManufacturer}
-				maxlength="80"
-			/></label
-		>
-		<label class="block" for="test-identifier-kind">Identifier kind</label><select
-			id="test-identifier-kind"
-			class="input mt-2"
-			bind:value={testKind}
-			><option value="model_number">Model number</option><option value="part_number"
-				>Part number</option
-			></select
-		>
-		<label class="block"
-			>Exact part/model number<input
-				class="input mt-2"
-				bind:value={testIdentifier}
-				maxlength="120"
-				required
-			/></label
+				bind:value={testContext}
+				maxlength="4000"
+				placeholder="Describe the product and include any known brand, model, markings or technical details."
+				required></textarea></label
 		>
 		<div class="flex flex-wrap gap-2">
 			<Button variant="ghost" type="button" onclick={() => (showResearchTest = false)}
 				>Cancel</Button
 			>
-			<Button type="submit" disabled={testingProfile !== null || !testIdentifier.trim()}
+			<Button type="submit" disabled={testingProfile !== null || !testContext.trim()}
 				>Run paid research test</Button
 			>
 		</div>

@@ -13,12 +13,20 @@ from test_research_api import harness as harness
 
 
 @pytest.mark.asyncio
-async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness, tmp_path):
+@pytest.mark.parametrize("wrong_readback", [False, True])
+async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness, tmp_path, wrong_readback):
     app, gateway = harness
     app.state.research_db_path = tmp_path / "research.sqlite3"
     from homebox_companion.research import Claim
 
-    app.state.research_provider.research.return_value.claims.append(Claim(field="title", value="Proposed title"))
+    app.state.research_provider.research.return_value.claims.extend(
+        [
+            Claim(field="title", value="Proposed title"),
+            Claim(field="manufacturer", value="Example Maker"),
+            Claim(field="model_number", value="MODEL-002"),
+            Claim(field="description", value="Proposed description, not selected"),
+        ]
+    )
     current = {
         "id": "item1",
         "name": "Spacer",
@@ -26,6 +34,9 @@ async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness,
         "entityType": {"id": TYPE},
         "fields": [{"id": "f1", "name": "Specifications", "type": "text", "textValue": ""}],
         "attachments": [{"id": "photo1", "type": "photo", "primary": True}],
+        "manufacturer": "Old maker",
+        "modelNumber": "MODEL-001",
+        "serialNumber": "SERIAL-UNCHANGED",
         "purchasePrice": 42,
         "tags": [],
     }
@@ -37,7 +48,10 @@ async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness,
     gateway.get_research_photo = AsyncMock(side_effect=lambda item, id_: photos[id_])
 
     async def update(_, payload):
+        assert "model_number" not in payload
         current.update(payload)
+        if wrong_readback:
+            current["modelNumber"] = "MODEL-001"
 
     gateway.update_item = AsyncMock(side_effect=update)
     try:
@@ -54,6 +68,10 @@ async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness,
             assert response.json()["state"] == "matched", response.text
             sent = app.state.research_provider.research.call_args.args[0]
             assert sent.title == "Spacer" and len(sent.images) == 1
+            assert sent.manufacturer == "Old maker" and sent.model_number == "MODEL-001"
+            proposals = response.json()["result"]["proposals"]
+            assert proposals[2]["target"] == "manufacturer" and proposals[2]["current"] == "Old maker"
+            assert proposals[3]["target"] == "model_number" and proposals[3]["current"] == "MODEL-001"
             assert "purchasePrice" not in sent.model_dump()
             gateway.update_item.assert_not_awaited()
             assert (await client.post("/api/research/jobs", json=body)).json()["id"] == id_
@@ -65,9 +83,25 @@ async def test_saved_whole_item_photos_bound_to_job_and_manual_adoption(harness,
             photos["photo1"] = image.getvalue()
             applied = await client.post(
                 f"/api/research/jobs/{id_}/apply",
-                json={"selected": [0, 1], "edits": {"0": "Reviewed steel", "1": "Reviewed title"}},
+                json={
+                    "selected": [0, 1, 2, 3],
+                    "edits": {
+                        "0": "Reviewed steel",
+                        "1": "Reviewed title",
+                        "2": "Reviewed maker",
+                        "3": "MODEL-REVIEWED",
+                    },
+                },
             )
+            if wrong_readback:
+                assert applied.status_code == 409, applied.text
+                assert (await client.get(f"/api/research/jobs/{id_}")).json()["state"] == "apply_unknown"
+                return
             assert applied.status_code == 200, applied.text
+            assert current["manufacturer"] == "Reviewed maker"
+            assert current["modelNumber"] == "MODEL-REVIEWED"
+            assert current["serialNumber"] == "SERIAL-UNCHANGED"
+            assert current["description"] == "Observed 0112-S90-6-10-032-N-B"
             assert current["fields"][0]["textValue"] == "Reviewed steel"
             assert current["name"] == "Reviewed title"
             assert current["purchasePrice"] == 42

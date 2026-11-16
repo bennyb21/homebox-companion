@@ -83,14 +83,14 @@ for (const width of [1280, 390]) {
 		await row.getByRole('button', { name: 'Run research test', exact: true }).click();
 		await expect(page.getByRole('dialog')).toContainText('may incur API costs');
 		await expect(page.getByRole('dialog')).toContainText('Recherche — gpt-6-terra');
+		await expect(
+			page.getByRole('dialog').getByLabel('Identifier kind', { exact: true })
+		).toHaveCount(0);
 		await page
 			.getByRole('dialog')
-			.getByLabel('Exact part/model number', { exact: true })
-			.fill('MODEL-A');
-		await page
-			.getByRole('dialog')
-			.getByLabel('Identifier kind', { exact: true })
-			.selectOption('model_number');
+			.getByLabel('Product context', { exact: true })
+			.fill('Example Maker pump MODEL-A, label PART-02');
+		expect(tests).toEqual([{ test_kind: 'connection' }]);
 		await page
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Run paid research test', exact: true })
@@ -100,7 +100,7 @@ for (const width of [1280, 390]) {
 			{ test_kind: 'connection' },
 			{
 				test_kind: 'research',
-				identity: { identifier_kind: 'model_number', identifier_exact: 'MODEL-A' },
+				context: { description: 'Example Maker pump MODEL-A, label PART-02' },
 			},
 		]);
 		await expect(

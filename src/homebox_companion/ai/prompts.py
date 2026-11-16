@@ -15,6 +15,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ..core.field_preferences import INVENTORY_DESCRIPTION
+
+# Applies even when saved per-field preferences predate the inventory-centric defaults.
+INVENTORY_GUIDANCE = (
+    "INVENTORY CONTENT: Name and describe the identified item, its function and relevant supported attributes, "
+    "not a photo caption or a description of its packaging. A readable package label can identify the product "
+    "even when only its packaging is visible; use the label as evidence, not as the subject of the description. "
+    "Do not infer unseen condition, quantity, contents or specifications from packaging alone. "
+    "Keep unknown facts unknown and preserve uncertainty rather than filling gaps. "
+    "Use domain-appropriate terminology in the output language (for example, German automotive wheel spacers "
+    "are Spurplatten/Spurverbreiterung, not generic Abstandshalter). "
+    "Do not put generic verify-fitment, installation or safety disclaimers in inventory fields. "
+    "For factual fields, include only supported item facts, not boilerplate advice."
+)
+
 if TYPE_CHECKING:
     from ..core.persistent_settings import CustomFieldDefinition
 
@@ -71,7 +86,7 @@ def build_critical_constraints(single_item: bool = False) -> str:
         "- Separate distinctly different items into separate entries\n"
         "- Do NOT guess factual details - only report facts that are visible or user-stated\n"
         "- Custom fields may request recommendations or estimates as described below\n"
-        "- Ignore background elements (floors, walls, shelves, packaging)"
+        "- Ignore background elements (floors, walls, shelves); use relevant product labels as evidence"
     )
 
 
@@ -122,8 +137,10 @@ def build_item_schema(customizations: dict[str, str]) -> str:
     """
     name_instr = customizations.get("name", "Title Case, max 255 characters")
     qty_instr = customizations.get("quantity", ">= 1, count of identical items")
-    desc_instr = customizations.get("description", "max 1000 chars, condition/attributes only")
-    return f"""OUTPUT SCHEMA - Each item must include:
+    desc_instr = customizations.get("description", INVENTORY_DESCRIPTION)
+    return f"""{INVENTORY_GUIDANCE}
+
+OUTPUT SCHEMA - Each item must include:
 - name: string ({name_instr})
 - quantity: integer ({qty_instr})
 - description: string ({desc_instr})
@@ -191,7 +208,8 @@ def build_language_instruction(output_language: str | None) -> str:
         return ""
 
     return (
-        f"\nOUTPUT LANGUAGE: Write all item names, descriptions, and notes "
-        f"in {output_language.strip()}. Keep field names (name, description, etc.) "
-        f"in English for JSON compatibility.\n"
+        f"\nOUTPUT LANGUAGE: Write all text values, including item names, descriptions, notes, "
+        f"custom/technical fields and any ambiguity explanation, in {output_language.strip()}. "
+        "Preserve proper names, brands, model names and literal identifiers; do not translate or normalize them. "
+        "Keep field names (name, description, etc.) in English for JSON compatibility.\n"
     )

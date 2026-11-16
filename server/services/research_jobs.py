@@ -86,7 +86,7 @@ class ResearchJobs:
             if not self.db.dispatch(row["id"]):
                 return
             result = await provider.research(context)
-            mapped = proposals(result, profile, values(item))
+            mapped = proposals(result, profile, values(item), native_core=isinstance(context, ProductContext))
             if isinstance(context, ProductContext):
                 mapped.extend(core_proposals(result, context))
             self.db.finish(row["id"], result.status, {"research": result.model_dump(), "proposals": mapped})

@@ -64,7 +64,7 @@ def test_previous_real_responses_are_usable_without_exact_echo_or_url_equality()
 
 
 @pytest.mark.asyncio
-async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch):
+async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch, tmp_path):
     import base64
     import hashlib
     import io
@@ -75,6 +75,7 @@ async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch):
 
     import homebox_companion.research as research
     from homebox_companion.ai.images import optimize_image_for_vision
+    from homebox_companion.core import field_preferences
     from homebox_companion.core.persistent_settings import ModelProfile
 
     def blocked(*args, **kwargs):
@@ -109,6 +110,9 @@ async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch):
             },
         )
 
+    preferences = tmp_path / "field_preferences.json"
+    preferences.write_text(json.dumps({"output_language": "German"}))
+    monkeypatch.setattr(field_preferences, "PREFERENCES_FILE", preferences)
     provider = research.OpenAIResponsesResearchProvider(
         research.ResearchPolicy(enabled=True, profile_name="test"),
         ModelProfile(name="test", model="gpt-4.1-mini", api_key=SecretStr("synthetic")),
@@ -118,6 +122,13 @@ async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch):
     assert result.status == "matched"
     assert len(requests) == 1
     body = json.loads(requests[0].content)
+    instructions = body["instructions"]
+    assert "German" in instructions and "ambiguity" in instructions
+    assert "all text values" in instructions and "proper names" in instructions
+    assert "manufacturer" in instructions and "Germany/EU" in instructions
+    assert "foreign" in instructions and "marketplace" in instructions
+    assert "photo caption" in instructions and "unseen condition" in instructions
+    assert "Spurplatten" in instructions and "fitment" in instructions
     content = body["input"][0]["content"]
     assert "0112-S90-6-10-032-N-B" in content[0]["text"]
     assert "private" not in content[0]["text"]

@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...ai.prompts import (
+    INVENTORY_DESCRIPTION,
+    INVENTORY_GUIDANCE,
     build_critical_constraints,
     build_custom_fields_schema,
     build_extended_fields_schema,
@@ -290,7 +292,7 @@ def build_analysis_system_prompt(
 
     # Build extended field schema for analysis (always include extended fields)
     name_instr = field_preferences.get("name", "Title Case, max 255 characters")
-    desc_instr = field_preferences.get("description", "max 1000 chars, condition/attributes only")
+    desc_instr = field_preferences.get("description", INVENTORY_DESCRIPTION)
     serial_instr = field_preferences.get("serial_number", "S/N when visible")
     model_instr = field_preferences.get("model_number", "product code when visible")
     mfr_instr = field_preferences.get("manufacturer", "brand name when visible")
@@ -305,6 +307,7 @@ def build_analysis_system_prompt(
         # 3. Critical instruction
         "Extract ALL visible details: serial numbers, model numbers, brand, "
         "price tags, condition issues. Only report facts that are visible or user-stated.\n\n"
+        f"{INVENTORY_GUIDANCE}\n\n"
         # 4. Output schema
         "Return JSON with:\n"
         f"- name: string ({name_instr})\n"
