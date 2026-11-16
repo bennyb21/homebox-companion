@@ -92,7 +92,6 @@ def evaluate(report, npm_exit, root):
             return resolved[name]
         require(name in policy["packages"], f"Unreviewed affected package: {name}")
         node = nodes[name]
-        require(node["severity"] == "low", f"Unapproved severity for {name}: {node['severity']}")
         require(type(node["isDirect"]) is bool, "Malformed direct flag")
         require(isinstance(node["range"], str) and node["range"], "Missing affected range")
         require(node["nodes"] == ["node_modules/" + name], "Unreviewed package location")
@@ -132,6 +131,14 @@ def evaluate(report, npm_exit, root):
                 accepted.add(url)
                 causes.add(url)
         require(bool(causes), "Unresolved advisory causes")
+        # npm reports a package at its highest direct advisory severity; a
+        # moderate advisory can therefore sit inside a high package count.
+        # The reviewed propagation-only nodes remain low, not the maximum of
+        # every reachable cause. Do not broaden their accepted severity.
+        severity_order = ("info", "low", "moderate", "high", "critical")
+        direct_severities = [a["severity"] for a in via if isinstance(a, dict)]
+        expected_severity = max(direct_severities or ["low"], key=severity_order.index)
+        require(node["severity"] == expected_severity, f"Unapproved severity for {name}: {node['severity']}")
         resolved[name] = causes
         return causes
 

@@ -2,8 +2,8 @@
   "phase": "private-usability-pilot",
   "reviewed_files": {
     "frontend/.npmrc": "7151cf397def0c2cb0ab65643701d27d335a72c90f775675b5f826bc7005818a",
-    "frontend/package-lock.json": "6601d3eb7b8164b0f8997aceb33d90a0fc84317ae629453cad3ab02674700001",
-    "frontend/package.json": "95b79603d78d5bd98c21e6952bbcc290beb33916a75666c2a9a09f4db7969312",
+    "frontend/package-lock.json": "ca49f514eb80538e904f4744055e14cc04f3247bf28b4456589fbfae6da0048f",
+    "frontend/package.json": "deb722277f584a4c86af9f9e742231d9e7f6290ab84033b5ab7013479d4cd944",
     "frontend/src/app.css": "a4ef6bfabd2ccf38c8c9165c2f342dfa7392701c9873d927d1c3b554ca317b86",
     "frontend/src/app.d.ts": "3d450fc2fc7b0f10b6a9493a682769aac34f8b612f0f5d1bc4845a7b0bfe9f0a",
     "frontend/src/app.html": "81087890cfd4ad371101ddaf9dfd9527378d8103e6f240ff134ccc3a5daabbb1",
@@ -57,7 +57,7 @@
     "frontend/src/lib/components/RecoveryBanner.svelte": "1e7cff8685638fe4a1da600d426ad8fb9f18cbfe0c20248afc8d38334dc04328",
     "frontend/src/lib/components/ResearchNotice.svelte": "50697b7ee6168c55b107c701410f7bf3177f8233a209a8fe91588eb40d8b383c",
     "frontend/src/lib/components/ResearchProfileSummary.svelte": "b54a402c273e9672aa3e3009e312bdfcd4488d2d1ae69758e4cea0fb45382ac2",
-    "frontend/src/lib/components/ResearchProposals.svelte": "35a4d81dc0c2d6e2b1aad5e48dd8293628abe021fad725bd42b4bb13b847b8b2",
+    "frontend/src/lib/components/ResearchProposals.svelte": "8a66a4340fb85de7b5bc76fc503d5ae5e00ff94d13b93ebfdf136d3c9c6c1933",
     "frontend/src/lib/components/SessionExpiredModal.svelte": "99f651111c95847d5beaf425c58a4dff322ac48f7bd271fc6d2b6a9dadbfaae3",
     "frontend/src/lib/components/Skeleton.svelte": "b55e2028493a4fdce66c3bc055a6bd66ad3443012a13b83e08452899644398ef",
     "frontend/src/lib/components/StatusIcon.svelte": "d553df01cf7f4349c74c6c502900b18bf11b1aff78de70097a3817f2ad337e1f",
@@ -85,7 +85,7 @@
     "frontend/src/lib/components/settings/ResearchSection.svelte": "fa46c3228f8fd5324ba10be080f8f2278fc0d4010fe1c7b9e421b6353df56de5",
     "frontend/src/lib/i18n/README.md": "6f94935ddcfe622d2848a9be7e50843c5398fa8bcfab5b44fc1374df9dc45df8",
     "frontend/src/lib/i18n/index.svelte.ts": "5bd55d7e0964591b97126066c8bcc434a55375149692933c842028e51daa70e6",
-    "frontend/src/lib/i18n/messages.ts": "20acd97764ad693beb675c71508519ea161c7609f7443f80d373fda4e42ae534",
+    "frontend/src/lib/i18n/messages.ts": "d8c9ebd778ac28196a22bfdba4eeaef0f78c6f2543fc9d29de8348132e851ec7",
     "frontend/src/lib/markdown.ts": "33a1d84f4a187f1b5b4ce4988556a77d6b680d700099a957c7c59db9ebdedd93",
     "frontend/src/lib/navigation/config.ts": "79d606f3ecb1aec179efeffb9bf2c6679b24e4b5946a33c52307b4a8fe5f0d54",
     "frontend/src/lib/services/bootstrap.ts": "c437b32329594ab49ed9801eaabba38c71cf15db7255edeb1d836fb2c907db24",
@@ -193,6 +193,38 @@
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
       },
       "range": ">=4.2.0 <=4.3.1"
+    },
+    "https://github.com/advisories/GHSA-3r8g-jcqq-3p5j": {
+      "source": 1247438,
+      "name": "@sveltejs/kit",
+      "dependency": "@sveltejs/kit",
+      "title": "SvelteKit: DoS while parsing form data from a remote functions `form`",
+      "url": "https://github.com/advisories/GHSA-3r8g-jcqq-3p5j",
+      "severity": "high",
+      "cwe": [
+        "CWE-407"
+      ],
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "range": ">=2.42.0 <=3.1.0"
+    },
+    "https://github.com/advisories/GHSA-6cf5-gc4q-fm3x": {
+      "source": 1247439,
+      "name": "@sveltejs/kit",
+      "dependency": "@sveltejs/kit",
+      "title": "SvelteKit: Private `query.batch` functions could collide, producing unexpected parameter / function combinations",
+      "url": "https://github.com/advisories/GHSA-6cf5-gc4q-fm3x",
+      "severity": "moderate",
+      "cwe": [
+        "CWE-863"
+      ],
+      "cvss": {
+        "score": 5.9,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+      },
+      "range": ">=2.60.1 <=3.1.0"
     }
   },
   "dependencies": {

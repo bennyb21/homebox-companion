@@ -36,6 +36,13 @@ from homebox_companion.tools.vision.prompts import (
 def test_capture_describes_product_not_photo_even_with_saved_preferences(builder, preferences):
     args = ("Synthetic product", "Observed packaging") if builder is build_analysis_system_prompt else ()
     prompt = builder(*args, field_preferences=preferences, output_language="German")
+    assert "searchable records for an inventory app" in prompt
+    assert "find the item again, distinguish similar variants" in prompt
+    assert "information-dense technical description" in prompt
+    assert "specifications as named values with units" in prompt
+    assert "clearly labelled technical values on packaging are product evidence" in prompt
+    assert "Do not assign meanings or units to unexplained numbers" in prompt
+    assert "Keep the title concise" in prompt
     assert "not a photo caption" in prompt
     assert "readable package label can identify the product" in prompt
     assert "dedicated identifier fields" in prompt

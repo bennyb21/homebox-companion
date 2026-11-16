@@ -2,17 +2,18 @@
 
 ## Identity and supported delivery target
 
-This fork uses plain SemVer. The next test source candidate is **0.5.0**:
+This fork uses plain SemVer. The next test source candidate is **0.5.1**:
 Python and frontend project metadata, locks and the Docker version default agree.
-This candidate adds browser-local German/English UI selection, independent of AI
-output language and inventory values. Research review groups unchanged fields,
-keeps original proposal indices and editable selective adoption, and consolidates
-notices while retaining sources and genuine uncertainty. See [UI behavior and
-language boundaries](research-ui.md).
+This patch adds select/clear-all to research proposals, including collapsed
+unchanged fields, while retaining edits, original indices and explicit adoption.
+Capture and research instructions request searchable technical descriptions with
+supported named specifications and units, including key details when the template
+has no separate specifications field. Saved preferences and model settings are
+unchanged. See [UI behavior and language boundaries](research-ui.md).
 
 Publication uses the existing exact-SHA validation and protected **garage-test**
 gate. This source alone does not establish a published image or release. Published
-**0.1.0** through **0.4.1** images are immutable: never rebuild, replace or republish
+**0.1.0** through **0.5.0** images are immutable: never rebuild, replace or republish
 them. Test-image approval does not create a Git tag/formal release, promote stable,
 or authorize production deployment. The upstream base is separately recorded as
 Duelion/homebox-companion v3.2.2 (`e6fbb4dc9de30c5de7187e25d7be30cfead47034`).
@@ -66,7 +67,11 @@ suite, pinned Homebox compatibility matrix, dependency audits and production-ima
 tests must all succeed. The terminal gate rejects failed, cancelled, skipped or
 missing jobs. Frontend audits apply only the explicit, phase-bound
 [user-approved private-pilot exceptions](security-audit-exceptions.md); raw findings
-remain visible and any unapproved finding blocks publication. Python audit remains
+remain visible and any unapproved finding blocks publication. For 0.5.1 this
+means exactly three low advisories plus the separately approved
+GHSA-3r8g-jcqq-3p5j (high) and GHSA-6cf5-gc4q-fm3x (moderate), not a general
+severity waiver or clean raw audit. Dependencies and audit runner flags are
+unchanged. Python audit remains
 fully blocking. There is no fixed 30-day exception deadline: successful usability
 pilot acceptance triggers framework migration and fresh review before leaving the
 pilot phase. These exceptions do not authorize stable or production use.

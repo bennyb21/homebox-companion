@@ -80,6 +80,90 @@ def test_historical_report_retains_original_advisory_identities():
     )
 
 
+def pilot_report():
+    return json.loads((FIXTURES / "pilot-051-reviewed.json").read_text())
+
+
+def test_five_exact_pilot_findings_are_accepted(tmp_path):
+    report = pilot_report()
+    direct = {a["url"]: a for n in report["vulnerabilities"].values() for a in n["via"] if isinstance(a, dict)}
+    policy = json.loads((ROOT / "docs/frontend-audit-policy.json").read_text())
+    assert direct == policy["advisories"]
+    assert len(direct) == 5
+    assert sorted(a["severity"] for a in direct.values()) == ["high", "low", "low", "low", "moderate"]
+    assert report["metadata"]["vulnerabilities"] == dict(info=0, low=3, moderate=0, high=1, critical=0, total=4)
+    result = check(tmp_path, report)
+    assert result.returncode == 0, result.stderr
+    assert "NOT a clean raw audit" in result.stdout
+    assert all(url in result.stdout for url in direct)
+    assert check(tmp_path, report, code=0).returncode == 1
+
+
+@pytest.mark.parametrize(
+    "advisory_id,field,value",
+    [
+        (advisory_id, field, value)
+        for advisory_id, approved_severity in [("GHSA-3r8g-jcqq-3p5j", "high"), ("GHSA-6cf5-gc4q-fm3x", "moderate")]
+        for field, value in [
+            ("url", "https://github.com/advisories/GHSA-jf9x-2fg2-hx4w"),
+            ("source", 1247440),
+            ("range", "*"),
+            ("severity", "low"),
+            ("severity", "moderate"),
+            ("severity", "high"),
+            ("severity", "critical"),
+        ]
+        if field != "severity" or value != approved_severity
+    ],
+)
+def test_new_pilot_exceptions_reject_changed_identity_or_severity(tmp_path, advisory_id, field, value):
+    report = pilot_report()
+    advisory = next(
+        a
+        for a in report["vulnerabilities"]["@sveltejs/kit"]["via"]
+        if isinstance(a, dict) and a["url"].endswith(advisory_id)
+    )
+    advisory[field] = value
+    result = check(tmp_path, report)
+    assert result.returncode == 1
+    assert "Unreviewed advisory identity" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "package,severity",
+    [
+        ("@sveltejs/kit", "low"),
+        ("@sveltejs/kit", "moderate"),
+        ("@sveltejs/kit", "critical"),
+        ("@sveltejs/adapter-static", "high"),
+        ("deepmerge", "high"),
+    ],
+)
+def test_package_severity_must_match_reviewed_direct_causes(tmp_path, package, severity):
+    report = pilot_report()
+    node = report["vulnerabilities"][package]
+    counts = report["metadata"]["vulnerabilities"]
+    counts[node["severity"]] -= 1
+    counts[severity] += 1
+    node["severity"] = severity
+    result = check(tmp_path, report)
+    assert result.returncode == 1
+    assert "Unapproved severity" in result.stderr
+
+
+def test_missing_high_cause_cannot_keep_high_package_severity(tmp_path):
+    report = pilot_report()
+    node = report["vulnerabilities"]["@sveltejs/kit"]
+    node["via"] = [a for a in node["via"] if not isinstance(a, dict) or a["severity"] != "high"]
+    assert check(tmp_path, report).returncode == 1
+    node["severity"] = "moderate"
+    report["metadata"]["vulnerabilities"].update(high=0, moderate=1)
+    result = check(tmp_path, report)
+    assert result.returncode == 0, result.stderr
+    assert "GHSA-6cf5-gc4q-fm3x" in result.stdout
+    assert "GHSA-3r8g-jcqq-3p5j" not in result.stdout
+
+
 def test_transport_failure_cannot_be_accepted(tmp_path):
     report = json.loads((FIXTURES / "patched-reviewed.json").read_text())
     report["error"] = {"code": "ECONNRESET", "summary": "network failure"}
@@ -184,7 +268,7 @@ def test_advisory_identity_must_match(tmp_path, field, value):
 def test_actual_new_registry_findings_remain_blocking(tmp_path):
     result = check(tmp_path, json.loads((FIXTURES / "new-moderate.json").read_text()))
     assert result.returncode == 1
-    assert "Unapproved severity" in result.stderr
+    assert "Unreviewed advisory identity" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -253,7 +337,12 @@ def test_malformed_raw_response(tmp_path, content, code):
 
 @pytest.mark.parametrize(
     "fixture,exit_code,expected",
-    [("patched-reviewed.json", 1, 0), ("new-moderate.json", 1, 1), ("patched-reviewed.json", 2, 1)],
+    [
+        ("patched-reviewed.json", 1, 0),
+        ("pilot-051-reviewed.json", 1, 0),
+        ("new-moderate.json", 1, 1),
+        ("patched-reviewed.json", 2, 1),
+    ],
 )
 def test_runner_retains_actual_status_and_raw_output(tmp_path, fixture, exit_code, expected):
     import os

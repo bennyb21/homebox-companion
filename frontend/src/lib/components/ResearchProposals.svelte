@@ -20,6 +20,8 @@
 		proposals.map((p, index) => ({ p, index })).filter(({ p }) => p.unchanged)
 	);
 	const prefix = $props.id();
+	const selectedCount = $derived(proposals.filter((_, index) => selected.includes(index)).length);
+	const allSelected = $derived(proposals.length > 0 && selectedCount === proposals.length);
 </script>
 
 {#snippet row(proposal: ResearchProposal, index: number)}
@@ -67,6 +69,23 @@
 	</div>
 {/snippet}
 <div class="space-y-3">
+	{#if proposals.length}
+		<label
+			class="flex min-h-touch items-center gap-2 text-body-sm font-medium text-neutral-200"
+			title={t('Select all proposals, including unchanged fields')}
+		>
+			<input
+				type="checkbox"
+				checked={allSelected}
+				indeterminate={selectedCount > 0 && !allSelected}
+				onchange={(event) => {
+					selected = event.currentTarget.checked ? proposals.map((_, index) => index) : [];
+				}}
+				{disabled}
+			/>
+			{t('Select all')}
+		</label>
+	{/if}
 	{#each changed as { p, index } (index)}{@render row(p, index)}{/each}
 	{#if unchanged.length}
 		<details>

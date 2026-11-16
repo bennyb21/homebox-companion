@@ -2,8 +2,11 @@
 
 ## Decision and boundary
 
-The user explicitly accepted **only the three advisories below**, at their reviewed
-GitHub/npm **low** severity, for the **private usability pilot**. This is accepted
+The user explicitly accepted **only the five advisories below** for the **private
+usability pilot**: three previously approved **low** findings and, separately for
+0.5.1, **GHSA-3r8g-jcqq-3p5j (high)** and **GHSA-6cf5-gc4q-fm3x (moderate)**.
+Consent to continue applies to these two exact new findings, not all findings or
+a raised severity threshold. This is accepted
 risk, not a claim that the application is unexploitable or that raw npm audit is
 clean. Private/LAN-only reachability reduces some exposure; it is not complete
 protection against malicious pages, clients, compromised peers or build inputs.
@@ -31,11 +34,16 @@ whether a user has accepted the pilot or changed a network outside this reposito
 | [GHSA-pfhg-q3qv-9q6r / CVE-2026-114060](https://github.com/advisories/GHSA-pfhg-q3qv-9q6r) | Kit enhanced-form redirects may navigate off-origin. The reviewed app has no `use:enhance` usage. The static SPA uses backend APIs; no vulnerable enhanced-action path was demonstrated. Kit still contributes shipped client code: this is not dismissed as dev-only. |
 | [GHSA-27mw-82g8-phjj / CVE-2026-114061](https://github.com/advisories/GHSA-27mw-82g8-phjj) | Untrusted `setHeaders` cache-control can enter prerendered HTML. The reviewed source has no `setHeaders` usage; no untrusted prerender input path was demonstrated. |
 | [GHSA-gcqx-w48m-w2h4 / CVE-2026-93753](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) | deepmerge is used by the Svelte build plugin to merge local configuration, not a demonstrated runtime untrusted-request path. The [official CNA CVE record](https://cveawg.mitre.org/api/cve/CVE-2026-93753) is REJECTED because it does not describe a security vulnerability. GitHub/npm still report the advisory; it is explicitly accepted, not silently erased or called withdrawn. [Maintainer discussion](https://github.com/TehShrike/deepmerge/issues/273) is supplementary, not the authority for rejection. |
+| [GHSA-3r8g-jcqq-3p5j / CVE-2026-128120](https://github.com/advisories/GHSA-3r8g-jcqq-3p5j) — **high** | DoS while parsing experimental remote-function form data. The reviewed static SPA does not enable `experimental.remoteFunctions` or import `$app/server`; the Python runtime image serves the static frontend, not a SvelteKit server or remote-function endpoints. This is contextual non-use, not a general claim that the vulnerable package is safe. |
+| [GHSA-6cf5-gc4q-fm3x / CVE-2026-128119](https://github.com/advisories/GHSA-6cf5-gc4q-fm3x) — **moderate** | Private `query.batch` function collisions. The reviewed source has no `query.batch` or `$app/server` imports and no enabled remote functions. Static adapter and disabled SSR retain the reviewed context; changing usage or deployment requires reassessment. |
 
 Exact lock versions reviewed: `@sveltejs/kit` **2.70.4**,
 `@sveltejs/adapter-static` **3.0.11**, `@sveltejs/vite-plugin-svelte` **7.3.1**,
-`deepmerge` **4.3.1**. Four affected-package entries propagate three underlying
-advisories in the original reviewed report. Acceptance is **not by package name
+`deepmerge` **4.3.1**. Four affected-package entries propagate **five** unique
+advisories in the current 0.5.1 report: three low, one moderate and one high. npm
+counts these packages as **three low and one high**, because the Kit node includes
+both the moderate and high direct advisories. The historical reports had three
+underlying low advisories. Acceptance is **not by package name
 alone or by severity threshold**. The checker walks every `via` edge and matches
 full direct advisory objects (ID URL, numeric source, package, severity, range,
 title, CWE and CVSS) against `frontend-audit-policy.json`.
@@ -62,7 +70,7 @@ It preserves stdout (`npm-audit.json`), stderr, actual exit status and the polic
 prints the raw report even on failure. A nonzero npm exit is never automatically
 ignored. Exit 1 is accepted only with a complete matching findings report;
 transport/error JSON, other exits, malformed/truncated/duplicate-key JSON,
-unreconciled counts, unknown fields/links/advisories, cycles, higher severity and
+unreconciled counts, unknown fields/links/advisories, cycles, changed severity and
 missing evidence fail closed. Exit 0 with a valid complete zero-findings report
 is honestly reported as zero findings, with no exceptions used.
 
@@ -81,7 +89,10 @@ any broader exception needs explicit user approval.
 Registry fix suggestions may evolve without becoming accepted advisories; their
 schema is checked but they are never executed. The checker processes all reported
 packages and reconciles npm's affected-package counts, rather than conflating
-those counts with the number of unique advisory IDs. Removal of a finding can
+those counts with the number of unique advisory IDs. After exact direct-object
+matching, the package severity must equal its highest reported direct severity;
+the reviewed propagation-only package nodes remain low. This is not a generic
+high/moderate allowance for those packages. Removal of a finding can
 reduce the accepted set; it cannot introduce an unknown cause.
 
 Python `pip-audit --local --skip-editable` remains fully blocking and unchanged.
@@ -153,8 +164,10 @@ Independent combined review is required before push, merge or image publication.
 containing only the approved findings; it is retained byte-for-byte as historical
 evidence. `new-moderate.json` is the historical public registry response proving
 that additional findings block. `patched-reviewed.json` is the actual public
-response collected against Kit 2.70.4 / adapter-static 3.0.11; active acceptance
-and mutation tests use this new snapshot and assert exact reviewed versions.
+response collected against Kit 2.70.4 / adapter-static 3.0.11 before the two new
+0.5.1 findings. `pilot-051-reviewed.json` preserves the actual full-coverage raw
+report with the five explicitly accepted findings. Both snapshots remain tested;
+new mutation cases reject changed IDs/severities and inconsistent aggregation.
 Historical version bindings cannot authorize the patched graph. These fixtures
 have no private inventory, addresses or credentials and are offline test inputs,
 not substitutes for the runner's current live registry result.
@@ -439,3 +452,40 @@ No new exception, expiry extension or policy bypass is granted. Praise of one
 example is not full pilot acceptance: successful usability acceptance still
 triggers framework migration and fresh review before leaving the pilot. Published
 0.4.1 and older images remain immutable; existing hosted and protected gates apply.
+
+## 0.5.1 selection and technical-description reassessment
+
+The release reviewer independently inspected the runtime delta through
+`0c1e1934366621d2bc4081b03b27d00a14061bb4` before renewing bindings.
+ResearchProposals changes only local numeric selection state, including hidden
+unchanged proposals; it preserves edited values and original adoption indices.
+The checkbox is disabled during adoption, and selection itself makes no request.
+Its two catalog labels use existing escaped Svelte text/attributes. The shared
+technical-description instructions and default preference change prompt text,
+not routes, schemas, model settings or persisted user preferences.
+
+No enhanced form action, `use:enhance`, `setHeaders`, raw-HTML sink, new URL source
+or untrusted build input was added. Static SPA configuration, sanitizers and the
+plugin/deepmerge context are unchanged. This is scoped source review, not formal
+proof of exploit unreachability.
+
+Only the two affected existing frontend source bindings and the manifest/lock
+root-version bindings are renewed. Dependency objects, phase, configuration and
+historical fixtures are unchanged. The initial full-coverage release audit then
+correctly blocked the two newly published remote-function advisories above.
+After reviewing those exact advisories and the unchanged static/Python runtime
+context, the user explicitly approved those **two additional exceptions only**.
+Their complete direct objects are added without changing package versions,
+coverage flags, registry, raw exit handling, severity threshold or protections.
+The checker validates every direct identity before reconciling package severity;
+the high Kit package does not hide its moderate direct advisory. Unknown findings,
+changed severity, incomplete reports and unreviewed source/configuration still
+block. No dependency migration or additional runtime change is part of this
+exception update. All previous fixtures remain historical evidence.
+
+A passing policy with raw npm exit **1** means **five accepted findings**, not a
+clean audit. No arbitrary expiry is introduced: the exceptions remain limited to
+the same private pilot, and changes in usage, source, dependencies or deployment
+trigger renewed review. Framework migration remains due after successful
+usability-pilot acceptance. Published 0.5.0 remains immutable; required hosted and
+protected gates still apply.
