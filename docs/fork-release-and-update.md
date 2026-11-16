@@ -2,12 +2,18 @@
 
 ## Identity and supported delivery target
 
-This fork uses plain SemVer. The next test source candidate is **0.4.0**:
-Python and frontend project metadata and the Docker version default agree. It is
-not a published image or release; independent review and public CI/image gates
-remain required. Released **0.1.0**, **0.2.0** and **0.3.0** and their images are immutable:
-never rebuild, replace or republish those versions. Any later authorized delivery
-of this candidate uses `0.4.0` and a corresponding Git release tag `v0.4.0`. The upstream base is separately recorded as
+This fork uses plain SemVer. The next test source candidate is **0.4.1**:
+Python and frontend project metadata, locks and the Docker version default agree.
+The reviewed quality fix uses the configured output language, object-focused
+inventory descriptions, native manufacturer/model adoption and a product-context
+profile test instead of a number dialog. Sources and genuine uncertainty remain
+visible without repeating generic notices for every suggestion.
+
+Publication uses the existing exact-SHA validation and protected **garage-test**
+gate. This source alone does not establish a published image or release. Published
+**0.1.0** through **0.4.0** images are immutable: never rebuild, replace or republish
+them. Test-image approval does not create a Git tag/formal release, promote stable,
+or authorize production deployment. The upstream base is separately recorded as
 Duelion/homebox-companion v3.2.2 (`e6fbb4dc9de30c5de7187e25d7be30cfead47034`).
 This is not an upstream 3.x release. Preserve GPL notices and publish the exact
 corresponding source before distributing an image. `/app/LICENSE` and OCI source,
