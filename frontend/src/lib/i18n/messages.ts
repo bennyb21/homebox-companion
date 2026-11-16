@@ -558,6 +558,9 @@ export const de = {
 	'Product information and associated photos are sent to OpenAI. Only selected suggestions are adopted; saving is a separate action.':
 		'Produktinformationen und zugehörige Fotos werden an OpenAI gesendet. Nur ausgewählte Vorschläge werden übernommen; Speichern ist ein eigener Schritt.',
 	'Unchanged fields (': 'Unveränderte Felder (',
+	'Select all': 'Alles auswählen',
+	'Select all proposals, including unchanged fields':
+		'Alle Vorschläge auswählen, einschließlich unveränderter Felder',
 	'Correcting with AI...': 'KI-Korrektur läuft …',
 	'This removes all unsaved photos, results, manual edits and undo history from this capture session. It never deletes items in Homebox.':
 		'Alle ungespeicherten Fotos, Ergebnisse, manuellen Änderungen und der Rückgängig-Verlauf dieser Erfassung werden entfernt. Gegenstände in Homebox werden nie gelöscht.',
