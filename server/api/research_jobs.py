@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from homebox_companion.core import persistent_settings
 from homebox_companion.homebox.relationships import item_update_payload
-from homebox_companion.research import ProductIdentity, ResearchResult
+from homebox_companion.research import ProductContext, ProductIdentity, ResearchResult
 from server.api.research import Gateway, fingerprint, proposals, provider, scope
 from server.services.research_jobs import ResearchJobs
 
@@ -17,13 +17,14 @@ router = APIRouter(prefix="/research/jobs")
 class JobInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     item_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9-]+$")
-    identity: ProductIdentity
+    identity: ProductIdentity | None = None
     idempotency_key: str = Field(min_length=1, max_length=100)
 
 
 class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     selected: list[int] = Field(min_length=1, max_length=8)
+    edits: dict[str, str] = Field(default_factory=dict, max_length=8)
 
 
 def service(request):
@@ -50,7 +51,7 @@ def policy_hash(provider):
     profile = getattr(provider, "profile", None)
     return fingerprint(
         {
-            "schema": 1,
+            "schema": 2,
             "tool_calls": 1,
             "output_tokens": 2400,
             "provider": "openai-responses",
@@ -78,6 +79,44 @@ async def item_profile(gateway, item_id):
     return item, profile
 
 
+async def item_context(gateway, item):
+    """Read only this authorized item's photos; persist hashes, never credentials/images."""
+    import base64
+    import hashlib
+    import re
+
+    photos = sorted(
+        (a for a in item.get("attachments", []) if a.get("type") == "photo"), key=lambda a: not a.get("primary", False)
+    )
+    if len(photos) > 8:
+        raise HTTPException(400, "Research supports up to eight associated photos")
+    images, hashes = [], []
+    total = 0
+    for photo in photos:
+        id_ = photo.get("id", "")
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,100}", id_):
+            raise HTTPException(400, "Invalid photo identifier")
+        raw = await gateway.get_research_photo(item["id"], id_)
+        total += len(raw)
+        if total > 18_000_000:
+            raise HTTPException(400, "Research photos exceed combined size limit")
+        from homebox_companion.ai.images import validate_image_bytes
+
+        mime = validate_image_bytes(raw)
+        images.append(f"data:{mime};base64," + base64.b64encode(raw).decode())
+        hashes.append([id_, hashlib.sha256(raw).hexdigest()])
+    context = ProductContext(
+        title=item.get("name") or "",
+        description=item.get("description") or "",
+        manufacturer=item.get("manufacturer") or "",
+        model_number=item.get("modelNumber") or "",
+        serial_number=item.get("serialNumber") or "",
+        technical_fields=values(item),
+        images=images,
+    )
+    return context, fingerprint([context.model_dump(), hashes])
+
+
 def public(row):
     return {k: row[k] for k in ("id", "item", "state", "result", "created", "expires")}
 
@@ -102,11 +141,13 @@ async def enqueue(body: JobInput, request: Request, gateway: Gateway):
         raise HTTPException(503, "Research disabled or unconfigured")
     item, profile = await item_profile(gateway, body.item_id)
     payload = {
-        "identity": body.identity.model_dump(),
+        "identity": body.identity.model_dump() if body.identity else None,
         "item_hash": fingerprint(item),
         "profile_hash": fingerprint(profile),
         "policy_hash": policy_hash(p),
     }
+    if body.identity is None:
+        _, payload["context_hash"] = await item_context(gateway, item)
     jobs = service(request)
     try:
         row = jobs.db.enqueue(job_scope(request, gateway), body.item_id, body.idempotency_key, payload)
@@ -166,21 +207,42 @@ async def apply(id_: UUID, body: Selection, request: Request, gateway: Gateway):
         item, profile = await item_profile(gateway, row["item"])
         if fingerprint(item) != row["payload"]["item_hash"] or fingerprint(profile) != row["payload"]["profile_hash"]:
             raise HTTPException(409, "Item/template changed; no fields written")
+        if "context_hash" in row["payload"]:
+            _, current_hash = await item_context(gateway, item)
+            if current_hash != row["payload"]["context_hash"]:
+                raise HTTPException(409, "Item photos changed; no fields written")
         proposed = row["result"]["proposals"]
         if any(i < 0 or i >= len(proposed) for i in body.selected):
             raise HTTPException(400, "Invalid selection")
+        if any(
+            k not in {str(i) for i in body.selected} or not v.strip() or len(v) > 1200 for k, v in body.edits.items()
+        ):
+            raise HTTPException(400, "Invalid proposal edit")
         fields = [dict(f) for f in item.get("fields", [])]
+        core_patch = {}
         for i in set(body.selected):
+            target = proposed[i].get("target")
+            if target in {"name", "description"}:
+                core_patch[target] = body.edits.get(str(i), proposed[i]["value"])
+                continue
             matches = [f for f in fields if f["name"] == proposed[i]["name"] and f.get("type") == "text"]
             if len(matches) != 1:
                 raise HTTPException(409, "Native field identity changed")
-            matches[0]["textValue"] = proposed[i]["value"]
+            matches[0]["textValue"] = body.edits.get(str(i), proposed[i]["value"])
         if not jobs.db.claim_apply(row["id"], row["scope"]):
             raise HTTPException(409, "Already applied or cancelled")
         try:
-            await gateway.update_item(row["item"], {**item_update_payload(item), "fields": fields})
+            await gateway.update_item(row["item"], {**item_update_payload(item), **core_patch, "fields": fields})
             readback = await gateway.get_item(row["item"])
-            if any(values(readback).get(proposed[i]["name"]) != proposed[i]["value"] for i in body.selected):
+            if any(
+                (
+                    readback.get(proposed[i]["target"])
+                    if proposed[i].get("target") in {"name", "description"}
+                    else values(readback).get(proposed[i]["name"])
+                )
+                != body.edits.get(str(i), proposed[i]["value"])
+                for i in body.selected
+            ):
                 raise RuntimeError("Readback mismatch")
             jobs.db.finish(row["id"], "applied", row["result"])
             return {"state": "applied", "item_id": row["item"], "verified_fields": values(readback)}

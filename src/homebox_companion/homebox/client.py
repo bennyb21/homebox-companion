@@ -1335,6 +1335,27 @@ class HomeboxClient:
         )
         self._ensure_success(response, "Delete item")
 
+    async def get_research_photo(self, token: str, item_id: str, attachment_id: str) -> bytes:
+        """Bounded same-origin photo read; never follow attachment redirects."""
+        import re
+
+        if not all(re.fullmatch(r"[A-Za-z0-9-]{1,100}", value) for value in (item_id, attachment_id)):
+            raise ValueError("Invalid research attachment identifier")
+        async with self.client.stream(
+            "GET",
+            f"{self.base_url}/entities/{item_id}/attachments/{attachment_id}",
+            headers=self._raw_auth_headers(token),
+            follow_redirects=False,
+        ) as response:
+            if response.status_code != 200:
+                raise ValueError("Research photo unavailable")
+            content = bytearray()
+            async for chunk in response.aiter_bytes(chunk_size=65536):
+                if len(content) + len(chunk) > 6_000_000:
+                    raise ValueError("Research photo exceeds size limit")
+                content.extend(chunk)
+            return bytes(content)
+
     async def get_attachment(
         self,
         token: str,

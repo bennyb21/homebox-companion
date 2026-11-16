@@ -68,8 +68,9 @@ def cited_response(*, suffix=False, empty=False):
 def test_citation_location_is_not_a_supporting_text_span(suffix):
     result = parse_response(cited_response(suffix=suffix), IDENTITY)
     assert result.status == "matched"
-    assert result.claims[0].source_urls == [URL]
-    assert result.claims[0].evidence == "Cited model synthesis; original source text not independently verified"
+    assert result.claims[0].source_urls == []
+    assert result.sources[0].url == URL
+    assert "Not independently verified" in result.claims[0].evidence
     assert result.diagnostic is not None
     assert result.diagnostic.code == "matched"
 
@@ -84,21 +85,21 @@ def test_empty_candidates_after_completed_search_need_no_annotations():
 @pytest.mark.parametrize(
     "mutation,code",
     [
-        ("no_search", "search_missing"),
-        ("no_annotations", "citations_missing"),
+        ("no_search", "matched"),
+        ("no_annotations", "matched"),
         ("refusal", "response_refused"),
         ("bad_json", "malformed_json"),
-        ("range", "citation_invalid"),
-        ("bool_range", "citation_invalid"),
-        ("mismatch", "identity_mismatch"),
-        ("invented", "source_invalid"),
-        ("field", "schema_invalid"),
+        ("range", "matched"),
+        ("bool_range", "matched"),
+        ("mismatch", "matched"),
+        ("invented", "matched"),
+        ("field", "no_results"),
         ("duplicate", "malformed_json"),
-        ("trailing", "malformed_json"),
-        ("conflicting_suffix", "citation_invalid"),
+        ("trailing", "matched"),
+        ("conflicting_suffix", "matched"),
     ],
 )
-def test_parser_has_safe_distinct_rejection_codes(mutation, code):
+def test_parser_keeps_data_and_metadata_outcomes_separate(mutation, code):
     data = cited_response(suffix=mutation == "conflicting_suffix")
     part = data["output"][1]["content"][0]
     if mutation == "no_search":
@@ -129,7 +130,7 @@ def test_parser_has_safe_distinct_rejection_codes(mutation, code):
     if mutation in {"bad_json", "duplicate"}:
         part["annotations"] = []
     result = parse_response(data, IDENTITY)
-    assert result.status == "failed"
+    assert result.status == (code if code in {"matched", "no_results"} else "failed")
     assert result.diagnostic is not None
     assert result.diagnostic.code == code
     assert "SECRET-CANARY" not in result.model_dump_json()

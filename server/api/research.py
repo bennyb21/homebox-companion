@@ -7,11 +7,11 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from homebox_companion import HomeboxGateway
 from homebox_companion.core.persistent_settings import get_settings
-from homebox_companion.research import OpenAIResponsesResearchProvider, ProductIdentity, ResearchPolicy
+from homebox_companion.research import OpenAIResponsesResearchProvider, ProductContext, ProductIdentity, ResearchPolicy
 from server.dependencies import get_verified_gateway
 
 router = APIRouter(prefix="/research")
@@ -37,7 +37,15 @@ class Lookup(BaseModel):
     revision: str = Field(min_length=1, max_length=100)
     entity_type_id: UUID
     template_id: UUID
-    identity: ProductIdentity
+    identity: ProductIdentity | None = None
+    context: ProductContext | None = None
+
+    @model_validator(mode="after")
+    def require_context(self):
+        if (self.identity is None) == (self.context is None):
+            raise ValueError("Supply whole-item context or a legacy identity")
+        return self
+
     current_values: dict[str, str] = Field(max_length=100)
 
 
@@ -46,6 +54,7 @@ class Adoption(BaseModel):
     draft_id: str = Field(min_length=1, max_length=100)
     revision: str = Field(min_length=1, max_length=100)
     selected: list[int] = Field(max_length=8)
+    edits: dict[str, str] = Field(default_factory=dict, max_length=8)
     current_values: dict[str, str] = Field(max_length=100)
 
 
@@ -79,6 +88,21 @@ def records(request: Request) -> dict:
     return reviews
 
 
+def core_proposals(result, context):
+    return [
+        {
+            "name": "Name" if claim.field == "title" else "Description",
+            "target": "name" if claim.field == "title" else "description",
+            "current": getattr(context, claim.field),
+            "value": claim.value,
+            "source_urls": [],
+            "evidence": claim.evidence,
+        }
+        for claim in result.claims
+        if claim.field in {"title", "description"}
+    ]
+
+
 def proposals(result, profile, current):
     fields = (profile.get("template") or {}).get("fields", [])
     if any(f.get("type") != "text" for f in fields) or len({f["name"] for f in fields}) != len(fields):
@@ -87,7 +111,7 @@ def proposals(result, profile, current):
     if result.status != "matched":
         return output
     for claim in result.claims:
-        matches = [f for f in fields if f["name"].casefold() in NATIVE_FIELDS[claim.field]]
+        matches = [f for f in fields if f["name"].casefold() in NATIVE_FIELDS.get(claim.field, set())]
         if len(matches) == 1:
             field = matches[0]
             output.append(
@@ -133,8 +157,12 @@ async def lookup(body: Lookup, request: Request, gateway: Gateway):
         from homebox_companion.research import ResearchResult
 
         proposals(ResearchResult(status="no_results"), profile, body.current_values)
-        result = await p.research(body.identity)
+        context = body.context or body.identity
+        assert context is not None
+        result = await p.research(context)
         mapped = proposals(result, profile, body.current_values)
+        if body.context is not None:
+            mapped.extend(core_proposals(result, body.context))
         reviews[id_] = {
             "scope": owner,
             "expires": time.monotonic() + 900,
@@ -165,8 +193,19 @@ async def adopt(lookup_id: UUID, body: Adoption, request: Request, gateway: Gate
         raise HTTPException(409, "Review is stale; compare current values again")
     if any(index < 0 or index >= len(review["proposals"]) for index in body.selected):
         raise HTTPException(400, "Invalid proposal selection")
+    if any(k not in {str(i) for i in body.selected} or not v.strip() or len(v) > 1200 for k, v in body.edits.items()):
+        raise HTTPException(400, "Invalid proposal edit")
     return {
         "draft_id": body.draft_id,
         "revision": body.revision,
-        "patch": {review["proposals"][i]["name"]: review["proposals"][i]["value"] for i in set(body.selected)},
+        "patch": {
+            review["proposals"][i]["name"]: body.edits.get(str(i), review["proposals"][i]["value"])
+            for i in set(body.selected)
+            if not review["proposals"][i].get("target")
+        },
+        "item_patch": {
+            review["proposals"][i]["target"]: body.edits.get(str(i), review["proposals"][i]["value"])
+            for i in set(body.selected)
+            if review["proposals"][i].get("target")
+        },
     }

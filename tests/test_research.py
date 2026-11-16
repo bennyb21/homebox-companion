@@ -46,7 +46,7 @@ async def test_official_responses_wire_contract_and_single_send(api_base):
     assert body["max_tool_calls"] == 1 and body["max_output_tokens"] == 2400
     assert body["parallel_tool_calls"] is False
     assert request.extensions["timeout"]["read"] <= 45
-    assert "AB-123-x" in body["input"]
+    assert "AB-123-x" in body["input"][0]["content"][0]["text"]
     assert "synthetic-not-a-key" not in result.model_dump_json()
 
 

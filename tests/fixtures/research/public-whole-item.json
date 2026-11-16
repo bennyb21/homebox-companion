@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "output": [
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "end_index": 550,
+              "start_index": 384,
+              "title": "Eibach Pro-Spacer 10mm Spacer 5x114.3 Bolt Pattern / 64mm Hub - Black - S90-6-10-032-N-B - Sport Compact Warehouse",
+              "url": "https://sportcompactwarehouse.com/eibach-pro-spacer-10mm-spacer-5x114-3-bolt-pattern-64mm-hub-black-s90-6-10-032-n-b/?utm_source=openai"
+            }
+          ],
+          "logprobs": [],
+          "text": "{\n  \"title\": \"Eibach PRO-SPACER 10 mm Wheel Spacer Pair, Black\",\n  \"description\": \"The provided image is an illustrative Eibach PRO-SPACER family image, not a photo of the owned item. The observed label token is \u201c0112-S90-6-10-032-N-B\u201d; the likely product code is \u201cS90-6-10-032-N-B\u201d (the added \u201c0112-\u201d is not present in the product listings found). Listed as a pair of 10 mm spacers. ([sportcompactwarehouse.com](https://sportcompactwarehouse.com/eibach-pro-spacer-10mm-spacer-5x114-3-bolt-pattern-64mm-hub-black-s90-6-10-032-n-b/?utm_source=openai))\",\n  \"manufacturer\": \"Eibach\",\n  \"model_number\": \"S90-6-10-032-N-B\",\n  \"part_number\": \"S90-6-10-032-N-B\",\n  \"specifications\": {\n    \"product_family\": \"PRO-SPACER\",\n    \"colour\": \"Black\",\n    \"quantity\": \"Pair\",\n    \"thickness_per_spacer\": \"10 mm\",\n    \"track_widening_per_axle\": \"20 mm\",\n    \"bolt_pattern\": \"5 x 114.3 mm\",\n    \"center_bore\": \"64 mm\",\n    \"thread\": \"M14 x 1.5\"\n  },\n  \"ambiguity\": \"The observed token includes the extra prefix \u201c0112-\u201d; product references identify the part as S90-6-10-032-N-B. Vehicle fitment is not established from the supplied image or label alone.\"\n}"
+        }
+      ]
+    }
+  ]
+}

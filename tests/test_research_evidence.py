@@ -87,27 +87,26 @@ async def test_successful_sdk_response_is_parsed_without_second_request():
     )
     assert result.status == "matched"
     assert len(calls) == 1
-    assert "candidates" in json.loads(calls[0].content)["instructions"]
+    assert "editable AI suggestions" in json.loads(calls[0].content)["instructions"]
 
 
 def test_annotation_positions_do_not_claim_to_be_supporting_excerpts():
     data = response()
     data["output"][2]["content"][0]["annotations"][0]["end_index"] = 2
-    # The provider schema locates citations, not support-text spans. Attribution
-    # comes from explicit per-claim URLs, not substring matching on these indices.
+    # Provider links are display metadata, not proof of the proposed fields.
     result = parse(data)
     assert result.status == "matched"
-    assert "not independently verified" in result.claims[0].evidence
+    assert "Not independently verified" in result.claims[0].evidence
 
 
-def test_claim_cannot_change_confirmed_identity():
+def test_identity_corrections_remain_reviewable_proposals():
     data = response()
     content = data["output"][2]["content"][0]
     payload = json.loads(content["text"])
     payload["candidates"][0]["claims"][0].update(field="part_number", value="AB-123-y")
     content["text"] = json.dumps(payload)
     content["annotations"][0]["end_index"] = len(content["text"])
-    assert parse(data).status == "failed"
+    assert parse(data).status == "matched"
 
 
 @pytest.mark.parametrize(
@@ -119,14 +118,14 @@ def test_claim_cannot_change_confirmed_identity():
         "Montagefreigabe für alle Fahrzeuge",
     ],
 )
-def test_fit_guarantees_and_serial_claims_are_not_proposals(value):
+def test_wording_does_not_act_as_a_certification_or_rejection_gate(value):
     data = response()
     content = data["output"][2]["content"][0]
     payload = json.loads(content["text"])
     payload["candidates"][0]["claims"][0]["value"] = value
     content["text"] = json.dumps(payload, ensure_ascii=False)
     content["annotations"][0]["end_index"] = len(content["text"])
-    assert parse(data).status == "failed"
+    assert parse(data).status == "matched"
 
 
 def test_cited_exact_identity_creates_reviewable_synthesis_not_fake_quote():
@@ -134,27 +133,27 @@ def test_cited_exact_identity_creates_reviewable_synthesis_not_fake_quote():
     assert result.status == "matched"
     assert result.claims[0].field == "specifications"
     assert result.claims[0].value == "Steel, 12 mm"
-    assert result.claims[0].evidence == "Cited model synthesis; original source text not independently verified"
+    assert "Not independently verified" in result.claims[0].evidence
     assert result.sources[0].url == "https://example.com/part"
 
 
 @pytest.mark.parametrize(
     "mutation,status",
     [
-        ("no_search", "failed"),
-        ("no_annotations", "failed"),
+        ("no_search", "matched"),
+        ("no_annotations", "matched"),
         ("incomplete", "failed"),
-        ("similar", "failed"),
+        ("similar", "matched"),
         ("collision", "ambiguous"),
-        ("fake_source", "failed"),
-        ("javascript", "failed"),
-        ("userinfo", "failed"),
-        ("price", "failed"),
+        ("fake_source", "matched"),
+        ("javascript", "matched"),
+        ("userinfo", "matched"),
+        ("price", "no_results"),
         ("invalid_json", "failed"),
         ("empty", "no_results"),
     ],
 )
-def test_unverified_or_conflicting_output_never_offers_claims(mutation, status):
+def test_metadata_is_separate_and_unknown_fields_are_ignored(mutation, status):
     data = response()
     content = data["output"][2]["content"][0]
     payload = json.loads(content["text"])
@@ -184,4 +183,4 @@ def test_unverified_or_conflicting_output_never_offers_claims(mutation, status):
         content["annotations"][0]["end_index"] = len(content["text"])
     result = parse(data)
     assert result.status == status
-    assert not result.claims
+    assert bool(result.claims) == (status == "matched")
