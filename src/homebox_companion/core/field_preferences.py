@@ -31,7 +31,9 @@ _preferences_lock = threading.RLock()
 
 
 INVENTORY_DESCRIPTION = (
-    "Describe the identified item, its function and supported features/specifications, not a photo caption. "
+    "Write a useful, searchable inventory description of the identified item, not a photo caption. "
+    "Briefly describe its function, then include relevant supported technical specifications as named values "
+    "with units and distinguishing features. Prefer concrete technical detail over generic prose; "
     "max 1000 chars, NEVER mention quantity."
 )
 

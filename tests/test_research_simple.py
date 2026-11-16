@@ -130,6 +130,13 @@ async def test_photo_and_literal_context_at_actual_sdk_wire(monkeypatch, tmp_pat
     assert "photo caption" in instructions and "unseen condition" in instructions
     assert "Spurplatten" in instructions and "fitment" in instructions
     assert "after the JSON object, not inside field values" in instructions
+    assert "searchable records for an inventory app" in instructions
+    assert "information-dense technical description" in instructions
+    assert "matching the identified product variant" in instructions
+    assert "description must include the key supported specifications with their names and units" in instructions
+    assert "template may have no separate specifications field" in instructions
+    assert "Preserve supported technical details from the input" in instructions
+    assert "per-item values from pair/set totals" in instructions
     content = body["input"][0]["content"]
     assert "0112-S90-6-10-032-N-B" in content[0]["text"]
     assert "private" not in content[0]["text"]

@@ -19,11 +19,23 @@ from ..core.field_preferences import INVENTORY_DESCRIPTION
 
 # Applies even when saved per-field preferences predate the inventory-centric defaults.
 INVENTORY_GUIDANCE = (
+    "INVENTORY PURPOSE: You create useful, searchable records for an inventory app, not advertising copy. "
+    "Help the owner find the item again, distinguish similar variants and look up its properties and uses. "
     "INVENTORY CONTENT: Name and describe the identified item, its function and relevant supported attributes, "
     "not a photo caption or a description of its packaging. A readable package label can identify the product "
     "even when only its packaging is visible; use the label as evidence, not as the subject of the description. "
     "Put markings in their dedicated identifier fields rather than narrating label text or repeating codes "
     "in the description. "
+    "For technical items, prefer an information-dense technical description over a generic function-only summary. "
+    "After a brief identification and purpose, include the relevant available specifications as named values "
+    "with units: dimensions, material, construction, connections/mounting, electrical or mechanical ratings, "
+    "operating ranges, standards and variant-specific features as appropriate to this item. "
+    "Select useful properties, not a mandatory checklist; omit unknown or irrelevant specifications. "
+    "Readable, clearly labelled technical values on packaging are product evidence and belong in the item "
+    "description. Do not assign meanings or units to unexplained numbers. "
+    "Keep the title concise; put detailed labelled specifications in the description rather than an "
+    "unexplained string of numbers in the title. Use common technical synonyms when they help retrieval, "
+    "without keyword stuffing. "
     "Do not infer unseen condition, quantity, contents or specifications from packaging alone. "
     "Keep unknown facts unknown and preserve uncertainty rather than filling gaps. "
     "Use domain-appropriate terminology in the output language (for example, German automotive wheel spacers "
