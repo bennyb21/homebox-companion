@@ -345,3 +345,29 @@ phase, expiry policy and historical raw reports are unchanged. This remains the
 same private usability pilot and accepted risk, not a clean raw audit or a new
 exception. Independent corrected-candidate review and actual built-image gates
 remain separate requirements before any authorized publication.
+
+## 0.4.0 whole-item research reassessment
+
+Independent scoped review accepted the runtime delta at
+`623ad7abd0fc44c4ae3838aa21baf9950bd62782`: ProductResearch, saved research page,
+review adoption callback and research API types, together with the provider/parser,
+draft/job API, worker and bounded native-photo reader. Suggestions render as escaped
+Svelte text/textarea values, not raw HTML. Provider links are validated HTTP(S)
+display metadata, distinct from suggestion admission. Explicit dispatch/adoption,
+no automatic inventory writes, source/photo snapshots and stale-state guards remain.
+Native photo fetches are same-origin, bounded and reject redirects/path-shaped IDs.
+
+No enhanced form action, `use:enhance`, `setHeaders`, dynamic HTML or new build-time
+input path was introduced. The static build configuration, npm settings and
+plugin/deepmerge context remain unchanged. This is a scoped review, not a formal
+proof that exploitation is impossible.
+
+Exactly six bindings are renewed: those four frontend runtime files and the two
+manifest/lock root-version changes to 0.4.0. Third-party dependency objects are
+unchanged. Advisory objects, package versions, graph/counts, phase and historical
+raw fixtures remain unchanged: the same three low advisories are accepted risk,
+not a clean raw audit. New findings remain blocking; no exception is added or
+extended. Successful usability acceptance still requires the deferred framework
+migration and fresh review before leaving this test pilot. Version 0.3.0 and all
+older published artifacts remain immutable. Required hosted gates and protected
+same-artifact publication are still mandatory.

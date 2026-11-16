@@ -21,7 +21,7 @@ def test_fork_identity_and_safe_update_defaults(monkeypatch):
     assert settings.disable_update_check is True
     assert settings.github_repo == "bennyb21/homebox-companion"
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert project["version"] == "0.3.0"
+    assert project["version"] == "0.4.0"
     frontend = json.loads((ROOT / "frontend/package.json").read_text())
     frontend_lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
     assert frontend["version"] == project["version"]

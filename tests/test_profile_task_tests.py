@@ -106,7 +106,10 @@ async def test_explicit_research_test_uses_named_off_profile_same_adapter(client
         assert body["max_tool_calls"] == 1 and body["max_output_tokens"] == 2400
         assert body["store"] is False and body["background"] is False
         assert body["tool_choice"] == "required"
-        assert json.loads(body["input"]) == IDENTITY.model_dump(exclude_none=True)
+        context = json.loads(body["input"][0]["content"][0]["text"])
+        assert context["model_number"] == IDENTITY.identifier_exact
+        assert context["manufacturer"] == IDENTITY.manufacturer
+        assert "identity_confirmed" not in context
         assert request.headers["authorization"] == "Bearer OWN-secret"
         return httpx.Response(200, json=data)
 

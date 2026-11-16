@@ -45,42 +45,17 @@ There is one provider: LiteLLM SDK `aresponses` directly to `https://api.openai.
 
 ## Review workflow
 
-Open **Research product data** in capture review or on an unsaved summary item. The summary entry opens that item's editor at the research panel; it does not start a search. Written/uncertain rows cannot be reopened as fresh research drafts. Disabled research links to Settings. The number and optional manufacturer are prefilled where known. Confirm whether the exact identifier is a part number or model number; serial numbers are not accepted as an identifier kind. Manufacturer can remain unknown. Keep punctuation/suffixes unchanged. This version preserves bounded embedded spaces literally (for example `A 000 123 45 67`); it rejects leading/trailing whitespace, URL/control-character input rather than silently repairing it.
+Open **Research product data** in capture review or on an unsaved summary item. This opens the editor without starting a search. **Research this item** explicitly submits the existing product context and associated photos. There is no individual-number search form, exact-number echo gate or required manufacturer. Literal observed markings remain context; the model may propose a correction for manual review.
 
-Only public identity is sent to the provider: no item IDs, collection/account IDs, location, notes, purchase price, serial field, images or inventory description. Input cannot guarantee that a person never pastes private information into a product field; review it before confirming.
+Product title, description, manufacturer/model/part/serial markings and allowlisted identification/technical custom fields may be sent. Arbitrary purchase/payment/account/location metadata is not forwarded. Photos are actual validated image bytes (up to eight, bounded combined size), not remote URLs. Saved-item photos are read from native attachments under current access rights with bounded IDs, sizes and no redirects. Review text and photos for private information before dispatch.
 
-Provider annotations and completed search actions are required for candidate claims. Claimed JSON URLs alone are insufficient. A different exact identifier/kind or supplied manufacturer is rejected; maker collisions with unspecified manufacturer yield ambiguity, not adopted facts. Citations identify **model synthesis**, not independently fetched/verified source quotations. There are no vehicle fitment, VIN or safety guarantees. Model output cannot target purchase price or arbitrary fields.
+Suggestions are **not independently verified** and never provide installation, vehicle-fitment or safety approval. Values are editable and selectable. Provider citation links appear prominently as display metadata, separately from data acceptance. A missing citation or different proposed number does not discard otherwise usable suggestions. No model-supplied source URL is fetched; only validated HTTP(S) citation links are displayed.
 
-The search action and editable public identity replace a mandatory attestation checkbox.
-New clients omit `identity_confirmed`; legacy boolean values are accepted but ignored
-and excluded from serialized identity. This does not expand identifier kinds or
-relax citation, field, stale-review or credential restrictions.
+## Response and review contract
 
-## Response attribution contract
+The adapter requests a bounded JSON object with `fields` and optional `ambiguity`. Flat useful fields, structured specifications and legacy candidate responses are also readable. Unknown or invalid individual fields are ignored. Duplicate/malformed JSON, refusals and incomplete responses remain diagnosed. No per-field citation mapping, citation-position proof, exact echo or wording gate is claimed. There is no second model call or paid repair.
 
-The adapter requests one bounded JSON object, `{"candidates":[...]}`, in one
-completed `output_text` part after a completed hosted search. Each candidate and
-claim explicitly lists `source_urls`; each listed URL must have a provider
-`url_citation` annotation. A `web_search_call.action.sources` listing alone is
-not evidence and never authorizes a claim. Citation indices locate the citation
-in the output message; they are **not guaranteed excerpts supporting the claim**.
-The explicit per-claim JSON mapping is model attribution, not independent page
-verification. Each displayed claim must retain its clickable source links and
-the server-owned label “Cited model synthesis; original source text not independently verified”.
-
-JSON is decoded once, with duplicate keys, unsupported fields and unbounded
-candidates rejected. Trailing whitespace is allowed. A trailing citation marker
-is accepted only at the exact provider-annotated position, using the documented
-`\ue200cite\ue202turn…\ue201` grammar; all other trailing content is rejected.
-No arbitrary text stripping, second model call, paid repair or source-page fetch
-is performed. Empty candidates after a completed search are valid `no_results`
-without annotations. Refusals and incomplete responses are distinct failures.
-
-This application contract is deliberately conservative: it does not guarantee
-that every valid provider response can be consumed. Enforced Structured Outputs
-is not enabled from separate model feature flags alone; joint hosted-search,
-annotation and structured-format compatibility was not established by the
-inspected examples. Formatting failures are reported, not silently repaired.
+The parser returns editable AI suggestions, not certified facts. Legacy `identity` requests remain accepted for compatibility and use the same simplified provider/output contract; `identity_confirmed` is ignored, not an attestation. New draft UI requests carry `context`, and saved-item UI requests send only the selected item ID and idempotency key so the server derives fresh context.
 
 ## Diagnostics and explicit profile tests
 
@@ -114,8 +89,8 @@ dispatch retain conservative `unknown_outcome` semantics.
   It validates authenticated exact model metadata access only, not generation,
   billing or web search. It bypasses SDK provider inference without rewriting
   the model ID. Other providers retain explicitly labelled legacy completion tests.
-- Explicit `test_kind: "research"` requires `identity` with the same public
-  manufacturer/part-or-model contract as lookup. The UI must require an explicit
+- Explicit `test_kind: "research"` requires `identity` with a public
+  manufacturer/part-or-model contract for the diagnostic test dialog. The UI must require an explicit
   cost-confirmed action. The named profile is tested even when Off, through the
   same bounded adapter; testing does not change any settings, canonical research
   selection, capture role or inventory. Success is true only for validated
@@ -141,9 +116,11 @@ research eligibility remains unverified unless supported metadata is available.
 - [Retrieve model](https://developers.openai.com/api/reference/resources/models/methods/retrieve)
 
 Offline mock-HTTP tests establish routing/validation, not model access or live
-search quality. A separate authorized real pilot is still required.
+search quality. A separate actual-provider public product-family reference-photo probe
+returned seven suggestions and one citation; this is not an owned-item photo or
+fitment acceptance claim. No further paid calls are required for the image gates.
 
-Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is a sourced family/model assignment only, not VIN-, engine-, model-year-specific compatibility or installation approval. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
+Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is an unverified family/model suggestion only, not VIN-, engine-, model-year-specific compatibility or installation approval. Core title and description proposals are separately editable and selectable too. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
 
 ## Saved-item background jobs
 

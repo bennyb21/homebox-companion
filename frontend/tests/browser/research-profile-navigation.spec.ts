@@ -105,7 +105,7 @@ test('lookup edit link edits the canonical profile and returns to the untouched 
 	await uploadSyntheticPhoto(page);
 	await analyzePhotos(page);
 	await page.getByLabel('Name', { exact: true }).fill('Keep my unsaved item');
-	await page.getByRole('button', { name: 'Research product data', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Research this item', exact: true })).toBeVisible();
 	await page.getByRole('link', { name: 'Edit active research profile' }).click();
 	await expect(page.getByRole('dialog').getByLabel('Name', { exact: true })).toHaveValue('default');
 	await expect(page.getByRole('dialog').getByLabel('Status', { exact: true })).toHaveValue(

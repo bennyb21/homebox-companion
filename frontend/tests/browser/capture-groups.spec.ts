@@ -264,7 +264,10 @@ test('removing even the last draft stays in summary; undo restores exact fields,
 			.click();
 		await expect(page).toHaveURL(/\/review#product-research$/);
 		await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
-		await expect(page.getByLabel('Exact part/model number')).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Research this item', exact: true })
+		).toBeVisible();
+		await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
 		await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 	}
 	expect(

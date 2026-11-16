@@ -18,9 +18,9 @@ Model IDs are free text, preserved exactly. There is no automatic correction of 
 
 ## Explicit research and diagnostics
 
-The neutral notice identifies the public model/part search inputs sent to OpenAI, possible API costs, and absence of automatic inventory changes. No serial-number attestation checkbox is required. Supported identifiers remain model number or part number. New requests **omit `identity_confirmed`**; they do not manufacture a `true` user attestation.
+**Research this item** sends product context and associated photos only after the explicit click. There is no targeted number-search form or exact-number admission gate. The notice identifies possible API costs and absence of automatic inventory changes. Serial markings may be clues; review text/photos for private information before dispatch.
 
-Research remains explicit. Per-field current/proposed values, evidence labels, and source links are retained. Adoption is available only for matched results; selected fields still require a separate adoption action. Existing stale-draft and write-readback guards remain.
+Research remains explicit. Current values and editable suggestions are shown with a clear unverified-AI label. Provider citation links are displayed independently of field acceptance; missing citations do not discard usable suggestions. Edit/select/adopt or discard deliberately. Draft adoption is separate from saving. Existing stale-draft/photo and saved-item write-readback guards remain.
 
 Failures remain visible rather than disappearing after five seconds. The UI displays the server-curated explanation and stable code, plus expandable read-only, selectable/copyable diagnostic fields. It does not display arbitrary provider bodies or optional metadata. Legacy failures without a diagnostic have an unknown-cause explanation rather than guessing that a key is wrong. Incomplete, refused, no-result, and unknown outcomes are distinct. Unknown outcomes may have incurred costs and never trigger automatic retry.
 
@@ -46,5 +46,6 @@ This is offline integration, not provider entitlement or live search quality evi
 
 The separate isolated-Homebox fullstack suite uses real loopback HTTP and native item
 readback/restart, with synthetic provider boundaries. Build before either browser run.
-The private 0.3.0 candidate is unpublished; independent review, hosted source/image gates
-and a separately authorized real-provider pilot remain required.
+The 0.4.0 test candidate includes a separate actual-provider public-reference-photo
+probe: seven suggestions and one citation, not owned-item photo/fitment acceptance.
+Hosted source/image gates and protected manual approval remain required before publication.

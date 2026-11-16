@@ -34,15 +34,15 @@ for (const [scenario, code] of [
 			await selectLocation(page);
 			await uploadSyntheticPhoto(page);
 			await analyzePhotos(page);
-			await page.getByRole('button', { name: 'Research product data', exact: true }).click();
+			await expect(
+				page.getByRole('button', { name: 'Research this item', exact: true })
+			).toBeVisible();
 			await expect(
 				page.getByText('Research uses: default — gpt-6-luna', { exact: true })
 			).toBeVisible();
-			await page.getByRole('combobox', { name: /Identifier kind/ }).selectOption('model_number');
-			await page
-				.getByLabel('Exact part/model number', { exact: true })
-				.fill(scenario === 'matched' ? 'MODEL-A' : 'QUERY-CONFIDENTIALITY-CANARY');
-			await page.getByRole('button', { name: 'Research this product', exact: true }).click();
+			await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
+			await page.getByLabel('Name', { exact: true }).fill('QUERY-CONFIDENTIALITY-CANARY');
+			await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 			await expect(page.getByText(code, { exact: true })).toBeVisible();
 			if (scenario === 'matched') {
 				await expect(page.getByRole('link', { name: 'Synthetic', exact: true })).toHaveAttribute(
@@ -100,7 +100,9 @@ for (const width of [390, 1280]) {
 			await uploadSyntheticPhoto(page);
 			await analyzePhotos(page);
 			await page.getByLabel('Name', { exact: true }).fill('Retain unsaved synthetic item');
-			await page.getByRole('button', { name: 'Research product data', exact: true }).click();
+			await expect(
+				page.getByRole('button', { name: 'Research this item', exact: true })
+			).toBeVisible();
 			await page.getByRole('link', { name: 'Edit active research profile' }).click();
 			const dialog = page.getByRole('dialog');
 			await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('default');
@@ -194,7 +196,15 @@ test('real ASGI named Off tests distinguish metadata access, empty research and 
 			const body = await (await response).json();
 			expect(body.success).toBe(scenario === 'no_results');
 			expect(body.research_result.status).toBe(scenario);
-			await expect(page.getByText(scenario, { exact: true })).toBeVisible();
+			if (scenario === 'no_results') {
+				await expect(page.getByText('no_results', { exact: true })).toBeVisible();
+			} else {
+				expect(body.research_result.claims).toEqual([]);
+				await expect(
+					page.getByText('Research did not produce a validated result.', { exact: true })
+				).toBeVisible();
+				await expect(page.getByText(/No adoptable research result/)).toBeVisible();
+			}
 		}
 		await expect(
 			page
@@ -232,8 +242,8 @@ test('real ASGI saved job preserves safe diagnostic and never replays on refresh
 		api.on('GET', '/api/items', () => json([{ id: 'item-1', name: 'Synthetic saved item' }]));
 		await page.goto('/research');
 		await page.getByRole('combobox', { name: 'Saved item', exact: true }).selectOption('item-1');
-		await page.getByLabel('Exact part/model number').fill('QUERY-CONFIDENTIALITY-CANARY');
-		await page.getByRole('button', { name: 'Queue research', exact: true }).click();
+		await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 		await expect(async () => {
 			await page.getByRole('button', { name: 'Refresh jobs' }).click();
 			await expect(page.getByText('response_incomplete', { exact: true })).toBeVisible();

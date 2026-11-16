@@ -23,13 +23,13 @@ test('summary opens research for the selected draft without a paid request', asy
 	await page.getByRole('button', { name: 'Research product data', exact: true }).first().click();
 	await expect(page).toHaveURL(/\/review#product-research$/);
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Manual first part');
-	await expect(page.getByLabel('Exact part/model number')).toBeVisible();
+	await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Research settings' })).toHaveAttribute(
 		'href',
 		'/settings#product-research'
 	);
 	await expect(
-		page.getByRole('button', { name: 'Research this product', exact: true })
+		page.getByRole('button', { name: 'Research this item', exact: true })
 	).toBeDisabled();
 	expect(
 		api.requests.filter(
@@ -42,7 +42,7 @@ test('summary opens research for the selected draft without a paid request', asy
 	await expect(page.getByRole('heading', { name: 'Second part', exact: true })).toBeVisible();
 });
 
-test('optional part-number-only research requires explicit field adoption', async ({
+test('whole-item photo/context research requires explicit field adoption', async ({
 	page,
 	api,
 }) => {
@@ -60,12 +60,14 @@ test('optional part-number-only research requires explicit field adoption', asyn
 	);
 	api.on('GET', '/api/research/capabilities', () => json({ enabled: true }));
 	api.on('POST', '/api/research/lookups', (request) => {
-		expect(request.postDataJSON().identity).toMatchObject({
-			identifier_exact: 'AB-123',
-			identifier_kind: 'part_number',
+		const body = request.postDataJSON();
+		expect(body).not.toHaveProperty('identity');
+		expect(body.context).toMatchObject({
+			title: 'Part',
+			technical_fields: { 'Part number': 'AB-123' },
 		});
-		expect(request.postDataJSON().identity.manufacturer).toBeUndefined();
-		expect(request.postDataJSON().identity).not.toHaveProperty('identity_confirmed');
+		expect(body.context.images).toHaveLength(1);
+		expect(body.context.images[0]).toMatch(/^data:image\//);
 		return json({
 			id: 'lookup-1',
 			result: {
@@ -85,15 +87,17 @@ test('optional part-number-only research requires explicit field adoption', asyn
 	});
 	api.on('POST', '/api/research/lookups/lookup-1/apply', (request) => {
 		expect(request.postDataJSON().selected).toEqual([0]);
-		return json({ patch: { Specifications: 'Steel' } });
+		return json({ patch: { Specifications: 'Steel' }, item_patch: {} });
 	});
 	await selectLocation(page);
 	await uploadPhoto(page);
 	await analyzePhotos(page);
-	await page.getByRole('button', { name: 'Research product data', exact: true }).click();
-	await expect(page.getByLabel('Exact part/model number')).toHaveValue('AB-123');
-	await expect(page.getByText(/inputs are sent to OpenAI/)).toBeVisible();
-	await page.getByRole('button', { name: 'Research this product', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Research this item', exact: true })).toBeVisible();
+	await expect(page.getByLabel('Exact part/model number')).toHaveCount(0);
+	await expect(
+		page.getByText(/Product information and associated photos are sent to OpenAI/)
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Research this item', exact: true }).click();
 	await expect(page.getByRole('link', { name: 'Synthetic source' })).toHaveAttribute(
 		'href',
 		'https://example.com/spec'

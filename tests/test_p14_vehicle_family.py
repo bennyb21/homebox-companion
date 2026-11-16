@@ -1,4 +1,4 @@
-"""Sourced coarse assignment is explicit, native TEXT-only and scope-bound."""
+"""Vehicle suggestions remain unverified, explicit, native TEXT-only and scope-bound."""
 
 import json
 
@@ -57,11 +57,18 @@ async def test_family_research_maps_and_requires_explicit_scoped_adoption(harnes
 
 
 @pytest.mark.parametrize("value", ["Guaranteed fits W123", "VIN W123", "Serial 123", "Montagefreigabe W123"])
-def test_family_does_not_authorize_specific_or_guaranteed_fitment(value):
-    assert parse_response(family_response(value), ProductIdentity.model_validate(BODY["identity"])).status == "failed"
+def test_family_wording_is_an_unverified_editable_suggestion_not_fitment_authority(value):
+    result = parse_response(family_response(value), ProductIdentity.model_validate(BODY["identity"]))
+    assert result.status == "matched"
+    assert result.claims[0].value == value
+    assert result.claims[0].evidence == "AI suggestion; review before adoption. Not independently verified."
 
 
-def test_family_requires_claim_source_binding():
+def test_family_keeps_suggestion_without_individual_source_binding():
     data = family_response()
     data["output"][2]["content"][0]["annotations"].pop()
-    assert parse_response(data, ProductIdentity.model_validate(BODY["identity"])).status == "failed"
+    result = parse_response(data, ProductIdentity.model_validate(BODY["identity"]))
+    assert result.status == "matched"
+    assert result.claims[0].value == "Example Series W123 vehicle family"
+    assert result.claims[0].source_urls == []
+    assert len(result.sources) == 1
