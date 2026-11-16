@@ -107,8 +107,19 @@ class _CandidatePayload(BaseModel):
     candidates: list[Candidate] = Field(max_length=8)
 
 
-# Only this documented marker grammar may occur outside the JSON object.
+# Provider citation locations are not quotations. Recognize observed suffix
+# forms only inside validated annotation spans; never strip arbitrary prose.
 _CITATION_MARKER = re.compile(r"\ue200cite(?:\ue202turn[0-9]+[a-z]+[0-9]+)+\ue201")
+
+
+def _citation_suffix(text: str, url: str) -> bool:
+    if _CITATION_MARKER.fullmatch(text):
+        return True
+    # Real Responses output can render a citation as a parenthesized Markdown
+    # link rather than a private-use marker. Its destination must be exactly the
+    # provider-annotated URL, including query parameters (no URL normalization).
+    link = r"\[[^\[\]\r\n]+\]\(" + re.escape(url) + r"\)"
+    return bool(re.fullmatch(link, text) or re.fullmatch(r"\(" + link + r"\)", text))
 
 
 def parse_response(data: dict, identity: ProductIdentity) -> ResearchResult:
@@ -159,7 +170,7 @@ def parse_response(data: dict, identity: ProductIdentity) -> ResearchResult:
             if not isinstance(url, str) or not safe_source_url(url):
                 return fail("source_invalid")
             if right > end:
-                if left < end or not _CITATION_MARKER.fullmatch(text[left:right]):
+                if left < end or not _citation_suffix(text[left:right], url):
                     return fail("citation_invalid")
                 suffix_ranges.add((left, right))
             sources[url] = Source(url=url, title=str(annotation.get("title", "Source"))[:300])

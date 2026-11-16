@@ -1,0 +1,27 @@
+{
+  "status": "completed",
+  "output": [
+    {
+      "type": "web_search_call",
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"candidates\":[{\"manufacturer\":\"Eibach\",\"identifier_exact\":\"S90-6-10-032-N-B\",\"identifier_kind\":\"part_number\",\"source_urls\":[\"https://eibach.com/psp-search\",\"https://www.eibachshop.co.uk/products/eibach-pro-spacer-kit-pair-of-spacers-10mm-per-spacer-system-6n-s90-6-10-032-n-b-black\"],\"claims\":[{\"field\":\"specifications\",\"value\":\"PRO-SPACER, 10 mm pair; 5x114.3 bolt pattern; 64 mm hub center. Kit includes lug nuts with an extended shank and a 60-degree taper.\",\"source_urls\":[\"https://eibach.com/psp-search\"]},{\"field\":\"specifications\",\"value\":\"Black; System 6N; M14x1.5 thread; fittings included.\",\"source_urls\":[\"https://www.eibachshop.co.uk/products/eibach-pro-spacer-kit-pair-of-spacers-10mm-per-spacer-system-6n-s90-6-10-032-n-b-black\"]}]}]}([eibach.com](https://eibach.com/psp-search?utm_source=openai))",
+          "annotations": [
+            {
+              "end_index": 811,
+              "start_index": 748,
+              "title": "Eibach Wheel Spacer Search",
+              "type": "url_citation",
+              "url": "https://eibach.com/psp-search?utm_source=openai"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

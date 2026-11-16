@@ -1,0 +1,27 @@
+{
+  "status": "completed",
+  "output": [
+    {
+      "type": "web_search_call",
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"candidates\":[{\"manufacturer\":\"Eibach\",\"identifier_exact\":\"S90-6-10-032-N-B\",\"identifier_kind\":\"model_number\",\"source_urls\":[\"https://eurofac.fr/img/cms/Tarifs/Tarif-public-HT-Eibach-au-1er-janvier-2024.pdf\",\"https://www.autodoc.co.uk/eibach/16429440\"],\"claims\":[{\"field\":\"manufacturer\",\"value\":\"Eibach\",\"source_urls\":[\"https://www.autodoc.co.uk/eibach/16429440\"]},{\"field\":\"specifications\",\"value\":\"Pro-Spacer wheel spacer; 10 mm; black; 5-hole, 114.3 mm bolt circle, 64 mm centering diameter.\",\"source_urls\":[\"https://eurofac.fr/img/cms/Tarifs/Tarif-public-HT-Eibach-au-1er-janvier-2024.pdf\",\"https://www.autodoc.co.uk/eibach/16429440\"]},{\"field\":\"vehicle_family\",\"value\":\"Tesla Model 3 and Model Y\",\"source_urls\":[\"https://www.autodoc.co.uk/eibach/16429440\"]}]}]} ([eurofac.fr](https://eurofac.fr/img/cms/Tarifs/Tarif-public-HT-Eibach-au-1er-janvier-2024.pdf?utm_source=openai))",
+          "annotations": [
+            {
+              "end_index": 882,
+              "start_index": 768,
+              "title": "<table id=\"e1\">",
+              "type": "url_citation",
+              "url": "https://eurofac.fr/img/cms/Tarifs/Tarif-public-HT-Eibach-au-1er-janvier-2024.pdf?utm_source=openai"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
