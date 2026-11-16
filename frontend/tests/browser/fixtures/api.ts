@@ -1,6 +1,7 @@
 import type { BrowserContext, Request, Route } from '@playwright/test';
 import { config, fieldPreferences, groups, location, type AuthMode } from './data';
 import { fontCss } from './fonts';
+import { MultipartReceiver } from './multipart-receiver';
 
 export type Reply = { status: number; contentType: string; body: string };
 export type Handler = (request: Request) => Reply | Promise<Reply>;
@@ -30,6 +31,10 @@ export class MockApi {
 	readonly unknown: string[] = [];
 	readonly external: string[] = [];
 	readonly routeErrors: string[] = [];
+	readonly multipart = new MultipartReceiver(
+		process.env.HBC_BROWSER_TEST_ORIGIN || 'http://127.0.0.1:4173',
+		(message) => this.routeErrors.push(message)
+	);
 	private entries: Entry[] = [];
 	private gates: RequestGate[] = [];
 	private allowedPageErrors: RegExp[] = [];
@@ -69,6 +74,10 @@ export class MockApi {
 	}
 
 	async install(): Promise<void> {
+		this.context.on('close', () => {
+			this.releaseGates();
+			void this.multipart.close().catch((error) => this.routeErrors.push(String(error)));
+		});
 		await this.context.route('**/*', async (route) => this.dispatch(route));
 	}
 
@@ -104,6 +113,18 @@ export class MockApi {
 			return;
 		}
 		try {
+			if (
+				request.method() === 'POST' &&
+				/^\/api\/items\/[^/]+\/attachments$/.test(path) &&
+				request.headers()['content-type']?.startsWith('multipart/form-data;')
+			) {
+				await this.multipart.forward(route, async (received) => {
+					// Keep request recording at admission, then replace inspector-only data.
+					this.requests[this.requests.indexOf(request)] = received;
+					return entry.handler(received);
+				});
+				return;
+			}
 			await route.fulfill(await entry.handler(request));
 		} catch (error) {
 			this.routeErrors.push(`${request.method()} ${path}: ${String(error)}`);
@@ -180,4 +201,31 @@ export async function installApi(context: BrowserContext): Promise<MockApi> {
 	await api.install();
 	contextApis.set(context, api);
 	return api;
+}
+
+/** Synthetic typed receipt for UI-only tests. Native/ASGI tests exercise real verification. */
+export async function verifiedAttachment(request: Request): Promise<Reply> {
+	const data = await new Response(new Uint8Array(request.postDataBuffer()!), {
+		headers: { 'content-type': request.headers()['content-type'] },
+	}).formData();
+	const file = data.get('file') as File;
+	const attempt = String(data.get('attempt_id'));
+	const slot = String(data.get('slot'));
+	if (!/^[a-f0-9-]{36}$/.test(attempt) || !file?.size || slot === 'null')
+		throw new Error('Missing durable photo attempt');
+	const { createHash, randomUUID } = await import('node:crypto');
+	return json({
+		verified: true,
+		entity_id: new URL(request.url()).pathname.split('/')[3],
+		attachment_id: randomUUID(),
+		attempt_id: attempt,
+		slot,
+		original_filename: data.get('original_filename') ?? file.name,
+		title: `photo__hbc_${attempt}.jpg`,
+		mime_type: file.type || 'image/jpeg',
+		byte_length: file.size,
+		sha256: createHash('sha256')
+			.update(Buffer.from(await file.arrayBuffer()))
+			.digest('hex'),
+	});
 }

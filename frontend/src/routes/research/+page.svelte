@@ -2,6 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { request } from '$lib/api/client';
 	import Button from '$lib/components/Button.svelte';
+	import DiagnosticDetails from '$lib/components/DiagnosticDetails.svelte';
+	import ResearchProfileSummary from '$lib/components/ResearchProfileSummary.svelte';
+	import { researchOutcome, type ResearchResult } from '$lib/api/research';
 	import { createUuidV4 } from '$lib/utils/uuid';
 	import { getInitPromise } from '$lib/services/bootstrap';
 	import AppContainer from '$lib/components/AppContainer.svelte';
@@ -17,7 +20,7 @@
 		item: string;
 		state: string;
 		result: null | {
-			research: { sources: { url: string; title: string }[] };
+			research: ResearchResult;
 			proposals: Proposal[];
 		};
 	};
@@ -28,7 +31,6 @@
 	let identifier = $state('');
 	let manufacturer = $state('');
 	let kind = $state('part_number');
-	let confirmed = $state(false);
 	let busy = $state(false);
 	let message = $state('');
 	let idempotency = createUuidV4();
@@ -57,7 +59,6 @@
 			identity: {
 				identifier_exact: identifier,
 				identifier_kind: kind,
-				identity_confirmed: confirmed,
 				...(manufacturer ? { manufacturer } : {}),
 			},
 		};
@@ -102,7 +103,6 @@
 	}
 	function newDecision() {
 		idempotency = createUuidV4();
-		confirmed = false;
 		message =
 			'New paid attempt selected. Confirm the identifier and possible additional costs before enqueueing.';
 	}
@@ -110,13 +110,15 @@
 
 <AppContainer>
 	<div class="space-y-4">
-		<h1>Product research jobs</h1>
+		<h1 class="text-h1 text-neutral-100">Product research jobs</h1>
+		<ResearchProfileSummary returnTo="research" />
 		<p>
-			Optional paid research for saved items. No automatic changes to Homebox. Unknown outcomes may
-			already have incurred costs. Cancelling cannot refund an already dispatched search.
+			Public model/part search inputs are sent to OpenAI and may incur API costs. No automatic
+			changes to Homebox. Unknown outcomes may already have incurred costs. Cancelling cannot refund
+			an already dispatched search.
 		</p>
 		<label
-			>Saved item<select class="input mt-2" bind:value={itemId}
+			>Saved item<select aria-label="Saved item" class="input mt-2" bind:value={itemId}
 				><option value="">Select item</option>{#each items as item (item.id)}<option value={item.id}
 						>{item.name}</option
 					>{/each}</select
@@ -129,7 +131,7 @@
 				maxlength="80"
 			/></label
 		>
-		<label
+		<label class="block text-body-sm text-neutral-200"
 			>Identifier kind<select class="input mt-2" bind:value={kind}
 				><option value="part_number">Part number</option><option value="model_number"
 					>Model number</option
@@ -143,16 +145,13 @@
 				maxlength="120"
 			/></label
 		>
-		<label
-			><input type="checkbox" bind:checked={confirmed} />I confirm this public part/model number
-			(not serial) and authorize one paid research attempt</label
-		>
+
 		<Button
 			variant="secondary"
 			size="sm"
 			type="button"
 			onclick={create}
-			disabled={busy || !confirmed || !itemId || !identifier}>Queue research</Button
+			disabled={busy || !itemId || !identifier}>Queue research</Button
 		>
 		<Button variant="secondary" size="sm" type="button" onclick={newDecision} disabled={busy}
 			>Start a new paid attempt</Button
@@ -171,6 +170,12 @@
 			<section>
 				<h2>{items.find((item) => item.id === job.item)?.name || job.item}</h2>
 				<p>{job.state}</p>
+				{#if job.result?.research}<p>
+						{researchOutcome(job.result.research.status, job.result.research.diagnostic)}
+					</p>{/if}
+				{#if job.result?.research.diagnostic}<DiagnosticDetails
+						diagnostic={job.result.research.diagnostic}
+					/>{/if}
 				{#if job.state === 'needs_auth'}<Button
 						variant="secondary"
 						size="sm"
@@ -191,7 +196,7 @@
 					</p>{/if}
 				{#if job.result}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- Server-validated external citations -->
-					{#each job.result.research.sources as source (source.url)}<a
+					{#each job.result.research.sources ?? [] as source (source.url)}<a
 							href={source.url}
 							target="_blank"
 							rel="noopener noreferrer">{source.title}</a

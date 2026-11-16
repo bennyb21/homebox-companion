@@ -51,7 +51,7 @@
 	}
 
 	function handleLogout() {
-		scanWorkflow.reset();
+		scanWorkflow.reset(false);
 		resetLocationState();
 		authStore.logout();
 		goto(resolve('/'));

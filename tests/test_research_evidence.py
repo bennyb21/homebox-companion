@@ -90,10 +90,14 @@ async def test_successful_sdk_response_is_parsed_without_second_request():
     assert "candidates" in json.loads(calls[0].content)["instructions"]
 
 
-def test_annotation_for_unrelated_text_does_not_support_claim():
+def test_annotation_positions_do_not_claim_to_be_supporting_excerpts():
     data = response()
     data["output"][2]["content"][0]["annotations"][0]["end_index"] = 2
-    assert parse(data).status == "failed"
+    # The provider schema locates citations, not support-text spans. Attribution
+    # comes from explicit per-claim URLs, not substring matching on these indices.
+    result = parse(data)
+    assert result.status == "matched"
+    assert "not independently verified" in result.claims[0].evidence
 
 
 def test_claim_cannot_change_confirmed_identity():
@@ -140,7 +144,7 @@ def test_cited_exact_identity_creates_reviewable_synthesis_not_fake_quote():
         ("no_search", "failed"),
         ("no_annotations", "failed"),
         ("incomplete", "failed"),
-        ("similar", "ambiguous"),
+        ("similar", "failed"),
         ("collision", "ambiguous"),
         ("fake_source", "failed"),
         ("javascript", "failed"),

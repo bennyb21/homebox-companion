@@ -1,6 +1,6 @@
 import type { Page, Request } from '@playwright/test';
 import { test, expect } from './fixtures/test';
-import { json, type MockApi } from './fixtures/api';
+import { verifiedAttachment, json, type MockApi } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import { selectLocation, uploadPhoto, analyzePhotos, submitItems } from './helpers/scan';
 
@@ -50,7 +50,7 @@ test('ordinary confirmation submits the server-compressed primary image', async 
 	api.on('POST', '/api/items', () => json(createdItem('lamp-1', 'Edited desk lamp')));
 	api.on('POST', '/api/items/lamp-1/attachments', (request) => {
 		uploads.push(request);
-		return json({});
+		return verifiedAttachment(request);
 	});
 
 	await beginReview(page, ['Desk lamp']);
@@ -77,7 +77,7 @@ test('confirm-all submits the current edited item with its server-compressed ima
 	});
 	api.on('POST', /^\/api\/items\/item-\d+\/attachments$/, (request) => {
 		uploads.push(request);
-		return json({});
+		return verifiedAttachment(request);
 	});
 
 	await beginReview(page, ['Desk tools', 'Storage box']);

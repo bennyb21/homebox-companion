@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/test';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import { readDrafts } from './helpers/recovery';
 import { analyzePhotos, selectLocation, uploadPhoto } from './helpers/scan';
@@ -17,7 +17,7 @@ test('confirmed custom fields survive reload recovery and submission', async ({ 
 		creations.push(request.postDataJSON());
 		return json(createdItem('recovered-lamp'));
 	});
-	api.on('POST', '/api/items/recovered-lamp/attachments', () => json({}));
+	api.on('POST', '/api/items/recovered-lamp/attachments', verifiedAttachment);
 
 	await selectLocation(page);
 	await uploadPhoto(page);

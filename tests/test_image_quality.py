@@ -94,6 +94,9 @@ class _CapturingHomeboxClient:
         filename: str,
         mime_type: str = "image/jpeg",
         attachment_type: str = "photo",
+        *,
+        attempt_id: str | None = None,
+        slot: str = "photo",
     ) -> dict[str, Any]:
         self.last_file_bytes = file_bytes
         self.last_filename = filename

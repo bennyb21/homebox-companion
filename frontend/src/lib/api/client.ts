@@ -34,11 +34,11 @@ function getActiveGroupId(): string | null {
 	return _activeGroupId;
 }
 
-function requestScope(): string {
+export function requestScope(): string {
 	return `${authStore.sessionGeneration}:${collectionGeneration}:${authStore.mode ?? 'unknown'}:${authStore.contextId ?? 'unverified'}:${_activeGroupId ?? 'none'}`;
 }
 
-function assertCurrentScope(scope: string): void {
+export function assertCurrentScope(scope: string): void {
 	if (scope !== requestScope()) throw new DOMException('Request context changed', 'AbortError');
 }
 
@@ -461,6 +461,7 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
 }
 
 export interface FormDataRequestOptions {
+	skipAuthRetry?: boolean;
 	signal?: AbortSignal;
 	errorMessage?: string;
 	/**
@@ -666,7 +667,7 @@ export async function requestFormData<T>(
 	log.debug(`Response from ${endpoint}:`, response.status, response.statusText);
 
 	// Handle 401 with automatic retry after refresh
-	if (!response.ok && response.status === 401) {
+	if (!response.ok && response.status === 401 && !options.skipAuthRetry) {
 		const shouldRetry = await handleUnauthorized(response, scope);
 		assertCurrentScope(scope);
 		if (shouldRetry) {

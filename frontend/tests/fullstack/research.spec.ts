@@ -7,15 +7,11 @@ test('synthetic research adoption reaches isolated Homebox', async ({ page }) =>
 		.getByRole('combobox', { name: 'Saved item', exact: true })
 		.selectOption(process.env.HBC_RESEARCH_ITEM!);
 	await page.getByLabel('Exact part/model number').fill('AB-123-x');
-	await page
-		.getByLabel(
-			'I confirm this public part/model number (not serial) and authorize one paid research attempt'
-		)
-		.check();
+	await expect(page.getByText(/inputs are sent to OpenAI/)).toBeVisible();
 	await page.getByRole('button', { name: 'Queue research', exact: true }).click();
 	await expect(async () => {
 		await page.getByRole('button', { name: 'Refresh jobs' }).click();
-		await expect(page.getByText('matched', { exact: true })).toBeVisible();
+		await expect(page.getByRole('paragraph').filter({ hasText: /^matched$/ })).toBeVisible();
 	}).toPass();
 	await expect(page.getByRole('link', { name: 'Synthetic source', exact: true })).toBeVisible();
 	await page.getByLabel('Adopt Specifications').check();

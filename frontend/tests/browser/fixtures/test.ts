@@ -12,6 +12,7 @@ export const test = base.extend<Fixtures>({
 			await use(api);
 		} finally {
 			api.releaseGates();
+			await api.multipart.close();
 			expect.soft(api.unknown, 'Undeclared /api requests').toEqual([]);
 			expect.soft(api.external, 'Unexpected external requests').toEqual([]);
 			expect.soft(api.routeErrors, 'Mock API handler errors').toEqual([]);

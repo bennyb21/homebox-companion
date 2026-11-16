@@ -180,6 +180,8 @@ def _build_router_from_profiles() -> Router:
     }
     # Explicit sentinel prevents SDK ambient OPENAI_API_KEY fallback when absent.
     primary_params["api_key"] = primary_creds.api_key or "hbc-no-configured-key"
+    if official_openai(primary_creds.model, primary_creds.api_base):
+        primary_params["custom_llm_provider"] = "openai"
     if primary_creds.model in {"gpt-6-luna", "openai/gpt-6-luna"}:
         # This exact model's Chat Completions function tools require none.
         primary_params["reasoning_effort"] = "none"
@@ -249,6 +251,8 @@ def _profile_to_params(
     from .llm_utils import resolve_profile_key
 
     params["api_key"] = resolve_profile_key(profile) or "hbc-no-configured-key"
+    if official_openai(profile.model, profile.api_base):
+        params["custom_llm_provider"] = "openai"
     if profile.model in {"gpt-6-luna", "openai/gpt-6-luna"}:
         params["reasoning_effort"] = "none"
 

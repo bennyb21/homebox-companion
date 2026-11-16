@@ -1,8 +1,8 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from './fixtures/test';
-import { installApi, json } from './fixtures/api';
+import { verifiedAttachment, installApi, json } from './fixtures/api';
 import { detectedItems, createdItem, rejectedItem, incompleteItem } from './fixtures/data';
-import { readDrafts } from './helpers/recovery';
+import { readDrafts, putDraft } from './helpers/recovery';
 import { seedLegacySession } from './fixtures/auth';
 import {
 	selectLocation,
@@ -69,8 +69,10 @@ async function openSummary(
 		}
 		return json(createdItem(`created-${submissions.length}`, name));
 	});
-	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, () =>
-		options.failedUploadCleanup ? json({ detail: 'Upload failed' }, 400) : json({})
+	api.on('POST', /^\/api\/items\/[^/]+\/attachments$/, (request) =>
+		options.failedUploadCleanup
+			? json({ detail: 'Upload failed' }, 400)
+			: verifiedAttachment(request)
 	);
 	api.on('DELETE', /^\/api\/items\/[^/]+$/, () =>
 		options.failedUploadCleanup
@@ -173,19 +175,14 @@ for (const reload of [false, true]) {
 	});
 }
 
-test('failed primary-photo cleanup is an incomplete item, not a retryable create', async ({
-	page,
-}) => {
+test('unconfirmed primary photo never deletes the created item or retries', async ({ page }) => {
 	const submissions: Submission[] = [];
 	const operations: string[] = [];
 	await openSummary(page, ['Created lamp'], submissions, { failedUploadCleanup: true, operations });
 	await expect(page.getByRole('heading', { name: 'Items need attention' })).toBeVisible();
-	await expect(
-		page.getByText(/Image upload failed and item deletion could not be confirmed/)
-	).toBeVisible();
-	expect(operations.filter((op) => op.startsWith('DELETE'))).toEqual([
-		'DELETE /api/items/created-1',
-	]);
+	await expect(page.getByText(/Item created; photo upload not confirmed/)).toBeVisible();
+	expect(operations.filter((op) => op.startsWith('DELETE'))).toEqual([]);
+	expect(operations.filter((op) => op.includes('/attachments'))).toHaveLength(1);
 	expect(submissions).toEqual([{ name: 'Created lamp' }]);
 });
 
@@ -311,3 +308,60 @@ for (const identityChanged of [true, false]) {
 		expect(submissions.map(({ name }) => name)).toEqual(['Bad private inventory']);
 	});
 }
+
+test('unconfirmed photo has retained download and reset requires explicit discard', async ({
+	page,
+}) => {
+	const submissions: Submission[] = [],
+		operations: string[] = [];
+	await openSummary(page, ['Retained photo'], submissions, {
+		failedUploadCleanup: true,
+		operations,
+	});
+	await expect(page.getByRole('heading', { name: 'Items need attention' })).toBeVisible();
+	await expect(page.getByRole('button', { name: /Download original photo 1/ })).toBeVisible();
+	const download = page.waitForEvent('download');
+	await page.getByRole('button', { name: /Download original photo 1/ }).click();
+	expect((await download).suggestedFilename()).toBeTruthy();
+	for (const width of [390, 1280]) {
+		await page.setViewportSize({ width, height: 844 });
+		const path = test.info().outputPath(`attachment-recovery-${width}.png`);
+		await page.screenshot({ path, fullPage: true });
+		await test.info().attach(`attachment-recovery-${width}`, { path, contentType: 'image/png' });
+	}
+	page.once('dialog', (dialog) => dialog.dismiss());
+	await page.getByRole('button', { name: /Scan More/ }).click();
+	await expect(page).toHaveURL(/success$/);
+	const drafts = await readDrafts(page, 'deployment:user:g1');
+	expect(drafts[0].submission).toMatchObject({
+		createdItemIds: { 0: 'created-1' },
+		photoAttempts: { 0: [{ state: 'unconfirmed' }] },
+	});
+	expect(operations.filter((op) => op.includes('/attachments'))).toHaveLength(1);
+	expect(operations.filter((op) => op.startsWith('DELETE'))).toHaveLength(0);
+	await page.reload();
+	expect(submissions).toHaveLength(1);
+});
+
+test('unconfirmed photo draft does not expire after seven days', async ({ page }) => {
+	const submissions: Submission[] = [];
+	await openSummary(page, ['Old retained photo'], submissions, { failedUploadCleanup: true });
+	await expect(page.getByRole('heading', { name: 'Items need attention' })).toBeVisible();
+	const scope = 'deployment:user:g1';
+	const [draft] = await readDrafts(page, scope);
+	await putDraft(page, scope, { ...draft, createdAt: Date.now() - 8 * 86400000 });
+	await page.goto('/location');
+	await expect(page.getByRole('button', { name: /Resume/ })).toBeVisible();
+	expect(await readDrafts(page, scope)).toHaveLength(1);
+	await page.getByRole('button', { name: /Storage/ }).click();
+	await page.getByRole('button', { name: 'Select current location' }).click();
+	await page.getByRole('button', { name: 'Continue to Capture' }).click();
+	await expect(page).toHaveURL(/location$/);
+	await expect(
+		page.getByText('Resume or explicitly discard the retained upload draft first.', { exact: true })
+	).toBeVisible();
+	expect((await readDrafts(page, scope))[0].id).toBe(draft.id);
+	page.once('dialog', (dialog) => dialog.dismiss());
+	await page.getByRole('button', { name: 'Start Fresh' }).click();
+	expect((await readDrafts(page, scope))[0].id).toBe(draft.id);
+});

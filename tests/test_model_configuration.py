@@ -79,6 +79,8 @@ async def test_connection_credential_destination_on_actual_sdk_wire(
 
     def respond(request):
         calls.append(request)
+        if request.method == "GET":
+            return httpx.Response(200, json={"object": "model", "id": "gpt-6-luna"})
         body = json.loads(request.content)
         return httpx.Response(
             200,
@@ -108,8 +110,15 @@ async def test_connection_credential_destination_on_actual_sdk_wire(
         sdk_clients.append(actual)
         return actual
 
+    async def get_send(_transport, request):
+        assert request.method == "GET"
+        return respond(request)
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", get_send)
     monkeypatch.setattr(OpenAIChatCompletion, "_get_openai_client", sdk)
     created = await client.post(
+        # The official path now uses read-only model access; custom providers
+        # still use the real SDK completion transport below.
         "/api/llm/profiles",
         json={
             "name": "test-target",
@@ -129,10 +138,12 @@ async def test_connection_credential_destination_on_actual_sdk_wire(
         assert response.json()["success"] is True
         assert len(calls) == 1
         expected_base = saved_base or "https://api.openai.com/v1"
-        assert str(calls[0].url) == f"{expected_base}/chat/completions"
+        path = "chat/completions" if source == "own" else "models/gpt-6-luna"
+        assert str(calls[0].url) == f"{expected_base}/{path}"
         key = {"profile": "OWN-secret", "env": "ENV-secret", "own": "SYNTHETIC-CUSTOM"}[source]
         assert calls[0].headers["authorization"] == f"Bearer {key}"
-        assert json.loads(calls[0].content)["model"] == "gpt-6-luna"
+        if source == "own":
+            assert json.loads(calls[0].content)["model"] == "gpt-6-luna"
         for secret in (key, "SYNTHETIC-AMBIENT"):
             assert secret not in response.text
             assert secret not in created.text

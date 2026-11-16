@@ -20,8 +20,13 @@
 	import LLMProfilesSection from '$lib/components/settings/LLMProfilesSection.svelte';
 	import ResearchSection from '$lib/components/settings/ResearchSection.svelte';
 	import LogsSection from '$lib/components/settings/LogsSection.svelte';
+	let modelEditor: LLMProfilesSection;
+	let editorReady = $state(false);
+	let returnTo = $state<'review' | 'research' | null>(null);
 
 	onMount(async () => {
+		const requestedReturn = new URLSearchParams(window.location.search).get('return');
+		if (requestedReturn === 'review' || requestedReturn === 'research') returnTo = requestedReturn;
 		// Wait for auth initialization to complete to avoid race conditions
 		// where we check isAuthenticated before initializeAuth clears expired tokens
 		await getInitPromise();
@@ -69,10 +74,20 @@
 		</div>
 	{/if}
 
+	<!-- eslint-disable svelte/no-navigation-without-resolve -- Both fixed return targets use resolve; no arbitrary redirect. -->
+	{#if returnTo}<a
+			class="inline-flex min-h-touch items-center text-primary-400 underline"
+			href={returnTo === 'review' ? `${resolve('/review')}#product-research` : resolve('/research')}
+			>{returnTo === 'review' ? 'Return to item draft' : 'Return to research jobs'}</a
+		>{/if}
 	<AccountSection />
 	<AboutSection />
-	<LLMProfilesSection />
-	<ResearchSection />
+	<LLMProfilesSection bind:this={modelEditor} onavailability={(ready) => (editorReady = ready)} />
+	<ResearchSection
+		{editorReady}
+		onedit={(name) => modelEditor?.openResearchEditor(name)}
+		oncreate={() => modelEditor?.openResearchEditor()}
+	/>
 	<FieldPrefsSection />
 	<LogsSection />
 

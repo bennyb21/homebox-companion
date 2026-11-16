@@ -6,7 +6,9 @@ API keys are never sent to the frontend - only `has_api_key: bool` is exposed.
 
 from collections.abc import Callable
 from typing import Literal
+from urllib.parse import quote
 
+import httpx
 import litellm
 from fastapi import APIRouter, Depends, HTTPException
 from litellm.exceptions import APIConnectionError, AuthenticationError, NotFoundError
@@ -14,7 +16,13 @@ from loguru import logger
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError, field_validator
 
 from homebox_companion.core import config
-from homebox_companion.core.credential_policy import OPENAI_BASE, RESEARCH_REASONING, official_openai
+from homebox_companion.core.credential_policy import (
+    OPENAI_BASE,
+    RESEARCH_REASONING,
+    official_openai,
+    official_openai_model_id,
+    research_eligibility_source,
+)
 from homebox_companion.core.llm_utils import resolve_profile_key
 from homebox_companion.core.persistent_settings import (
     ModelProfile,
@@ -24,7 +32,8 @@ from homebox_companion.core.persistent_settings import (
     load_settings,
     mutate_settings,
 )
-from homebox_companion.research import OpenAIResponsesResearchProvider, ResearchPolicy
+from homebox_companion.research import OpenAIResponsesResearchProvider, ProductIdentity, ResearchPolicy, ResearchResult
+from homebox_companion.research_diagnostics import Diagnostic, diagnostic, http_error_code, safe_request_id
 
 from ..dependencies import require_auth
 
@@ -102,6 +111,10 @@ class ProfileUpdateRequest(CredentialRequest):
 class TestConnectionRequest(CredentialRequest):
     """Request to test a profile connection."""
 
+    model_config = ConfigDict(extra="forbid")
+    test_kind: Literal["connection", "research"] = "connection"
+    identity: ProductIdentity | None = None
+
     # Optional override for testing before saving
     model: str | None = None
     api_key: str | None = None
@@ -114,6 +127,8 @@ class TestConnectionResponse(BaseModel):
     success: bool
     message: str
     model_info: dict | None = None
+    diagnostic: Diagnostic | None = None
+    research_result: ResearchResult | None = None
 
 
 # ============================================================================
@@ -205,14 +220,10 @@ def research_profile_reason(profile: ModelProfile, settings: PersistentSettings 
         ResearchPolicy(enabled=True, profile_name=profile.name), profile, settings=settings
     ).configured:
         return "Use an existing key, an unprefixed OpenAI model name and no custom API base."
-    try:
-        supported = litellm.supports_web_search(profile.model, custom_llm_provider="openai")
-    except Exception:
-        supported = False
-    if not supported:
+    if research_eligibility_source(profile.model) == "unverified":
         return (
-            "The installed model catalog does not list OpenAI web search support. "
-            "Edit the model while keeping its existing key."
+            "This exact model's web search support is unverified in official metadata and the installed catalog. "
+            "A connection test checks model access only; it does not prove web search support."
         )
     return None
 
@@ -222,7 +233,13 @@ def _research_settings_response(settings: PersistentSettings) -> dict:
         "enabled": settings.research_enabled,
         "profile_name": settings.research_profile_name,
         "profiles": [
-            {"name": p.name, "model": p.model, "eligible": reason is None, "reason": reason}
+            {
+                "name": p.name,
+                "model": p.model,
+                "eligible": reason is None,
+                "reason": reason,
+                "eligibility_source": research_eligibility_source(p.model),
+            }
             for p in settings.llm_profiles
             for reason in [research_profile_reason(p, settings)]
         ],
@@ -437,12 +454,54 @@ async def activate_profile(name: str) -> ProfileResponse:
     return _profile_to_response(_find_profile(settings, name)[1], settings)
 
 
+async def _test_openai_model_access(model: str, api_key: str, provider_model: str) -> TestConnectionResponse:
+    """One explicit read-only request, fixed destination, no SDK catalog inference."""
+    status = None
+    request_id = None
+    try:
+        async with httpx.AsyncClient(
+            trust_env=False, follow_redirects=False, transport=httpx.AsyncHTTPTransport(retries=0), timeout=15
+        ) as client:
+            response = await client.get(
+                f"{OPENAI_BASE}/models/{quote(provider_model, safe='')}", headers={"Authorization": f"Bearer {api_key}"}
+            )
+        status = response.status_code
+        request_id = safe_request_id(response.headers.get("x-request-id"))
+        if status != 200:
+            code = http_error_code(status)
+        elif response.json().get("id") != provider_model or response.json().get("object") != "model":
+            code = "response_invalid"
+        else:
+            code = "connection_verified"
+    except httpx.TimeoutException:
+        code = "timeout"
+    except httpx.HTTPError:
+        code = "transport_error"
+    except ValueError, AttributeError:
+        code = "response_invalid"
+    detail = diagnostic(
+        code, "response" if status else "dispatch", http_status=status, request_id=request_id, dispatch_started=True
+    )
+    logger.info("Profile test diagnostic: {}", detail.model_dump_json(exclude_none=True))
+    return TestConnectionResponse(
+        success=code == "connection_verified",
+        message=detail.message or code,
+        model_info={"model": model, "provider": "openai", "test_kind": "connection"},
+        diagnostic=detail,
+    )
+
+
 @router.post("/llm/profiles/{name}/test", response_model=TestConnectionResponse)
 async def test_profile_connection(name: str, request: TestConnectionRequest | None = None) -> TestConnectionResponse:
     """Test connection to an LLM profile.
 
     Optionally override settings for testing before saving.
     """
+
+    # A model-level validation error echoes the complete input, including an
+    # optional key override. Keep this cross-field error fixed and input-free.
+    if request and request.test_kind == "research" and request.identity is None:
+        raise HTTPException(422, "Research testing requires an explicit product identity")
 
     clear_settings_cache()
     settings = load_settings()
@@ -460,10 +519,34 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
         ):
             raise HTTPException(400, "Save and review destination changes before testing with stored credentials")
     api_key = request.api_key if request and request.api_key else resolve_profile_key(profile, settings)
+    if request and request.test_kind == "research":
+        selected = profile.model_copy(deep=True)
+        selected.model = model
+        selected.api_base = api_base
+        if request.api_key:
+            selected.credential_source = "own"
+            selected.credential_profile_name = None
+            selected.api_key = SecretStr(request.api_key)
+        assert request.identity is not None
+        result = await OpenAIResponsesResearchProvider(
+            ResearchPolicy(enabled=True, profile_name=name), selected, settings=settings
+        ).research(request.identity)
+        return TestConnectionResponse(
+            success=result.status in {"matched", "no_results"},
+            message=result.diagnostic.message
+            if result.diagnostic and result.diagnostic.message
+            else "Research did not produce a validated result.",
+            model_info={"model": model, "provider": "openai", "test_kind": "research"},
+            diagnostic=result.diagnostic,
+            research_result=result,
+        )
+    if not api_key and official_openai(model, api_base):
+        detail = diagnostic("credential_missing", "configuration", dispatch_started=False)
+        return TestConnectionResponse(success=False, message=detail.message or detail.code, diagnostic=detail)
     api_key = api_key or "hbc-no-configured-key"
     # Match inference: an omitted official base must not inherit an SDK gateway.
-    if official_openai(model, api_base):
-        api_base = OPENAI_BASE
+    if (provider_model := official_openai_model_id(model, api_base)) is not None:
+        return await _test_openai_model_access(model, api_key, provider_model)
 
     try:
         # Simple completion test
@@ -483,7 +566,7 @@ async def test_profile_connection(name: str, request: TestConnectionRequest | No
 
         return TestConnectionResponse(
             success=True,
-            message="Connection successful",
+            message="Legacy completion test succeeded. Research web search and citation parsing were not tested.",
             model_info=model_info,
         )
 

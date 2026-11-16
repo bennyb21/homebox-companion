@@ -21,7 +21,7 @@ def test_fork_identity_and_safe_update_defaults(monkeypatch):
     assert settings.disable_update_check is True
     assert settings.github_repo == "bennyb21/homebox-companion"
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert project["version"] == "0.2.0"
+    assert project["version"] == "0.3.0"
     frontend = json.loads((ROOT / "frontend/package.json").read_text())
     frontend_lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
     assert frontend["version"] == project["version"]
@@ -54,6 +54,17 @@ def test_actual_release_gate_fails_closed(bad, required_job):
         capture_output=True,
     )
     assert (result.returncode == 0) == (bad is None)
+
+
+def test_browser_asgi_gate_has_locked_python_runtime():
+    job = workflow("validate.yml")["jobs"]["frontend"]
+    steps = job["steps"]
+    assert any(s.get("with", {}).get("python-version") == "3.14.10" for s in steps)
+    assert any(s.get("with", {}).get("version") == "0.12.5" for s in steps)
+    sync = next(s for s in steps if s.get("name") == "Install locked ASGI bridge dependencies")
+    assert sync["working-directory"] == "."
+    assert sync["run"] == "uv sync --locked --all-groups"
+    assert steps.index(sync) < next(i for i, s in enumerate(steps) if s.get("run") == "npm run test:browser:run")
 
 
 def test_publication_requires_same_run_and_manual_protected_promotion():
@@ -89,13 +100,44 @@ def test_publication_requires_same_run_and_manual_protected_promotion():
 
 @pytest.mark.parametrize(
     "suite",
-    ["tests/test_capture_groups_fullstack.py", "tests/test_fullstack_smoke.py", "tests/test_research_fullstack.py"],
+    [
+        "tests/test_capture_groups_fullstack.py",
+        "tests/test_fullstack_smoke.py",
+        "tests/test_research_fullstack.py",
+        "tests/test_attachment_submission.py",
+        "tests/test_attachment_image_fullstack.py",
+    ],
 )
 def test_candidate_image_acceptance_includes_combined_fullstack_suites(suite):
     steps = workflow("validate.yml")["jobs"]["production-container"]["steps"]
     acceptance = next(step for step in steps if step.get("name", "").startswith("Image application acceptance"))
     assert suite in acceptance["run"]
     assert acceptance["env"]["TEST_HOMEBOX_VERSION"] == "0.27.1"
+
+
+def test_image_acceptance_evidence_is_retained_on_failure():
+    steps = workflow("validate.yml")["jobs"]["production-container"]["steps"]
+    acceptance = next(s for s in steps if s.get("name", "").startswith("Image application acceptance"))
+    assert "github.run_attempt" in acceptance["env"]["HBC_SMOKE_ARTIFACT_DIR"]
+    upload = next(s for s in steps if s.get("with", {}).get("name", "").startswith("image-acceptance-"))
+    assert upload["if"] == "always()"
+    assert "github.run_attempt" in upload["with"]["name"]
+    assert "image-acceptance" in upload["with"]["path"]
+
+
+def test_attachment_acceptance_selects_image_application_and_static_assets(monkeypatch, tmp_path):
+    from image_harness import production_image_command
+
+    monkeypatch.setenv("TEST_COMPANION_IMAGE", "candidate:exact-tested-image")
+    command = production_image_command(43210, tmp_path, {})
+    # No command/entrypoint override: Docker executes the image's published CMD.
+    assert command[-1] == "candidate:exact-tested-image"
+    assert "HBC_SERVER_HOST=127.0.0.1" in command
+    assert "HBC_SERVER_PORT=43210" in command
+    mounts = [command[i + 1] for i, value in enumerate(command) if value == "--mount"]
+    assert len(mounts) == 1 and "dst=/app/data" in mounts[0]
+    assert "--entrypoint" not in command
+    assert not any("image-entrypoint.py" in value or str(ROOT) in value for value in command)
 
 
 def test_audit_evidence_is_attempt_qualified_but_tested_image_is_immutable():

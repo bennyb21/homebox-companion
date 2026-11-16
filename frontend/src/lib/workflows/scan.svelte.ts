@@ -56,8 +56,7 @@ class ScanWorkflow {
 	private analysisService = new AnalysisService();
 	private reviewService = new ReviewService();
 	private submissionService = new SubmissionService(async () => {
-		await this.persistAsync();
-		if (this._saveState === 'error')
+		if (!(await this.persistAsync()))
 			throw new Error('Cannot safely submit: draft checkpoint failed.');
 	});
 	private persistence = new ScanPersistence();
@@ -1064,6 +1063,7 @@ class ScanWorkflow {
 			// Keep original fields/photos and known IDs recoverable for incomplete work.
 			this._status = 'confirming';
 			await this.persistAsync();
+			if (generation !== this.contextGeneration) return result;
 			this._status = 'complete';
 		} else if (result.success) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
@@ -1071,6 +1071,7 @@ class ScanWorkflow {
 			await this.clearPersistedSession();
 		}
 
+		if (generation !== this.contextGeneration) return result;
 		if (this._status !== 'complete') await this.persistAsync();
 		return result;
 	}
@@ -1117,17 +1118,24 @@ class ScanWorkflow {
 		}
 
 		// Check if all items are now successful
-		if (this.submissionService.allItemsSuccessful()) {
+		if (
+			Object.keys(this.submissionService.itemStatuses).length > 0 &&
+			Object.values(this.submissionService.itemStatuses).every(
+				(s) => s === 'success' || s === 'partial_success'
+			)
+		) {
 			this.submissionService.saveResult(items, this._locationName, this._locationId);
 			if (Object.values(this.submissionService.itemStatuses).includes('partial_success')) {
 				this._status = 'confirming';
 				await this.persistAsync();
 			} else await this.clearPersistedSession();
+			if (generation !== this.contextGeneration) return result;
 			this._status = 'complete';
 		} else if (result.failCount > 0) {
 			this._error = `Retried: ${result.successCount + result.partialSuccessCount} succeeded, ${result.failCount} still failing`;
 		}
 
+		if (generation !== this.contextGeneration) return result;
 		if (this._status !== 'complete') await this.persistAsync();
 		return result;
 	}
@@ -1152,28 +1160,28 @@ class ScanWorkflow {
 	 * Use this when the data MUST be saved before continuing
 	 * (e.g., after analysis completes before navigation can occur).
 	 */
-	async persistAsync(): Promise<void> {
-		if (this.isEditingFailedItem) return;
+	async persistAsync(): Promise<boolean> {
+		if (this.isEditingFailedItem) return false;
 		if (this._persistTimeout) {
 			clearTimeout(this._persistTimeout);
 			this._persistTimeout = null;
 		}
 		// Don't persist terminal states
 		if (this._status === 'idle' || this._status === 'complete') {
-			return;
+			return false;
 		}
 
-		await this._doPersist();
+		return this._doPersist();
 	}
 
 	/**
 	 * Internal persist implementation - serializes and saves to IndexedDB.
 	 */
-	private async _doPersist(): Promise<void> {
-		if (this.isEditingFailedItem) return;
+	private async _doPersist(): Promise<boolean> {
+		if (this.isEditingFailedItem) return false;
 		// A queued autosave/pagehide flush may run after submission completes.
 		// Keep the last recoverable checkpoint instead of storing a terminal draft.
-		if (this._status === 'idle' || this._status === 'complete') return;
+		if (this._status === 'idle' || this._status === 'complete') return false;
 		const attempt = ++this.persistAttempt;
 		const generation = this.contextGeneration;
 		const revision = this.saveRevision;
@@ -1206,6 +1214,8 @@ class ScanWorkflow {
 			attempt === this.persistAttempt
 		)
 			this._saveState = saved ? 'saved' : 'error';
+		// A superseded/no-op save is not acknowledgement of this checkpoint.
+		return saved && generation === this.contextGeneration;
 	}
 
 	/**
@@ -1263,7 +1273,8 @@ class ScanWorkflow {
 			}
 
 			// Restore status - handle mid-analysis state
-			if (session.submission) this.submissionService.restore(session.submission);
+			if (session.submission)
+				this.submissionService.restore(session.submission, session.confirmedItems);
 
 			if (session.status === 'analyzing') {
 				// If crashed during analysis, go back to capturing
@@ -1284,8 +1295,7 @@ class ScanWorkflow {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorName = error instanceof Error ? error.name : 'Unknown';
 			log.error(`Failed to recover session: [${errorName}] ${errorMessage}`);
-			// Clear corrupted session
-			if (generation === this.contextGeneration) await this.persistence.clear(scope);
+			// Keep the on-disk recovery evidence; only explicit discard may remove it.
 			return false;
 		}
 	}
@@ -1317,7 +1327,24 @@ class ScanWorkflow {
 	// =========================================================================
 
 	/** Reset workflow to initial state */
-	reset(clearPersisted = true): void {
+	get submissionCheckpoint() {
+		return this.submissionService.snapshot();
+	}
+
+	reset(clearPersisted = true): boolean {
+		if (
+			clearPersisted &&
+			Object.values(this.submissionService.itemStatuses).some(
+				(s) => s === 'partial_success' || s === 'creating'
+			)
+		) {
+			if (
+				!window.confirm(
+					'Discard retained photos and unconfirmed upload records? Download the originals and check the known Homebox items first. This cannot undo any Homebox writes.'
+				)
+			)
+				return false;
+		}
 		const scope = captureSessionScope();
 		this.contextGeneration++;
 		this.saveRevision++;
@@ -1348,6 +1375,7 @@ class ScanWorkflow {
 		this._error = null;
 		this.persistence.resetMetadata();
 		if (clearPersisted && scope) void this.persistence.clear(scope);
+		return true;
 	}
 
 	/** Drop in-memory work when changing collection while preserving the old scoped draft. */
@@ -1356,14 +1384,14 @@ class ScanWorkflow {
 	}
 
 	/** Start a new scan (keeps location and parent item if set) */
-	startNew(): void {
+	startNew(): boolean {
 		const locationId = this._locationId;
 		const locationName = this._locationName;
 		const locationPath = this._locationPath;
 		const parentItemId = this._parentItemId;
 		const parentItemName = this._parentItemName;
 
-		this.reset();
+		if (!this.reset()) return false;
 
 		if (locationId && locationName && locationPath) {
 			this._locationId = locationId;
@@ -1375,6 +1403,7 @@ class ScanWorkflow {
 		} else {
 			this._status = 'location';
 		}
+		return true;
 	}
 
 	// =========================================================================

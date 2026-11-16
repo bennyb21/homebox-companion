@@ -17,6 +17,7 @@
 	import { captureSessionScope } from '$lib/services/scanPersistence';
 	import CaptureProfileSelector from '$lib/components/CaptureProfileSelector.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Switch from '$lib/components/Switch.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	let showInputChange = $state(false);
 	import AppContainer from '$lib/components/AppContainer.svelte';
@@ -483,25 +484,23 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="mb-6 text-body-sm text-neutral-400">Add photos and configure detection options</p>
-		<p class="mb-3 text-caption text-neutral-400">
-			HBC_IMAGE_QUALITY controls stored Homebox photos, not AI input. AI images are normally resized
-			to at most 2048 pixels on the longest side and JPEG quality 85. Add a sharp, well-lit close-up
-			of engraved numbers or labels for identification.
+		<details class="mb-3 text-caption text-neutral-400">
+			<summary class="cursor-pointer py-2">Saved photo quality — not AI input</summary>
+			<p>
+				Add a sharp, well-lit close-up of engraved numbers or labels for identification.
+				HBC_IMAGE_QUALITY changes stored Homebox photos; AI images are normally resized to at most
+				2048 pixels on the longest side and JPEG quality 85.
+			</p>
+		</details>
+		<Switch
+			label="One item per photo"
+			checked={workflow.oneItemPerPhoto}
+			disabled={isAnalyzing || status === 'partial_analysis'}
+			onchange={(checked) => workflow.setOneItemPerPhoto(checked)}
+		/>
+		<p class="mt-2 text-body-sm font-medium text-neutral-100">
+			{workflow.oneItemPerPhoto ? 'One item per photo' : 'Multiple photos of one item'}
 		</p>
-		<label class="mb-3 flex items-center gap-3 text-body-sm text-neutral-200">
-			<input
-				type="checkbox"
-				role="switch"
-				checked={workflow.oneItemPerPhoto}
-				disabled={isAnalyzing || status === 'partial_analysis'}
-				onchange={(event) => {
-					workflow.setOneItemPerPhoto(event.currentTarget.checked);
-					event.currentTarget.checked = workflow.oneItemPerPhoto;
-				}}
-			/>
-			One item per photo
-		</label>
 		<p class="mb-3 text-caption text-neutral-400">
 			{workflow.oneItemPerPhoto
 				? 'Each photo creates one item, not multiple objects within a photo.'

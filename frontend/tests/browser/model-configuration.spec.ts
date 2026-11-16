@@ -45,6 +45,8 @@ test('dedicated research profile reuses a key and persists exact reasoning witho
 	await page.getByLabel('Credential source', { exact: true }).selectOption('profile');
 	await page.getByLabel('Credential profile', { exact: true }).selectOption('capture');
 	await page.getByLabel('Research reasoning effort', { exact: true }).selectOption('high');
+	await expect(page.getByText(/reasoning tokens share the 2400/i)).not.toBeVisible();
+	await page.getByText('Reasoning and request limits', { exact: true }).click();
 	await expect(page.getByText(/reasoning tokens share the 2400/i)).toBeVisible();
 	await page
 		.getByRole('dialog')

@@ -3,7 +3,7 @@
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from loguru import logger
 
@@ -18,6 +18,7 @@ from homebox_companion.core import HomeboxAPIError
 from homebox_companion.core.exceptions import CaptureProfileError, HomeboxCreateNotDispatchedError
 from homebox_companion.homebox import ItemCreate
 from homebox_companion.homebox.asset_id import normalize_asset_id
+from homebox_companion.homebox.attachment_verification import AttachmentVerificationError
 from homebox_companion.homebox.relationships import (
     item_update_payload,
     location_override_for_parent,
@@ -291,8 +292,11 @@ async def upload_item_attachment(
     item_id: str,
     file: Annotated[UploadFile, File(description="Image file to upload")],
     gateway: Annotated[HomeboxGateway, Depends(get_gateway)],
+    attempt_id: Annotated[str | None, Form(max_length=36)] = None,
+    slot: Annotated[str, Form(min_length=1, max_length=128)] = "photo",
+    original_filename: Annotated[str | None, Form(max_length=255)] = None,
 ) -> dict[str, Any]:
-    """Upload an attachment (image) to an existing item."""
+    """Upload once; return only an independently observed persistence receipt."""
     logger.info(f"Uploading attachment to item: {item_id}")
     logger.debug(f"File: {file.filename}, content_type: {file.content_type}")
 
@@ -315,14 +319,29 @@ async def upload_item_attachment(
         compress_image_for_upload, file_bytes, max_dimension, jpeg_quality
     )
 
-    result = await gateway.upload_attachment(
-        item_id=item_id,
-        file_bytes=file_bytes,
-        filename=filename,
-        mime_type=mime_type,
-        attachment_type="photo",
-    )
-    logger.info(f"Successfully uploaded attachment to item {item_id}")
+    try:
+        result = await gateway.upload_attachment(
+            item_id=item_id,
+            file_bytes=file_bytes,
+            filename=original_filename or filename,
+            mime_type=mime_type,
+            attachment_type="photo",
+            attempt_id=attempt_id,
+            slot=slot,
+        )
+    except AttachmentVerificationError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": exc.code,
+                "entity_id": item_id,
+                "attempt_id": attempt_id,
+                "slot": slot,
+                "dispatched": exc.dispatched,
+                "message": "Photo upload not confirmed. Check Homebox; do not automatically retry.",
+            },
+        ) from exc
+    logger.info(f"Observed verified attachment on item {item_id}")
     return result
 
 

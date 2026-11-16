@@ -129,3 +129,30 @@ def test_sqlite_backup_restore_and_expiry(tmp_path):
     restored.enqueue("scope", "other", "other", {})
     with restored.connection() as conn:
         assert conn.execute("SELECT count(*) FROM jobs").fetchone()[0] == 1
+
+
+def test_diagnostics_persist_across_process_restart_without_replay(tmp_path):
+    from homebox_companion.research import ResearchResult
+    from homebox_companion.research_diagnostics import diagnostic
+
+    path = tmp_path / "research.sqlite3"
+    db = store(path)
+    row = db.enqueue("scope", "item", "key", {})
+    db.claim(row["id"], "scope")
+    db.dispatch(row["id"])
+    result = ResearchResult(
+        status="unknown_outcome", diagnostic=diagnostic("timeout", "dispatch", dispatch_started=True)
+    )
+    db.finish(row["id"], "unknown_outcome", {"research": result.model_dump(), "proposals": []})
+    code = (
+        "from homebox_companion.research_jobs import JobStore; import sys,json; "
+        's=JobStore(sys.argv[1]);s.recover();print(json.dumps(s.list("scope")))'
+    )
+    run = subprocess.run([sys.executable, "-c", code, str(path)], check=True, capture_output=True, text=True)
+    saved = json.loads(run.stdout)[0]
+    assert result.diagnostic is not None
+    assert saved["result"]["research"]["diagnostic"] == result.diagnostic.model_dump()
+    assert saved["state"] == "unknown_outcome"
+    assert not db.claim(row["id"], "scope")
+    # Old version-1 results remain readable without fabricating diagnostics.
+    assert ResearchResult.model_validate({"schema_version": 1, "status": "failed"}).diagnostic is None

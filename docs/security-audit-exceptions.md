@@ -240,3 +240,108 @@ Tests cover acceptance, honest zero findings, new findings on the same packages,
 identity/severity changes, schema/count errors, graph cycles/dangling links,
 source/lock/config changes, raw error/truncation/duplicate keys, actual process
 status preservation and required candidate-workflow integration.
+
+## Integrated 0.3.0 research and usability reassessment
+
+The combined source from integration input
+`a1cba77ce6f6ed369247101e2fa7da806de017d1` was reviewed against the same three
+accepted contexts before rebinding. This is implementer review for a PRIVATE,
+unpublished candidate, not independent acceptance or verified live search quality.
+
+- Profile editor and explicit test forms prevent ordinary submission and use
+  authenticated JSON API calls. No enhanced form action or `use:enhance` was added.
+  Return links are limited to fixed review/research routes; profile names are URL
+  encoded and cannot supply an arbitrary navigation destination.
+- Model names, diagnostics, source titles and eligibility messages use escaped
+  Svelte text. The copyable diagnostic textarea selects only contract fields;
+  arbitrary provider bodies are not rendered. Existing sanitized chat/log HTML
+  paths are unchanged. No `setHeaders` or new prerender input path was found.
+- The shared Switch, capture mode text, profile selection and direct edit controls
+  do not feed build configuration. Plugin 7.3.1 still merges local Svelte/default/
+  inline options with deepmerge. No runtime deepmerge import was introduced.
+  This source review is not a formal reachability or exploit-absence proof.
+- Profile tests are explicit operations: official OpenAI access uses read-only
+  model metadata; the separately confirmed research test uses the named profile
+  without assigning it. Save/enable/navigation must initiate no provider request.
+
+Thirteen bindings change: frontend manifest and lock root version metadata;
+new research API types, DiagnosticDetails, ResearchProfileSummary and Switch;
+settings API, ProductResearch, AI Models and Research settings; capture, research
+and settings routes. The complete source inventory includes the four new source
+files. All third-party npm package objects and Python lock package objects remain
+structurally identical to released 0.2.0. Only the local project becomes 0.3.0.
+
+All three advisory objects, affected package versions, dependency counts, phase,
+configuration/.npmrc bindings, historical raw fixtures and no-retry audit runner
+remain unchanged. Raw npm exit **1** for these exact low findings remains accepted
+risk, not zero findings. New findings remain blocking. No new waiver or expiry is
+introduced; successful private-pilot acceptance still triggers framework migration
+and fresh review. Released 0.1.0/0.2.0 artifacts remain immutable. Independent
+review and hosted source/image gates precede any separately authorized publication.
+
+## Integrated 0.3.0 attachment recovery reassessment
+
+The attachment source integrated at
+`96ff05a71289550130c3ea12a5937109f3cd3527` was explicitly reviewed against the
+same three accepted contexts. Thirteen changed/new bindings are renewed: the API
+client and items contract; new AttachmentRecovery component; SessionExpiredModal,
+AccountSection and bootstrap logout boundaries; serialization and scoped session
+persistence; submission and scan workflows; location, summary and success screens.
+
+- Multipart upload remains an authenticated backend API operation, not an enhanced
+  SvelteKit form action. Receipt validation and removal of auth/upload replay add
+  no `use:enhance` path. Reset/navigation uses existing fixed local routes. The
+  recovery link uses the configured Homebox base and an encoded known entity ID,
+  with `noopener noreferrer`; original-photo download is a local File data URL,
+  not an arbitrary server-supplied attachment URL.
+- Names, slot state, filenames and known IDs render as escaped Svelte text, not
+  dynamic HTML. Scoped IndexedDB records retain original photos and receipt
+  metadata, not raw credentials. No `setHeaders`, prerender data input or runtime
+  deepmerge import is introduced. Logout retention does not relax API identity
+  or collection admission. Existing sanitized HTML paths are unchanged.
+- These runtime recovery inputs do not feed plugin build configuration. The
+  unchanged plugin/deepmerge local-configuration context remains accepted risk,
+  not a proof that exploitation is impossible. Source searches and inspection
+  are not formal reachability evidence.
+- Newly uploaded Homebox attachment filenames visibly include the technical
+  unique suffix; originals keep their names in local recovery. No existing names,
+  image-quality controls or thumbnail behavior are changed by this integration.
+
+Only these thirteen source hashes/inventory entries change (one new component).
+All advisory identities/objects, package versions, dependency graph/counts,
+manifest/lock/configuration bindings and historical raw audit fixtures remain
+unchanged. Exactly GHSA-pfhg-q3qv-9q6r, GHSA-27mw-82g8-phjj and
+GHSA-gcqx-w48m-w2h4 remain accepted at low severity for this same private pilot,
+with no new waiver or expiry. A fresh full-coverage raw npm audit exits **1**;
+the existing policy accepts those findings, not zero findings. Successful pilot
+acceptance still triggers framework migration and fresh review. This is scoped
+integration review, not a substitute for the parallel independent guard review
+or the subsequent hosted image gates. Production source is unchanged from the
+pinned review candidate.
+
+## Guard review fix-cycle source reassessment
+
+Before rebinding the guard corrections based on `c017404e456569a40adfff9cabc799199d1c7094`,
+the seven changed production frontend files were reviewed against each accepted
+low-advisory context: SubmissionService, ScanWorkflow, sessionPersistence,
+AttachmentRecovery, and the review, summary and success routes.
+
+- Run ownership, receipt consistency and exact save acknowledgement use existing
+  local state/IndexedDB and authenticated APIs. They add no enhanced form action,
+  `use:enhance`, arbitrary redirect destination or multipart retry. The review
+  navigation hook still awaits persistence, now discarding its boolean result.
+- Unknown success-page reloads use neutral escaped text and an explicit same-scope
+  Resume action after verified authentication; its destination is fixed `/summary`.
+  Recovery retains original downloads and the configured/encoded Homebox link.
+  Invalid duplicate slot declarations no longer serve as UI keys. No dynamic HTML,
+  `setHeaders`, prerender input or new external URL source was added.
+- These runtime inputs do not feed build options. Svelte/Vite configuration,
+  static fallback, plugin 7.3.1 and build-time deepmerge 4.3.1 are unchanged.
+  Source inspection is not a formal absence-of-exploit or reachability proof.
+
+Only those seven changed source hashes are rebound; no source inventory addition.
+The three exact low advisory objects, dependencies, manifest/lock/config hashes,
+phase, expiry policy and historical raw reports are unchanged. This remains the
+same private usability pilot and accepted risk, not a clean raw audit or a new
+exception. Independent corrected-candidate review and actual built-image gates
+remain separate requirements before any authorized publication.

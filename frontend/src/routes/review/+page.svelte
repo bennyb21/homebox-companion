@@ -44,9 +44,10 @@
 	// Get workflow reference
 	const workflow = scanWorkflow;
 
-	onNavigate(({ to }) => {
+	onNavigate(async ({ to }) => {
 		if (!to || to.url.pathname === resolve('/review')) return;
-		return workflow.isEditingFailedItem ? workflow.cancelFailedItemEdit() : workflow.persistAsync();
+		if (workflow.isEditingFailedItem) await workflow.cancelFailedItemEdit();
+		else await workflow.persistAsync();
 	});
 
 	// Consume errors where they occur so navigation cannot surface a stale validation failure.

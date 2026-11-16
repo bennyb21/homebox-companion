@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures/test';
 import type { Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { json } from './fixtures/api';
+import { verifiedAttachment, json } from './fixtures/api';
 import { createdItem, detectedItems } from './fixtures/data';
 import { analyzePhotos, selectLocation, uploadPhoto } from './helpers/scan';
 import { readDrafts } from './helpers/recovery';
@@ -36,7 +36,7 @@ test('unconfirmed rich edits and ordered replacement photos recover, including s
 	const uploads: string[] = [];
 	api.on('POST', '/api/items/saved/attachments', (request) => {
 		uploads.push(request.postDataBuffer()?.toString('base64') ?? '');
-		return json({});
+		return verifiedAttachment(request);
 	});
 	await selectLocation(page);
 	await uploadPhoto(page);

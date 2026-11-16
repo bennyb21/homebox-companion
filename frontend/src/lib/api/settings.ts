@@ -3,6 +3,7 @@
  */
 
 import { requestBlobUrl, request } from './client';
+import type { ResearchDiagnostic, ResearchResult } from './research';
 
 // =============================================================================
 // DEMO MODE STORAGE
@@ -335,7 +336,18 @@ export interface LLMProfileUpdate {
 	research_reasoning_effort?: string | null;
 }
 
+export interface ProfileTestRequest {
+	test_kind: 'connection' | 'research';
+	identity?: {
+		manufacturer?: string;
+		identifier_kind: 'model_number' | 'part_number';
+		identifier_exact: string;
+	};
+}
+
 export interface TestConnectionResponse {
+	diagnostic?: ResearchDiagnostic | null;
+	research_result?: ResearchResult | null;
 	success: boolean;
 	message: string;
 	model_info?: {
@@ -380,10 +392,11 @@ export const llmProfiles = {
 		}),
 
 	/** Test connection to an LLM profile */
-	test: (name: string, overrides?: { model?: string; api_key?: string; api_base?: string }) =>
+	test: (name: string, options: ProfileTestRequest = { test_kind: 'connection' }) =>
 		request<TestConnectionResponse>(`/llm/profiles/${encodeURIComponent(name)}/test`, {
 			method: 'POST',
-			body: overrides ? JSON.stringify(overrides) : undefined,
+			skipAuthRetry: true,
+			body: JSON.stringify(options),
 		}),
 };
 

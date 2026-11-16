@@ -17,16 +17,16 @@ def family_response(value="Example Series W123 vehicle family"):
     payload = json.loads(part["text"])
     payload["candidates"][0]["identifier_exact"] = BODY["identity"]["identifier_exact"]
     claim = payload["candidates"][0]["claims"][0]
-    claim.update(field="vehicle_family", value=value)
+    claim.update(field="vehicle_family", value=value, source_urls=["https://example.com/family"])
     part["text"] = text = json.dumps(payload)
-    # Separate targeted identity and claim spans, not the entire JSON document.
+    # Separate provider-cited sources; positions locate citations, not evidence excerpts.
     base = part["annotations"][0]
     start = text.index('"manufacturer"')
     end = text.index(', "identifier_kind"')
     claim_start = text.index(value)
     part["annotations"] = [
         base | {"start_index": start, "end_index": end},
-        base | {"start_index": claim_start, "end_index": claim_start + len(value)},
+        base | {"url": "https://example.com/family", "start_index": claim_start, "end_index": claim_start + len(value)},
     ]
     return data
 

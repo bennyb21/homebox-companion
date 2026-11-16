@@ -68,6 +68,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install locked dependencies
         run: npm ci
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14.10"
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.5"
+          enable-cache: true
+      - name: Install locked ASGI bridge dependencies
+        working-directory: .
+        run: uv sync --locked --all-groups
       - name: Verify frontend
         run: npm run verify
       - name: Build frontend
@@ -150,11 +160,22 @@ jobs:
       - name: Image application acceptance (synthetic providers only)
         env:
           TEST_HOMEBOX_VERSION: "0.27.1"
+          HBC_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/image-acceptance-${{ github.run_attempt }}
         run: |
           npm --prefix frontend ci
           npm --prefix frontend run build
           cd frontend && npx playwright install --with-deps chromium && cd ..
-          uv run --no-sync pytest -m live tests/test_capture_groups_fullstack.py tests/test_fullstack_smoke.py tests/test_research_fullstack.py
+          uv run --no-sync pytest -m live tests/test_capture_groups_fullstack.py tests/test_fullstack_smoke.py tests/test_research_fullstack.py tests/test_attachment_submission.py tests/test_attachment_image_fullstack.py
+      - name: Retain image acceptance evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-acceptance-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/image-acceptance-${{ github.run_attempt }}
+            frontend/test-results
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve the tested image, never rebuild for publication
         run: bash scripts/seal-tested-image.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

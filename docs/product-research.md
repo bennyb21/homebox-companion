@@ -11,8 +11,10 @@ reusing the stored key by reference. No key copy/re-entry or provider test occur
 The settings page reads back the saved configuration before reporting success.
 
 Eligibility is checked on the server against the adapter's existing credential,
-model-name and official-endpoint constraints and the installed LiteLLM catalog's
-OpenAI web-search flag. The UI uses these server results rather than its own
+model-name and official-endpoint constraints, exact first-party model metadata,
+or the installed LiteLLM catalog's OpenAI web-search flag. The API reports
+`eligibility_source` (`official_metadata`, `runtime_catalog`, or `unverified`).
+The UI uses these server results rather than its own
 model list. Catalog eligibility is **not** verification of API key validity,
 model access, billing or live research quality. Unsupported profiles show a reason;
 create/edit an AI profile, then reload research settings. A dedicated **Research** role
@@ -47,7 +49,99 @@ Open **Research product data** in capture review or on an unsaved summary item. 
 
 Only public identity is sent to the provider: no item IDs, collection/account IDs, location, notes, purchase price, serial field, images or inventory description. Input cannot guarantee that a person never pastes private information into a product field; review it before confirming.
 
-Provider annotations and completed search actions are required. Claimed JSON URLs alone are insufficient. Similar suffixes and manufacturer collisions yield ambiguity, not adopted facts. Citations identify **model synthesis**, not independently fetched/verified source quotations. There are no vehicle fitment, VIN or safety guarantees. Model output cannot target purchase price or arbitrary fields.
+Provider annotations and completed search actions are required for candidate claims. Claimed JSON URLs alone are insufficient. A different exact identifier/kind or supplied manufacturer is rejected; maker collisions with unspecified manufacturer yield ambiguity, not adopted facts. Citations identify **model synthesis**, not independently fetched/verified source quotations. There are no vehicle fitment, VIN or safety guarantees. Model output cannot target purchase price or arbitrary fields.
+
+The search action and editable public identity replace a mandatory attestation checkbox.
+New clients omit `identity_confirmed`; legacy boolean values are accepted but ignored
+and excluded from serialized identity. This does not expand identifier kinds or
+relax citation, field, stale-review or credential restrictions.
+
+## Response attribution contract
+
+The adapter requests one bounded JSON object, `{"candidates":[...]}`, in one
+completed `output_text` part after a completed hosted search. Each candidate and
+claim explicitly lists `source_urls`; each listed URL must have a provider
+`url_citation` annotation. A `web_search_call.action.sources` listing alone is
+not evidence and never authorizes a claim. Citation indices locate the citation
+in the output message; they are **not guaranteed excerpts supporting the claim**.
+The explicit per-claim JSON mapping is model attribution, not independent page
+verification. Each displayed claim must retain its clickable source links and
+the server-owned label “Cited model synthesis; original source text not independently verified”.
+
+JSON is decoded once, with duplicate keys, unsupported fields and unbounded
+candidates rejected. Trailing whitespace is allowed. A trailing citation marker
+is accepted only at the exact provider-annotated position, using the documented
+`\ue200cite\ue202turn…\ue201` grammar; all other trailing content is rejected.
+No arbitrary text stripping, second model call, paid repair or source-page fetch
+is performed. Empty candidates after a completed search are valid `no_results`
+without annotations. Refusals and incomplete responses are distinct failures.
+
+This application contract is deliberately conservative: it does not guarantee
+that every valid provider response can be consumed. Enforced Structured Outputs
+is not enabled from separate model feature flags alone; joint hosted-search,
+annotation and structured-format compatibility was not established by the
+inspected examples. Formatting failures are reported, not silently repaired.
+
+## Diagnostics and explicit profile tests
+
+`ResearchResult` retains schema version 1 and existing statuses. Its optional
+`diagnostic` contains required `code` and `stage`, plus fixed safe `message`,
+optional `http_status`, sanitized `request_id`, `dispatch_started`, application
+`correlation_id`, and `incomplete_reason` (`max_output_tokens`, `content_filter`,
+or `other`). Old durable results without diagnostics remain readable. The HTTP
+request ID is not a LiteLLM-encoded response ID. Unknown/nonconforming IDs are
+omitted rather than truncated. No query, key, raw headers, response body, source
+title/URL, photo or exception text is included in diagnostics/log entries.
+
+Stages: `configuration`, `provider_resolution`, `dispatch`, `response`, `parse`.
+Stable codes: `configuration_invalid`, `credential_missing`, `model_unverified`,
+`provider_resolution_failed`, `request_rejected`, `authentication_failed`,
+`access_denied`, `model_not_found`, `rate_limited`, `provider_unavailable`,
+`redirect_rejected`, `transport_error`, `timeout`, `response_invalid`,
+`response_incomplete`, `response_refused`, `search_missing`, `citations_missing`,
+`citation_invalid`, `source_invalid`, `malformed_json`, `schema_invalid`,
+`identity_mismatch`, `claim_invalid`, `matched`, `ambiguous`, `no_results`,
+`connection_verified`. Clients should handle unknown future codes with a neutral
+fallback; a diagnostic never authorizes automatic replay. `dispatch_started`
+does not establish acceptance or billing. Known HTTP errors after research
+dispatch retain conservative `unknown_outcome` semantics.
+
+`POST /api/llm/profiles/{name}/test` keeps its old response fields `success`,
+`message`, `model_info`, adding optional `diagnostic` and `research_result`:
+
+- Default `test_kind: "connection"` uses **one read-only GET** to the official
+  OpenAI `/v1/models/{exact-model}` endpoint for approved official destinations.
+  It validates authenticated exact model metadata access only, not generation,
+  billing or web search. It bypasses SDK provider inference without rewriting
+  the model ID. Other providers retain explicitly labelled legacy completion tests.
+- Explicit `test_kind: "research"` requires `identity` with the same public
+  manufacturer/part-or-model contract as lookup. The UI must require an explicit
+  cost-confirmed action. The named profile is tested even when Off, through the
+  same bounded adapter; testing does not change any settings, canonical research
+  selection, capture role or inventory. Success is true only for validated
+  `matched` or `no_results`; the latter means request completed without results,
+  not product verification. Ambiguous, incomplete and unknown results are false.
+- Existing key/destination restrictions also apply to unsaved overrides. No
+  save, enable, editor-open or navigation triggers either test. Test messages
+  should remain visible until dismissed or replaced.
+
+Exact `gpt-6.1-terra` metadata permits Responses web search and research reasoning
+`none`, `low`, `medium` (provider default), `high`, `xhigh`, `max`. Catalog absence
+does not block this documented model. Literal `gpt-6-terra` is not renamed or
+treated as documented; a connection test can check its literal access, but
+research eligibility remains unverified unless supported metadata is available.
+
+### First-party references inspected
+
+- [Responses create schema](https://developers.openai.com/api/reference/resources/responses/methods/create)
+- [Web search output and citations](https://developers.openai.com/api/docs/guides/tools-web-search?api-mode=responses)
+- [Citation formatting](https://developers.openai.com/api/docs/guides/citation-formatting)
+- [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [GPT-6.1 Terra](https://developers.openai.com/api/docs/models/gpt-6.1-terra)
+- [Retrieve model](https://developers.openai.com/api/reference/resources/models/methods/retrieve)
+
+Offline mock-HTTP tests establish routing/validation, not model access or live
+search quality. A separate authorized real pilot is still required.
 
 Select proposals individually. Current values (including intentionally empty values) remain unchanged until adoption. Only unambiguous native TEXT fields with server-controlled meanings are eligible: Manufacturer/Hersteller, Part number/Part number (OEM)/Teilenummer, Model number/Modellnummer, Specifications/Technical specifications/Technische Daten, and coarse Vehicle family/Fahrzeugzuordnung. The latter is a sourced family/model assignment only, not VIN-, engine-, model-year-specific compatibility or installation approval. MSRP never maps to purchase price. Unrelated/native sibling field IDs are preserved. Changed drafts/templates reject adoption. Draft reviews expire after 15 minutes and do not survive a server restart; capture/save still works.
 

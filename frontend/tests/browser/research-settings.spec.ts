@@ -24,7 +24,9 @@ test('research switch reuses the sole existing profile and reloads saved setting
 	});
 	await page.goto('/settings');
 	await expect(page.getByRole('switch', { name: 'Enable product research' })).not.toBeChecked();
-	await page.getByRole('switch', { name: 'Enable product research' }).check();
+	// State only changes after server readback, not optimistically on the click.
+	await page.getByRole('switch', { name: 'Enable product research' }).click();
+	await expect(page.getByRole('switch', { name: 'Enable product research' })).toBeChecked();
 	await expect(
 		page.getByText('Research settings saved. No provider request was made.')
 	).toBeVisible();

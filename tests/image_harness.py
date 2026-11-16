@@ -58,6 +58,30 @@ def image_command(test_file, port, work, env):
     return command
 
 
+def production_image_command(port, work, env):
+    """Run the image's default production CMD; mount only disposable settings data."""
+    import uuid
+
+    data = work / "data"
+    data.mkdir(exist_ok=True)
+    data.chmod(0o777)
+    command = DOCKER + [
+        "run",
+        "--rm",
+        "--name",
+        f"hbc-attachment-{uuid.uuid4().hex}",
+        "--network",
+        "host",
+        "--mount",
+        f"type=bind,src={data},dst=/app/data",
+    ]
+    settings = {**env, "HBC_SERVER_HOST": "127.0.0.1", "HBC_SERVER_PORT": str(port)}
+    for key, value in settings.items():
+        if key.startswith("HBC_") or key == "LITELLM_LOCAL_MODEL_COST_MAP":
+            command += ["-e", f"{key}={value}"]
+    return command + [os.environ["TEST_COMPANION_IMAGE"]]
+
+
 def start_server(test_file, port, build, work, env, log):
     import sys
 

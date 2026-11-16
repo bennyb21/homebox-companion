@@ -171,3 +171,38 @@ test('refresh completion cannot install credentials from a previous session', as
 	assert.equal(await pending, false);
 	assert.equal(installed, false);
 });
+
+test('attachment API never refreshes and replays its POST on 401', async () => {
+	const original = globalThis.fetch;
+	let posts = 0,
+		refreshes = 0;
+	try {
+		const api = await loadModule('api/client.ts', {
+			authStore: auth(),
+			log,
+			refreshToken: async () => {
+				refreshes++;
+				return true;
+			},
+			registerRefreshTransport() {},
+			abortSignalAny: AbortSignal.any,
+			abortSignalTimeout: AbortSignal.timeout,
+		});
+		const { items } = await loadModule('api/items.ts', { ...api, normalizeAssetId: (v) => v, log });
+		globalThis.fetch = async () => {
+			posts++;
+			return new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } });
+		};
+		await assert.rejects(
+			items.uploadAttachment('known', new File(['x'], 'x.jpg'), {
+				attemptId: crypto.randomUUID(),
+				slot: '0',
+			}),
+			{ status: 401 }
+		);
+		assert.equal(posts, 1);
+		assert.equal(refreshes, 0);
+	} finally {
+		globalThis.fetch = original;
+	}
+});
