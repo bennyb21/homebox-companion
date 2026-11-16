@@ -171,6 +171,7 @@ export const de = {
 	Manufacturer: 'Hersteller',
 	'e.g. DeWalt': 'z. B. DeWalt',
 	'Model Number': 'Modellnummer',
+	'Model number': 'Modellnummer',
 	'e.g. DCD771C2': 'z. B. DCD771C2',
 	'Serial Number': 'Seriennummer',
 	'e.g. SN123456789': 'z. B. SN123456789',

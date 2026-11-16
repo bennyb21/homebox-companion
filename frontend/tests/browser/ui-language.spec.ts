@@ -354,6 +354,98 @@ test.describe('German browser default and explicit English override', () => {
 		await page.getByRole('button', { name: 'Auswahl in Homebox übernehmen' }).click();
 		await expect(page.getByText('Übernommen', { exact: true })).toBeVisible();
 	});
+	test('core research labels translate while same-named custom fields remain literal', async ({
+		page,
+		api,
+	}) => {
+		researchFixture(api);
+		api.on('GET', '/api/items', () =>
+			json([{ id: 'item1', name: 'Hydraulikpumpe Beispiel P-100' }])
+		);
+		const core = [
+			{ name: 'Teilenummer', current: 'P-100-A', value: 'P-100-A', source_urls: [], evidence: '' },
+			{
+				name: 'Manufacturer',
+				target: 'manufacturer',
+				current: '',
+				value: 'Beispiel',
+				source_urls: [],
+				evidence: '',
+			},
+			{
+				name: 'Description',
+				target: 'description',
+				current: '',
+				value:
+					'Hydraulikpumpe für den Einsatz in einer Werkstattpresse. Gehäuse aus Stahl, Modellreihe P-100.',
+				source_urls: [],
+				evidence: '',
+			},
+			{
+				name: 'Model number',
+				target: 'model_number',
+				current: 'P100',
+				value: 'P-100',
+				source_urls: [],
+				evidence: '',
+			},
+			{
+				name: 'Manufacturer',
+				current: 'Custom preserved',
+				value: 'Custom preserved',
+				source_urls: [],
+				evidence: '',
+			},
+		];
+		let applied = false;
+		api.on('GET', '/api/research/jobs', () =>
+			json([
+				{
+					id: 'core1',
+					item: 'item1',
+					state: applied ? 'applied' : 'matched',
+					result: { research: { ...result(), ambiguity: '' }, proposals: core },
+				},
+			])
+		);
+		api.on('POST', '/api/research/jobs/core1/apply', (request) => {
+			expect(request.postDataJSON()).toEqual({
+				selected: [1, 3],
+				edits: { '1': 'Beispiel', '3': 'P-100-EDIT' },
+			});
+			applied = true;
+			return json({ state: 'applied' });
+		});
+		await page.goto('/research');
+		await expect(page.getByLabel('Hersteller', { exact: true })).toHaveValue('Beispiel');
+		await expect(page.getByLabel('Beschreibung', { exact: true })).toHaveValue(core[2].value);
+		await expect(page.getByLabel('Modellnummer', { exact: true })).toHaveValue('P-100');
+		await expect(page.getByLabel('Manufacturer', { exact: true })).not.toBeVisible();
+		await page.getByText('Unveränderte Felder (2)', { exact: true }).click();
+		await expect(page.getByLabel('Manufacturer', { exact: true })).toHaveValue('Custom preserved');
+		await page.getByText('Unveränderte Felder (2)', { exact: true }).click();
+		await page.setViewportSize({ width: 390, height: 900 });
+		await screenshot(page, 'core-research-de-390');
+		const card = page
+			.locator('section')
+			.filter({
+				has: page.getByRole('heading', { name: 'Hydraulikpumpe Beispiel P-100', exact: true }),
+			});
+		await card.evaluate((element) =>
+			window.scrollTo(0, window.scrollY + element.getBoundingClientRect().top - 80)
+		);
+		await card.screenshot({
+			path: report
+				? `${report}/core-research-panel-de.png`
+				: test.info().outputPath('core-research-panel-de.png'),
+		});
+		await page.getByLabel('Modellnummer', { exact: true }).fill('P-100-EDIT');
+		await page.getByRole('checkbox', { name: 'Hersteller übernehmen', exact: true }).check();
+		await page.getByRole('checkbox', { name: 'Modellnummer übernehmen', exact: true }).check();
+		await page.getByRole('button', { name: 'Auswahl in Homebox übernehmen' }).click();
+		await expect(page.getByText('Übernommen', { exact: true })).toBeVisible();
+	});
+
 	test('real error category, raw diagnostics and source ambiguity remain accessible', async ({
 		page,
 		api,

@@ -2,7 +2,7 @@
 	import { t } from '$lib/i18n/index.svelte';
 
 	import { autosize } from '$lib/actions/autosize';
-	import type { ResearchProposal } from '$lib/api/research';
+	import { researchProposalLabel, type ResearchProposal } from '$lib/api/research';
 	let {
 		proposals = $bindable(),
 		selected = $bindable(),
@@ -28,7 +28,7 @@
 			<input
 				type="checkbox"
 				id="{prefix}-select-{index}"
-				aria-label={t('Adopt {p0}', { p0: proposal.name })}
+				aria-label={t('Adopt {p0}', { p0: researchProposalLabel(proposal) })}
 				bind:group={selected}
 				value={index}
 				{disabled}
@@ -36,7 +36,7 @@
 			<label
 				id="{prefix}-label-{index}"
 				for="{prefix}-value-{index}"
-				class="text-body-sm font-medium text-neutral-200">{proposal.name}</label
+				class="text-body-sm font-medium text-neutral-200">{researchProposalLabel(proposal)}</label
 			>
 		</div>
 		{#if proposal.current && proposal.current !== proposal.value}<p

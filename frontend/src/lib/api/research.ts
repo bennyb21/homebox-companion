@@ -1,12 +1,29 @@
 import { t } from '$lib/i18n/index.svelte';
 export interface ResearchProposal {
 	name: string;
+	target?: string;
 	current: string;
 	value: string;
 	source_urls: string[];
 	evidence: string;
 	unchanged?: boolean;
 	multiline?: boolean;
+}
+
+/** Only server-owned core labels are UI text; custom-field names stay literal. */
+export function researchProposalLabel(proposal: ResearchProposal): string {
+	switch (proposal.target) {
+		case 'name':
+			return t('Name');
+		case 'description':
+			return t('Description');
+		case 'manufacturer':
+			return t('Manufacturer');
+		case 'model_number':
+			return t('Model number');
+		default:
+			return proposal.name;
+	}
 }
 
 /** Preserve server ordering: apply APIs address proposals by their original index. */
